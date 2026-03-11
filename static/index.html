@@ -440,20 +440,42 @@
       </div>
       <div class="panel-body">
         <div class="tts-panel">
+          <!-- Engine Status -->
           <div class="tts-engine-info" id="ttsEngineInfo">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
             Verificando engine de voz...
           </div>
+
+          <!-- Engine + Voice selectors -->
           <div class="tts-controls">
-            <label>Voz:</label>
-            <select id="ttsPanelVoice" class="model-select">
-              <option value="pt-BR-AntonioNeural">Antonio (PT-BR)</option>
-              <option value="pt-BR-FranciscaNeural">Francisca (PT-BR)</option>
-              <option value="en-US-GuyNeural">Guy (EN-US)</option>
-              <option value="en-US-JennyNeural">Jenny (EN-US)</option>
-            </select>
+            <div class="tts-row">
+              <label>Engine:</label>
+              <select id="ttsPanelEngine" class="model-select" onchange="onTTSEngineChange()">
+                <option value="auto">Auto (melhor disponível)</option>
+                <option value="pyttsx3">Sistema / pyttsx3 (offline)</option>
+                <option value="piper">Piper TTS (offline, alta qualidade)</option>
+                <option value="edge-tts">Edge TTS (online)</option>
+              </select>
+            </div>
+            <div class="tts-row" id="ttsVoiceRow">
+              <label>Voz (edge-tts):</label>
+              <select id="ttsPanelVoice" class="model-select">
+                <option value="pt-BR-AntonioNeural">Antonio (PT-BR)</option>
+                <option value="pt-BR-FranciscaNeural">Francisca (PT-BR)</option>
+                <option value="en-US-GuyNeural">Guy (EN-US)</option>
+                <option value="en-US-JennyNeural">Jenny (EN-US)</option>
+              </select>
+            </div>
+            <div class="tts-row hidden" id="ttsSysVoiceRow">
+              <label>Voz do Sistema:</label>
+              <select id="ttsPanelSysVoice" class="model-select">
+                <option value="">Carregando...</option>
+              </select>
+            </div>
           </div>
-          <textarea id="ttsInput" class="tts-textarea" rows="8" placeholder="Digite ou cole o texto que deseja ouvir...&#10;&#10;Dica: funciona offline com Piper TTS instalado, ou via edge-tts com internet."></textarea>
+
+          <!-- Speak controls -->
+          <textarea id="ttsInput" class="tts-textarea" rows="6" placeholder="Digite ou cole o texto que deseja ouvir..."></textarea>
           <div class="tts-actions">
             <button class="btn-sm btn-accent" onclick="speakTTSPanel()" id="btnTTSSpeak">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07"/></svg>
@@ -465,14 +487,60 @@
             </button>
             <button class="btn-sm" onclick="document.getElementById('ttsInput').value=''">Limpar</button>
           </div>
-          <div class="tts-piper-hint">
-            <strong>Para TTS 100% offline:</strong> instale o <a href="https://github.com/rhasspy/piper" target="_blank">Piper TTS</a> e os modelos de voz.<br>
-            O servidor detecta automaticamente e usa Piper quando disponível.
+
+          <!-- Piper Model Downloader -->
+          <div class="tts-section" id="piperSection">
+            <div class="tts-section-header">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Modelos Piper
+              <span class="tts-section-note">offline • alta qualidade • baixar uma vez</span>
+            </div>
+            <div id="piperModelCards" class="piper-model-cards">
+              <div class="piper-loading">Carregando modelos...</div>
+            </div>
           </div>
         </div>
       </div>
     </div>
   </main>
+
+  <!-- ═══ Setup Modal ═══ -->
+  <div id="setupModal" class="modal-overlay hidden" onclick="closeSetupModal(event)">
+    <div class="modal-box setup-modal">
+      <div class="setup-modal-header">
+        <div class="setup-modal-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14"/><path d="M22.54 1.46a15 15 0 010 21.2M1.46 1.46a15 15 0 000 21.2"/></svg>
+          Ativar modo 100% offline
+        </div>
+        <button class="setup-modal-close" onclick="closeSetupModal(null, true)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="setup-modal-body" id="setupModalBody">
+        <!-- preenchido dinamicamente -->
+      </div>
+      <div class="setup-modal-footer">
+        <label class="setup-no-more">
+          <input type="checkbox" id="setupDontShow"> Não mostrar novamente
+        </label>
+        <button class="btn-sm" onclick="closeSetupModal(null, true)">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Background Download Toast ═══ -->
+  <div id="dlToast" class="dl-toast hidden">
+    <div class="dl-toast-header">
+      <span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Baixando modelos
+      </span>
+      <button onclick="document.getElementById('dlToast').classList.add('hidden')" title="Minimizar">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+    </div>
+    <div id="dlToastItems" class="dl-toast-items"></div>
+  </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="./app.js"></script>

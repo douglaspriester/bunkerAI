@@ -40,6 +40,32 @@ VOICE_MODELS_DIR.mkdir(exist_ok=True)
 # ─── Lazy-loaded voice engines ────────────────────────────────────────────────
 _whisper_model = None
 _piper_available = None
+_pyttsx3_available = None
+
+# ─── Piper model catalog ──────────────────────────────────────────────────────
+PIPER_HF_BASE = "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0"
+PIPER_MODELS = {
+    "pt_BR-faber-medium": {
+        "lang": "pt", "lang_code": "pt_BR", "speaker": "faber", "quality": "medium",
+        "desc": "Português BR — Masculino (recomendado)", "size_mb": 63,
+    },
+    "pt_BR-edresson-low": {
+        "lang": "pt", "lang_code": "pt_BR", "speaker": "edresson", "quality": "low",
+        "desc": "Português BR — Masculino (rápido)", "size_mb": 28,
+    },
+    "en_US-lessac-medium": {
+        "lang": "en", "lang_code": "en_US", "speaker": "lessac", "quality": "medium",
+        "desc": "English US — Male", "size_mb": 63,
+    },
+    "en_US-amy-medium": {
+        "lang": "en", "lang_code": "en_US", "speaker": "amy", "quality": "medium",
+        "desc": "English US — Female", "size_mb": 63,
+    },
+    "es_ES-mls_9972-low": {
+        "lang": "es", "lang_code": "es_ES", "speaker": "mls_9972", "quality": "low",
+        "desc": "Español — Male", "size_mb": 28,
+    },
+}
 
 
 def get_whisper_model():
@@ -73,22 +99,93 @@ def _check_cuda():
 
 
 def check_piper():
-    """Check if piper-tts is available"""
+    """Check if piper CLI binary is available AND local .onnx models exist"""
     global _piper_available
     if _piper_available is None:
-        _piper_available = shutil.which("piper") is not None
-        if not _piper_available:
-            # Try python module
+        has_binary = shutil.which("piper") is not None
+        has_models = any(VOICE_MODELS_DIR.glob("*.onnx")) if VOICE_MODELS_DIR.exists() else False
+        if not has_binary:
             try:
                 import piper
-                _piper_available = True
+                has_binary = True
             except ImportError:
-                _piper_available = False
+                pass
+        _piper_available = has_binary and has_models
         if _piper_available:
-            print("[TTS] Piper TTS available (offline)")
+            print(f"[TTS] Piper TTS available (offline) — {list(VOICE_MODELS_DIR.glob('*.onnx'))[:3]}")
+        elif has_binary and not has_models:
+            print("[TTS] Piper binary found but no .onnx models — download via /api/tts/download-piper-model")
         else:
-            print("[TTS] Piper not found — using edge-tts (online)")
+            print("[TTS] Piper not found — will use pyttsx3 or edge-tts")
     return _piper_available
+
+
+def check_pyttsx3():
+    """Check if pyttsx3 with system voices is available"""
+    global _pyttsx3_available
+    if _pyttsx3_available is None:
+        try:
+            import pyttsx3
+            engine = pyttsx3.init()
+            voices = engine.getProperty("voices")
+            engine.stop()
+            _pyttsx3_available = bool(voices)
+            if _pyttsx3_available:
+                print(f"[TTS] pyttsx3 available — {len(voices)} system voice(s)")
+        except Exception as e:
+            print(f"[TTS] pyttsx3 not available: {e}")
+            _pyttsx3_available = False
+    return _pyttsx3_available
+
+
+async def _tts_pyttsx3(text: str, filepath: Path, voice_id: str = None) -> Path | None:
+    """Generate audio with pyttsx3 (OS TTS engine — Windows SAPI5/macOS/Linux)"""
+    import concurrent.futures
+    try:
+        import pyttsx3
+        wav_path = filepath.with_suffix(".wav")
+
+        def _synth():
+            engine = pyttsx3.init()
+            voices = engine.getProperty("voices")
+            if voice_id:
+                for v in voices:
+                    if voice_id in str(v.id) or voice_id.lower() in v.name.lower():
+                        engine.setProperty("voice", v.id)
+                        break
+            else:
+                # Prefer Portuguese if available
+                pt = next((v for v in voices if any(
+                    x in v.name.lower() for x in ["portuguese", "brasil", "brazil", "zira", "heloisa", "pt"]
+                )), None)
+                if pt:
+                    engine.setProperty("voice", pt.id)
+            engine.setProperty("rate", 175)
+            engine.setProperty("volume", 0.9)
+            engine.save_to_file(text, str(wav_path))
+            engine.runAndWait()
+            engine.stop()
+            return wav_path.exists() and wav_path.stat().st_size > 100
+
+        loop = asyncio.get_event_loop()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            ok = await loop.run_in_executor(pool, _synth)
+
+        if ok and wav_path.exists():
+            if shutil.which("ffmpeg"):
+                proc = await asyncio.create_subprocess_exec(
+                    "ffmpeg", "-y", "-i", str(wav_path), "-q:a", "4", str(filepath),
+                    stdout=asyncio.subprocess.DEVNULL,
+                    stderr=asyncio.subprocess.DEVNULL,
+                )
+                await proc.wait()
+                wav_path.unlink(missing_ok=True)
+                return filepath if filepath.exists() else None
+            else:
+                return wav_path  # serve WAV directly
+    except Exception as e:
+        print(f"[TTS] pyttsx3 error: {e}")
+    return None
 
 
 # ─── Shared streaming helper ─────────────────────────────────────────────────
@@ -130,6 +227,24 @@ async def health():
             # Voice capabilities
             whisper_ok = get_whisper_model() is not None
             piper_ok = check_piper()
+            pyttsx3_ok = check_pyttsx3()
+
+            # Determine best TTS
+            if piper_ok:
+                tts_engine = "piper"
+            elif pyttsx3_ok:
+                tts_engine = "pyttsx3"
+            else:
+                tts_engine = "edge-tts"
+
+            # Piper model status
+            piper_models_status = {}
+            for model_id, info in PIPER_MODELS.items():
+                onnx = VOICE_MODELS_DIR / f"{model_id}.onnx"
+                piper_models_status[model_id] = {
+                    **info,
+                    "downloaded": onnx.exists() and onnx.stat().st_size > 1000,
+                }
 
             return {
                 "status": "online",
@@ -137,9 +252,12 @@ async def health():
                 "models": names,
                 "vision_models": vision,
                 "stt": "whisper" if whisper_ok else "browser",
-                "tts": "piper" if piper_ok else "edge-tts",
+                "tts": tts_engine,
                 "stt_ready": whisper_ok,
-                "tts_offline": piper_ok,
+                "tts_offline": piper_ok or pyttsx3_ok,
+                "piper_available": piper_ok,
+                "pyttsx3_available": pyttsx3_ok,
+                "piper_models": piper_models_status,
             }
     except Exception as e:
         return {
@@ -151,6 +269,9 @@ async def health():
             "tts": "edge-tts",
             "stt_ready": False,
             "tts_offline": False,
+            "piper_available": False,
+            "pyttsx3_available": False,
+            "piper_models": {},
         }
 
 
@@ -202,24 +323,37 @@ async def tts(request: Request, background_tasks: BackgroundTasks):
     body = await request.json()
     text = body.get("text", "")
     voice = body.get("voice", "pt-BR-AntonioNeural")
-    engine = body.get("engine", "auto")  # "auto", "piper", "edge-tts"
+    engine = body.get("engine", "auto")  # "auto", "piper", "pyttsx3", "edge-tts"
+    voice_id = body.get("voice_id", None)   # pyttsx3 system voice ID
     if not text:
         return JSONResponse({"error": "No text"}, status_code=400)
 
     filename = f"{uuid.uuid4().hex}.mp3"
     filepath = TTS_DIR / filename
 
-    # Try piper first if requested or auto
+    # 1. Try Piper (best offline quality)
     if engine in ("auto", "piper") and check_piper():
         try:
             result = await _tts_piper(text, filepath, voice)
             if result:
+                mt = "audio/mpeg" if result.suffix == ".mp3" else "audio/wav"
                 background_tasks.add_task(os.unlink, str(result))
-                return FileResponse(str(result), media_type="audio/mpeg", filename=result.name)
+                return FileResponse(str(result), media_type=mt, filename=result.name)
         except Exception as e:
-            print(f"[TTS] Piper error: {e}, falling back to edge-tts")
+            print(f"[TTS] Piper error: {e}, trying pyttsx3")
 
-    # Fallback: edge-tts (online)
+    # 2. Try pyttsx3 (system TTS — offline, no model download needed)
+    if engine in ("auto", "pyttsx3") and check_pyttsx3():
+        try:
+            result = await _tts_pyttsx3(text, filepath, voice_id)
+            if result:
+                mt = "audio/mpeg" if result.suffix == ".mp3" else "audio/wav"
+                background_tasks.add_task(os.unlink, str(result))
+                return FileResponse(str(result), media_type=mt, filename=result.name)
+        except Exception as e:
+            print(f"[TTS] pyttsx3 error: {e}, falling back to edge-tts")
+
+    # 3. Fallback: edge-tts (requires internet)
     try:
         import edge_tts
         communicate = edge_tts.Communicate(text, voice)
@@ -231,23 +365,30 @@ async def tts(request: Request, background_tasks: BackgroundTasks):
 
 
 async def _tts_piper(text: str, filepath: Path, voice: str) -> Path | None:
-    """Generate audio with Piper TTS (offline)"""
-    # Map edge-tts voice names to piper model names
+    """Generate audio with Piper TTS (offline) using local .onnx model"""
+    # Map edge-tts voice names to piper model IDs
     piper_voice_map = {
         "pt-BR-AntonioNeural": "pt_BR-faber-medium",
         "pt-BR-FranciscaNeural": "pt_BR-faber-medium",
         "en-US-GuyNeural": "en_US-lessac-medium",
         "en-US-JennyNeural": "en_US-amy-medium",
     }
-    piper_model = piper_voice_map.get(voice, "pt_BR-faber-medium")
+    piper_model_id = piper_voice_map.get(voice, "pt_BR-faber-medium")
+
+    # Find a downloaded model — prefer the mapped one, then any available
+    model_path = VOICE_MODELS_DIR / f"{piper_model_id}.onnx"
+    if not model_path.exists():
+        onnx_files = list(VOICE_MODELS_DIR.glob("*.onnx"))
+        if not onnx_files:
+            return None
+        model_path = onnx_files[0]
 
     wav_path = filepath.with_suffix(".wav")
 
-    # Try using piper CLI
     if shutil.which("piper"):
         proc = await asyncio.create_subprocess_exec(
             "piper",
-            "--model", piper_model,
+            "--model", str(model_path),
             "--output_file", str(wav_path),
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
@@ -255,7 +396,6 @@ async def _tts_piper(text: str, filepath: Path, voice: str) -> Path | None:
         )
         stdout, stderr = await proc.communicate(input=text.encode("utf-8"))
         if proc.returncode == 0 and wav_path.exists():
-            # Convert to mp3 if ffmpeg available
             if shutil.which("ffmpeg"):
                 mp3_proc = await asyncio.create_subprocess_exec(
                     "ffmpeg", "-y", "-i", str(wav_path), "-q:a", "4", str(filepath),
@@ -264,16 +404,13 @@ async def _tts_piper(text: str, filepath: Path, voice: str) -> Path | None:
                 )
                 await mp3_proc.wait()
                 wav_path.unlink(missing_ok=True)
-                if filepath.exists():
-                    return filepath
+                return filepath if filepath.exists() else None
             else:
-                # Return wav if no ffmpeg
                 return wav_path
 
-    # Try python module
     try:
-        import piper
-        voice_obj = piper.PiperVoice.load(piper_model)
+        import piper as piper_module
+        voice_obj = piper_module.PiperVoice.load(str(model_path))
         with open(str(wav_path), "wb") as f:
             voice_obj.synthesize(text, f)
         return wav_path
@@ -281,6 +418,112 @@ async def _tts_piper(text: str, filepath: Path, voice: str) -> Path | None:
         pass
 
     return None
+
+
+# ─── TTS: Piper model management ─────────────────────────────────────────────
+
+@app.get("/api/tts/piper-models")
+async def list_piper_models():
+    """List available Piper models with download status"""
+    result = {}
+    for model_id, info in PIPER_MODELS.items():
+        onnx = VOICE_MODELS_DIR / f"{model_id}.onnx"
+        downloaded = onnx.exists() and onnx.stat().st_size > 1000
+        result[model_id] = {**info, "downloaded": downloaded}
+    return {"models": result, "models_dir": str(VOICE_MODELS_DIR.resolve())}
+
+
+@app.post("/api/tts/download-piper-model")
+async def download_piper_model(request: Request):
+    """Stream download progress of a Piper .onnx voice model via SSE"""
+    body = await request.json()
+    model_id = body.get("model_id", "")
+
+    if model_id not in PIPER_MODELS:
+        return JSONResponse({"error": f"Unknown model: {model_id}"}, status_code=400)
+
+    info = PIPER_MODELS[model_id]
+    lang = info["lang"]
+    lang_code = info["lang_code"]
+    speaker = info["speaker"]
+    quality = info["quality"]
+
+    onnx_filename = f"{model_id}.onnx"
+    json_filename = f"{model_id}.onnx.json"
+    onnx_url = f"{PIPER_HF_BASE}/{lang}/{lang_code}/{speaker}/{quality}/{lang_code}-{speaker}-{quality}.onnx"
+    json_url = f"{PIPER_HF_BASE}/{lang}/{lang_code}/{speaker}/{quality}/{lang_code}-{speaker}-{quality}.onnx.json"
+
+    onnx_dest = VOICE_MODELS_DIR / onnx_filename
+    json_dest = VOICE_MODELS_DIR / json_filename
+
+    async def generate():
+        global _piper_available
+        try:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(600.0), follow_redirects=True) as client:
+                # Download JSON config first (small)
+                yield f"data: {json.dumps({'status': 'downloading', 'file': json_filename, 'progress': 0})}\n\n"
+                r = await client.get(json_url)
+                if r.status_code == 200:
+                    json_dest.write_bytes(r.content)
+                    yield f"data: {json.dumps({'status': 'downloading', 'file': json_filename, 'progress': 100})}\n\n"
+
+                # Stream ONNX model (large)
+                total_bytes = info["size_mb"] * 1024 * 1024
+                downloaded_bytes = 0
+                yield f"data: {json.dumps({'status': 'downloading', 'file': onnx_filename, 'progress': 0, 'total_mb': info['size_mb']})}\n\n"
+
+                async with client.stream("GET", onnx_url) as resp:
+                    if resp.status_code != 200:
+                        yield f"data: {json.dumps({'status': 'error', 'error': f'HTTP {resp.status_code}'})}\n\n"
+                        return
+
+                    content_length = int(resp.headers.get("content-length", total_bytes))
+                    with open(onnx_dest, "wb") as f:
+                        last_pct = -1
+                        async for chunk in resp.aiter_bytes(chunk_size=65536):
+                            f.write(chunk)
+                            downloaded_bytes += len(chunk)
+                            pct = min(99, int(downloaded_bytes / content_length * 100))
+                            if pct != last_pct:
+                                last_pct = pct
+                                mb = downloaded_bytes / (1024 * 1024)
+                                yield f"data: {json.dumps({'status': 'downloading', 'file': onnx_filename, 'progress': pct, 'mb': round(mb, 1)})}\n\n"
+
+                # Verify and finish
+                if onnx_dest.exists() and onnx_dest.stat().st_size > 1000:
+                    _piper_available = None  # reset so check_piper() re-evaluates
+                    yield f"data: {json.dumps({'status': 'done', 'model_id': model_id, 'file': onnx_filename})}\n\n"
+                else:
+                    yield f"data: {json.dumps({'status': 'error', 'error': 'Download incomplete'})}\n\n"
+
+        except Exception as e:
+            yield f"data: {json.dumps({'status': 'error', 'error': str(e)})}\n\n"
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
+
+
+@app.get("/api/tts/pyttsx3/voices")
+async def list_pyttsx3_voices():
+    """List available system TTS voices (pyttsx3)"""
+    if not check_pyttsx3():
+        return JSONResponse({"error": "pyttsx3 not available"}, status_code=503)
+    try:
+        import pyttsx3
+        import concurrent.futures
+
+        def _get_voices():
+            engine = pyttsx3.init()
+            voices = engine.getProperty("voices")
+            result = [{"id": v.id, "name": v.name, "languages": v.languages} for v in voices]
+            engine.stop()
+            return result
+
+        loop = asyncio.get_event_loop()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            voices = await loop.run_in_executor(pool, _get_voices)
+        return {"voices": voices}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 
 # ─── Chat (streaming) — texto puro ──────────────────────────────────────────

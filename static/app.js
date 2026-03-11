@@ -18,7 +18,12 @@ const state = {
   favorites: [],      // [{ id, text, from, chatId, ts }]
   activeGuide: null,
   sttEngine: "browser",  // "whisper" (offline) or "browser" (Chrome Web Speech API)
-  ttsOffline: false,     // true if piper is available
+  ttsOffline: false,       // true if any offline TTS is available
+  ttsEngine: "edge-tts",  // "piper" | "pyttsx3" | "edge-tts"
+  piperModels: {},         // { model_id: { desc, size_mb, downloaded } }
+  sysVoices: [],           // [{ id, name }] from pyttsx3
+  _setupChecked: false,    // prevent showing setup modal more than once
+  _bgDownloads: {},        // { model_id: { pct, done, error } }
   promptQueue: [],        // [string] — queued prompts
   abortController: null,  // AbortController for active stream
   characters: {},         // { id: { name, emoji, color, desc, systemPrompt, voice } }
@@ -905,7 +910,14 @@ async function checkHealth() {
       // Voice engine status from backend
       state.sttEngine = d.stt || "browser";
       state.ttsOffline = !!d.tts_offline;
+      state.ttsEngine = d.tts || "edge-tts";
+      state.piperModels = d.piper_models || {};
       updateVoiceStatus(d);
+      // Show setup popup if something is missing (only once per session)
+      if (!state._setupChecked) {
+        state._setupChecked = true;
+        maybeShowSetupModal(d);
+      }
     } else {
       dot.className = "status-dot offline";
       txt.textContent = "Ollama offline";
@@ -924,10 +936,10 @@ function updateVoiceStatus(d) {
   const ttsEl = document.getElementById("ttsStatus");
   if (sttEl) {
     if (d.stt === "whisper") {
-      sttEl.textContent = "\u2713 Whisper (offline, GPU)";
+      sttEl.textContent = "\u2713 Whisper (offline)";
       sttEl.className = "voice-engine-status online";
     } else {
-      sttEl.textContent = "Browser Speech API (online)";
+      sttEl.textContent = "Browser Speech API";
       sttEl.className = "voice-engine-status fallback";
     }
   }
@@ -935,11 +947,193 @@ function updateVoiceStatus(d) {
     if (d.tts === "piper") {
       ttsEl.textContent = "\u2713 Piper TTS (offline)";
       ttsEl.className = "voice-engine-status online";
+    } else if (d.tts === "pyttsx3") {
+      ttsEl.textContent = "\u2713 Sistema/pyttsx3 (offline)";
+      ttsEl.className = "voice-engine-status online";
     } else {
       ttsEl.textContent = "Edge TTS (online)";
       ttsEl.className = "voice-engine-status fallback";
     }
   }
+}
+
+// ─── Setup Modal ─────────────────────────────────────────────────────────────
+
+function maybeShowSetupModal(d) {
+  if (localStorage.getItem("bunker_setup_dismissed") === "1") return;
+
+  const piperModels = d.piper_models || {};
+  const hasAnyPiper = Object.values(piperModels).some(m => m.downloaded);
+  const whisperReady = !!d.stt_ready;
+
+  if (hasAnyPiper && whisperReady) return; // everything OK
+
+  // Build content
+  let html = "";
+
+  // TTS section — Piper models
+  if (!hasAnyPiper) {
+    html += `<div class="setup-section">
+      <div class="setup-section-title">🔊 TTS Offline — Modelos de Voz (Piper)</div>
+      <div class="setup-section-desc">Escolha um modelo para síntese de voz 100% offline e alta qualidade. Baixa uma vez, funciona para sempre.</div>
+      <div class="setup-model-list">`;
+    for (const [id, info] of Object.entries(piperModels)) {
+      html += `<div class="setup-model-item" id="setup-item-${id}">
+        <div class="setup-model-info">
+          <span class="setup-model-name">${info.desc}</span>
+          <span class="setup-model-size">${info.size_mb} MB · ${info.quality}</span>
+        </div>
+        <div id="setup-action-${id}">
+          <button class="btn-sm btn-accent" onclick="startBgDownload('${id}')">Baixar</button>
+        </div>
+        <div class="setup-prog hidden" id="setup-prog-${id}">
+          <div class="setup-bar-track"><div class="setup-bar" id="setup-bar-${id}" style="width:0%"></div></div>
+          <span class="setup-txt" id="setup-txt-${id}">0%</span>
+        </div>
+      </div>`;
+    }
+    html += `</div></div>`;
+  } else {
+    html += `<div class="setup-section">
+      <div class="setup-ok">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+        TTS offline ativo (Piper)
+      </div>
+    </div>`;
+  }
+
+  // STT section — Whisper
+  if (!whisperReady) {
+    html += `<div class="setup-section">
+      <div class="setup-section-title">🎤 STT Offline — Whisper (transcrição de voz)</div>
+      <div class="setup-section-desc">Instale o faster-whisper no ambiente virtual para transcrição offline:</div>
+      <code class="setup-cmd">venv/Scripts/pip install faster-whisper</code>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:8px;">Reinicie o servidor após instalar.</div>
+    </div>`;
+  } else {
+    html += `<div class="setup-section">
+      <div class="setup-ok">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+        STT offline ativo (Whisper)
+      </div>
+    </div>`;
+  }
+
+  document.getElementById("setupModalBody").innerHTML = html;
+  document.getElementById("setupModal").classList.remove("hidden");
+}
+
+function closeSetupModal(event, force = false) {
+  if (!force && event && event.target !== document.getElementById("setupModal")) return;
+  const modal = document.getElementById("setupModal");
+  modal.classList.add("hidden");
+  if (document.getElementById("setupDontShow")?.checked) {
+    localStorage.setItem("bunker_setup_dismissed", "1");
+  }
+}
+
+async function startBgDownload(modelId) {
+  const info = state.piperModels[modelId];
+  if (!info) return;
+
+  // Disable button in modal
+  const actionEl = document.getElementById(`setup-action-${modelId}`);
+  const progEl = document.getElementById(`setup-prog-${modelId}`);
+  const barEl = document.getElementById(`setup-bar-${modelId}`);
+  const txtEl = document.getElementById(`setup-txt-${modelId}`);
+  if (actionEl) actionEl.innerHTML = `<span style="font-size:11px;color:var(--text-muted)">Iniciando...</span>`;
+  if (progEl) progEl.classList.remove("hidden");
+
+  // Show / update toast
+  _toastAddItem(modelId, info.desc);
+  document.getElementById("dlToast").classList.remove("hidden");
+
+  state._bgDownloads[modelId] = { pct: 0, done: false, error: null };
+
+  try {
+    const r = await fetch("/api/tts/download-piper-model", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model_id: modelId }),
+    });
+
+    const reader = r.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const parts = buf.split("\n\n");
+      buf = parts.pop();
+      for (const part of parts) {
+        if (!part.startsWith("data: ")) continue;
+        try {
+          const evt = JSON.parse(part.slice(6));
+          if (evt.status === "downloading") {
+            const pct = evt.progress || 0;
+            const label = evt.mb ? `${evt.mb} MB (${pct}%)` : `${pct}%`;
+            // Update modal
+            if (barEl) barEl.style.width = pct + "%";
+            if (txtEl) txtEl.textContent = label;
+            // Update toast
+            _toastUpdateItem(modelId, pct, label);
+          } else if (evt.status === "done") {
+            if (barEl) barEl.style.width = "100%";
+            if (txtEl) txtEl.textContent = "Concluído!";
+            _toastUpdateItem(modelId, 100, "Concluído!", true);
+            state._bgDownloads[modelId].done = true;
+            // Update modal button to show done badge
+            if (actionEl) actionEl.innerHTML = `<span class="setup-done-badge"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg> Pronto</span>`;
+            // Refresh health + TTS panel after short delay
+            setTimeout(() => checkHealth(), 1200);
+            setTimeout(() => {
+              if (document.getElementById("piperModelCards")) _loadPiperModelCards();
+              // Auto-hide toast after 4s if all done
+              const allDone = Object.values(state._bgDownloads).every(x => x.done || x.error);
+              if (allDone) setTimeout(() => document.getElementById("dlToast")?.classList.add("hidden"), 4000);
+            }, 1500);
+          } else if (evt.status === "error") {
+            const msg = `Erro: ${evt.error}`;
+            if (txtEl) txtEl.textContent = msg;
+            _toastUpdateItem(modelId, 0, msg, false, true);
+            state._bgDownloads[modelId].error = evt.error;
+            if (actionEl) actionEl.innerHTML = `<button class="btn-sm btn-accent" onclick="startBgDownload('${modelId}')">Tentar novamente</button>`;
+          }
+        } catch (_) {}
+      }
+    }
+  } catch (e) {
+    if (txtEl) txtEl.textContent = `Erro: ${e.message}`;
+    _toastUpdateItem(modelId, 0, `Erro: ${e.message}`, false, true);
+    if (actionEl) actionEl.innerHTML = `<button class="btn-sm btn-accent" onclick="startBgDownload('${modelId}')">Tentar novamente</button>`;
+  }
+}
+
+function _toastAddItem(modelId, label) {
+  const container = document.getElementById("dlToastItems");
+  if (!container) return;
+  // Remove existing
+  document.getElementById(`toast-item-${modelId}`)?.remove();
+  const div = document.createElement("div");
+  div.className = "dl-toast-item";
+  div.id = `toast-item-${modelId}`;
+  div.innerHTML = `
+    <div class="dl-toast-name">${label}</div>
+    <div class="dl-toast-track"><div class="dl-toast-bar" id="toast-bar-${modelId}" style="width:0%"></div></div>
+    <div class="dl-toast-pct" id="toast-pct-${modelId}">0%</div>`;
+  container.appendChild(div);
+}
+
+function _toastUpdateItem(modelId, pct, label, done = false, error = false) {
+  const bar = document.getElementById(`toast-bar-${modelId}`);
+  const pctEl = document.getElementById(`toast-pct-${modelId}`);
+  const item = document.getElementById(`toast-item-${modelId}`);
+  if (bar) bar.style.width = pct + "%";
+  if (pctEl) pctEl.textContent = label;
+  if (item && done) { item.classList.add("done"); bar && (bar.style.background = "var(--accent)"); }
+  if (item && error) { bar && (bar.style.background = "#f87171"); }
 }
 
 async function checkMapStatus() {
@@ -1895,36 +2089,90 @@ function deleteCharacter(id) {
 }
 
 // ─── TTS Panel ───────────────────────────────────────────────────────────────
-function openTTSPanel() {
+async function openTTSPanel() {
   showView("ttsView");
   document.getElementById("sidebar").classList.remove("open");
-  // Sync voice from config
+
+  // Sync voice from config drawer
   const voice = document.getElementById("ttsVoice").value;
   document.getElementById("ttsPanelVoice").value = voice;
-  // Show engine status
+
+  // Update engine status banner
+  _updateTTSEngineBanner();
+
+  // Load Piper models
+  _loadPiperModelCards();
+
+  // Load system voices if not yet loaded
+  if (state.sysVoices.length === 0) {
+    try {
+      const r = await fetch("/api/tts/pyttsx3/voices");
+      if (r.ok) {
+        const d = await r.json();
+        state.sysVoices = d.voices || [];
+        _populateSysVoices();
+      }
+    } catch (_) {}
+  } else {
+    _populateSysVoices();
+  }
+}
+
+function _updateTTSEngineBanner() {
   const info = document.getElementById("ttsEngineInfo");
-  if (state.ttsOffline) {
-    info.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#42f5a0" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Piper TTS — 100% offline`;
+  if (!info) return;
+  const eng = state.ttsEngine;
+  if (eng === "piper") {
+    info.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#42f5a0" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Piper TTS — 100% offline, alta qualidade`;
+    info.style.color = "#42f5a0";
+  } else if (eng === "pyttsx3") {
+    info.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#42f5a0" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> pyttsx3 — vozes do sistema, 100% offline`;
     info.style.color = "#42f5a0";
   } else {
-    info.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f5c542" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> edge-tts (precisa de internet)`;
+    info.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f5c542" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> edge-tts — precisa de internet`;
     info.style.color = "#f5c542";
   }
+}
+
+function onTTSEngineChange() {
+  const eng = document.getElementById("ttsPanelEngine").value;
+  const voiceRow = document.getElementById("ttsVoiceRow");
+  const sysRow = document.getElementById("ttsSysVoiceRow");
+  const isPyttsx3 = eng === "pyttsx3";
+  const isEdge = eng === "edge-tts" || eng === "auto";
+  voiceRow.classList.toggle("hidden", isPyttsx3);
+  sysRow.classList.toggle("hidden", !isPyttsx3);
+}
+
+function _populateSysVoices() {
+  const sel = document.getElementById("ttsPanelSysVoice");
+  if (!sel || state.sysVoices.length === 0) return;
+  sel.innerHTML = state.sysVoices.map(v =>
+    `<option value="${v.id}">${v.name}</option>`
+  ).join("");
 }
 
 async function speakTTSPanel() {
   const text = document.getElementById("ttsInput").value.trim();
   if (!text) return;
+
+  const eng = document.getElementById("ttsPanelEngine").value;
   const voice = document.getElementById("ttsPanelVoice").value;
+  const sysVoiceSel = document.getElementById("ttsPanelSysVoice");
+  const voiceId = sysVoiceSel ? sysVoiceSel.value : null;
+
   document.getElementById("btnTTSSpeak").style.display = "none";
   document.getElementById("btnTTSStop").style.display = "";
-
   if (state.currentAudio) { state.currentAudio.pause(); state.currentAudio = null; }
+
   try {
+    const body = { text: text.slice(0, 5000), voice, engine: eng };
+    if (eng === "pyttsx3" && voiceId) body.voice_id = voiceId;
+
     const r = await fetch("/api/tts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: text.slice(0, 4000), voice }),
+      body: JSON.stringify(body),
     });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const blob = await r.blob();
@@ -1953,6 +2201,107 @@ function stopTTS() {
   if (state.currentAudio) { state.currentAudio.pause(); state.currentAudio = null; }
   document.getElementById("btnTTSSpeak").style.display = "";
   document.getElementById("btnTTSStop").style.display = "none";
+}
+
+async function _loadPiperModelCards() {
+  const container = document.getElementById("piperModelCards");
+  if (!container) return;
+
+  try {
+    const r = await fetch("/api/tts/piper-models");
+    if (!r.ok) throw new Error("Falha ao carregar modelos");
+    const d = await r.json();
+    state.piperModels = d.models || {};
+    _renderPiperCards(state.piperModels);
+  } catch (e) {
+    container.innerHTML = `<div class="piper-error">Erro ao carregar: ${e.message}</div>`;
+  }
+}
+
+function _renderPiperCards(models) {
+  const container = document.getElementById("piperModelCards");
+  if (!container) return;
+
+  if (!Object.keys(models).length) {
+    container.innerHTML = `<div class="piper-empty">Nenhum modelo disponível.</div>`;
+    return;
+  }
+
+  container.innerHTML = Object.entries(models).map(([id, info]) => {
+    const dl = info.downloaded;
+    return `
+    <div class="piper-card ${dl ? "piper-card--downloaded" : ""}" data-model-id="${id}">
+      <div class="piper-card-info">
+        <div class="piper-card-name">${info.desc}</div>
+        <div class="piper-card-meta">${id} · ${info.size_mb} MB · ${info.quality}</div>
+      </div>
+      <div class="piper-card-actions">
+        ${dl
+          ? `<span class="piper-badge-ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg> Pronto</span>`
+          : `<button class="btn-sm btn-accent" onclick="downloadPiperModel('${id}')">Baixar</button>`
+        }
+      </div>
+      <div class="piper-progress hidden" id="piper-prog-${id}">
+        <div class="piper-progress-bar" id="piper-bar-${id}" style="width:0%"></div>
+        <span class="piper-progress-txt" id="piper-txt-${id}">0%</span>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+async function downloadPiperModel(modelId) {
+  const progEl = document.getElementById(`piper-prog-${modelId}`);
+  const barEl = document.getElementById(`piper-bar-${modelId}`);
+  const txtEl = document.getElementById(`piper-txt-${modelId}`);
+  const card = document.querySelector(`[data-model-id="${modelId}"]`);
+  const btn = card?.querySelector("button");
+
+  if (btn) btn.disabled = true;
+  if (progEl) progEl.classList.remove("hidden");
+
+  try {
+    const r = await fetch("/api/tts/download-piper-model", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model_id: modelId }),
+    });
+
+    const reader = r.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const parts = buf.split("\n\n");
+      buf = parts.pop();
+      for (const part of parts) {
+        if (!part.startsWith("data: ")) continue;
+        try {
+          const evt = JSON.parse(part.slice(6));
+          if (evt.status === "downloading") {
+            const pct = evt.progress || 0;
+            if (barEl) barEl.style.width = pct + "%";
+            if (txtEl) txtEl.textContent = evt.mb ? `${evt.mb} MB (${pct}%)` : `${pct}%`;
+          } else if (evt.status === "done") {
+            if (barEl) barEl.style.width = "100%";
+            if (txtEl) txtEl.textContent = "Concluído!";
+            // Refresh card to show "Pronto"
+            setTimeout(() => _loadPiperModelCards(), 500);
+            // Refresh health status
+            setTimeout(() => checkStatus(), 1000);
+          } else if (evt.status === "error") {
+            if (txtEl) txtEl.textContent = `Erro: ${evt.error}`;
+            if (btn) btn.disabled = false;
+          }
+        } catch (_) {}
+      }
+    }
+  } catch (e) {
+    if (txtEl) txtEl.textContent = `Erro: ${e.message}`;
+    if (btn) btn.disabled = false;
+  }
 }
 
 // ─── Pull Model ─────────────────────────────────────────────────────────────
