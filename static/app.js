@@ -2089,7 +2089,7 @@ function deleteCharacter(id) {
 }
 
 // ─── TTS Panel ───────────────────────────────────────────────────────────────
-async function openTTSPanel() {
+function openTTSPanel() {
   showView("ttsView");
   document.getElementById("sidebar").classList.remove("open");
 
@@ -2097,35 +2097,53 @@ async function openTTSPanel() {
   const voice = document.getElementById("ttsVoice").value;
   document.getElementById("ttsPanelVoice").value = voice;
 
-  // Update engine status banner
-  _updateTTSEngineBanner();
+  // Pre-select engine dropdown to match backend's best available engine
+  const sel = document.getElementById("ttsPanelEngine");
+  if (sel && sel.value === "auto" && state.ttsEngine !== "edge-tts") {
+    sel.value = state.ttsEngine; // pre-select pyttsx3 or piper if available
+  }
+
+  // Sync row visibility + banner for selected engine
+  onTTSEngineChange();
 
   // Load Piper models
   _loadPiperModelCards();
 
-  // Load system voices if not yet loaded
-  if (state.sysVoices.length === 0) {
-    try {
-      const r = await fetch("/api/tts/pyttsx3/voices");
-      if (r.ok) {
-        const d = await r.json();
-        state.sysVoices = d.voices || [];
-        _populateSysVoices();
-      }
-    } catch (_) {}
-  } else {
-    _populateSysVoices();
+  // Fetch system voices (always attempt, handles errors gracefully)
+  _fetchSysVoices();
+}
+
+async function _fetchSysVoices() {
+  const sel = document.getElementById("ttsPanelSysVoice");
+  if (!sel) return;
+  if (state.sysVoices.length > 0) { _populateSysVoices(); return; }
+  sel.innerHTML = '<option value="">Carregando...</option>';
+  try {
+    const r = await fetch("/api/tts/pyttsx3/voices");
+    if (r.ok) {
+      const d = await r.json();
+      state.sysVoices = d.voices || [];
+      _populateSysVoices();
+    } else {
+      sel.innerHTML = '<option value="">pyttsx3 indisponível no servidor</option>';
+    }
+  } catch (_) {
+    sel.innerHTML = '<option value="">Erro ao conectar ao servidor</option>';
   }
 }
 
 function _updateTTSEngineBanner() {
   const info = document.getElementById("ttsEngineInfo");
   if (!info) return;
-  const eng = state.ttsEngine;
-  if (eng === "piper") {
+  // Use the DROPDOWN selected value, not just state.ttsEngine
+  const selEl = document.getElementById("ttsPanelEngine");
+  const selEng = selEl ? selEl.value : "auto";
+  const effective = selEng === "auto" ? state.ttsEngine : selEng;
+
+  if (effective === "piper") {
     info.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#42f5a0" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Piper TTS — 100% offline, alta qualidade`;
     info.style.color = "#42f5a0";
-  } else if (eng === "pyttsx3") {
+  } else if (effective === "pyttsx3") {
     info.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#42f5a0" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> pyttsx3 — vozes do sistema, 100% offline`;
     info.style.color = "#42f5a0";
   } else {
@@ -2135,20 +2153,23 @@ function _updateTTSEngineBanner() {
 }
 
 function onTTSEngineChange() {
-  const eng = document.getElementById("ttsPanelEngine").value;
-  const voiceRow = document.getElementById("ttsVoiceRow");
-  const sysRow = document.getElementById("ttsSysVoiceRow");
+  const eng = document.getElementById("ttsPanelEngine")?.value || "auto";
   const isPyttsx3 = eng === "pyttsx3";
-  const isEdge = eng === "edge-tts" || eng === "auto";
-  voiceRow.classList.toggle("hidden", isPyttsx3);
-  sysRow.classList.toggle("hidden", !isPyttsx3);
+  document.getElementById("ttsVoiceRow")?.classList.toggle("hidden", isPyttsx3);
+  document.getElementById("ttsSysVoiceRow")?.classList.toggle("hidden", !isPyttsx3);
+  _updateTTSEngineBanner();
+  if (isPyttsx3) _fetchSysVoices();
 }
 
 function _populateSysVoices() {
   const sel = document.getElementById("ttsPanelSysVoice");
-  if (!sel || state.sysVoices.length === 0) return;
+  if (!sel) return;
+  if (state.sysVoices.length === 0) {
+    sel.innerHTML = '<option value="">Nenhuma voz encontrada</option>';
+    return;
+  }
   sel.innerHTML = state.sysVoices.map(v =>
-    `<option value="${v.id}">${v.name}</option>`
+    `<option value="${escapeHtml(v.id)}">${escapeHtml(v.name)}</option>`
   ).join("");
 }
 
