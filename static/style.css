@@ -198,6 +198,55 @@ body {
 .status-dot.online { background: var(--accent); }
 .status-dot.offline { background: var(--danger); }
 
+/* Sidebar system status section */
+.sidebar-sys-status {
+  padding: 8px 8px 4px;
+  border-top: 1px solid var(--border-subtle);
+  margin-top: 6px;
+}
+.sys-status-title {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.sys-config-btn {
+  margin-left: auto;
+  background: none;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  font-size: 10px;
+  border-radius: 4px;
+  padding: 1px 6px;
+  cursor: pointer;
+  transition: border-color .15s, color .15s;
+}
+.sys-config-btn:hover { border-color: var(--accent); color: var(--accent); }
+.sys-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.sys-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--amber);
+}
+.sys-dot.sys-ok   { background: var(--accent); }
+.sys-dot.sys-warn { background: var(--amber); }
+.sys-dot.sys-err  { background: var(--danger); }
+.sys-label { font-size: 11px; }
+
 .hamburger {
   display: none;
   position: fixed;

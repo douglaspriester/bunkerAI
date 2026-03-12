@@ -913,6 +913,8 @@ async function checkHealth() {
       state.ttsEngine = d.tts || "edge-tts";
       state.piperModels = d.piper_models || {};
       updateVoiceStatus(d);
+      updateSysStatusBar(d);
+      state._lastHealth = d;
       // Show setup popup if something is missing (only once per session)
       if (!state._setupChecked) {
         state._setupChecked = true;
@@ -958,6 +960,34 @@ function updateVoiceStatus(d) {
 }
 
 // ─── Setup Modal ─────────────────────────────────────────────────────────────
+
+function openSetupModal() {
+  const d = state._lastHealth || {};
+  // Temporarily clear dismissed flag for forced open, restore after build
+  const wasDismissed = localStorage.getItem("bunker_setup_dismissed");
+  localStorage.removeItem("bunker_setup_dismissed");
+  maybeShowSetupModal(d);
+  if (wasDismissed && wasDismissed !== "0") {
+    // Keep dismissed flag removed so modal stays open; user can re-check it
+  }
+}
+
+function updateSysStatusBar(d) {
+  const rows = [
+    { id: "sysOllama", ok: !!d.status && d.status === "online", label: d.status === "online" ? "Ollama online" : "Ollama offline" },
+    { id: "sysSTT",    ok: d.stt === "whisper", label: d.stt === "whisper" ? "Whisper (offline)" : "Browser Speech API" },
+    { id: "sysTTS",    ok: d.tts === "piper" || d.tts === "pyttsx3", label: d.tts === "piper" ? "Piper (offline)" : d.tts === "pyttsx3" ? "pyttsx3 (offline)" : "Edge TTS (online)" },
+  ];
+  for (const row of rows) {
+    const dot = document.getElementById(row.id);
+    if (dot) {
+      dot.className = "sys-dot " + (row.ok ? "sys-ok" : "sys-warn");
+      dot.title = row.label;
+    }
+    const lbl = document.getElementById(row.id + "Lbl");
+    if (lbl) lbl.textContent = row.label;
+  }
+}
 
 function maybeShowSetupModal(d) {
   if (localStorage.getItem("bunker_setup_dismissed") === "1") return;

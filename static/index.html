@@ -119,7 +119,31 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
         <span>Texto para Voz</span>
       </li>
+      <li class="nav-item nav-guide" onclick="openAppsPanel()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg>
+        <span>App Builder</span>
+      </li>
     </ul>
+
+    <div class="sidebar-sys-status">
+      <div class="sys-status-title">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Sistema
+        <button class="sys-config-btn" onclick="openSetupModal()" title="Configurar componentes offline">⚙ Configurar</button>
+      </div>
+      <div class="sys-row">
+        <span class="sys-dot sys-warn" id="sysOllama" title="Verificando..."></span>
+        <span class="sys-label" id="sysOllamaLbl">Ollama</span>
+      </div>
+      <div class="sys-row">
+        <span class="sys-dot sys-warn" id="sysSTT" title="Verificando..."></span>
+        <span class="sys-label" id="sysSTTLbl">STT</span>
+      </div>
+      <div class="sys-row">
+        <span class="sys-dot sys-warn" id="sysTTS" title="Verificando..."></span>
+        <span class="sys-label" id="sysTTSLbl">TTS</span>
+      </div>
+    </div>
 
     <div class="sidebar-footer">
       <div class="status-dot" id="statusDot"></div>
