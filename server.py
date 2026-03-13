@@ -12,7 +12,14 @@ import uuid
 import tempfile
 import subprocess
 import shutil
+import sqlite3
+import time
+import platform
+import socket
+from datetime import datetime, date
 from pathlib import Path
+
+SERVER_START_TIME = time.time()
 
 import httpx
 from fastapi import BackgroundTasks, FastAPI, UploadFile, File, Form, Request
@@ -36,6 +43,16 @@ MAPS_DIR = Path("static/maps")
 MAPS_DIR.mkdir(parents=True, exist_ok=True)
 VOICE_MODELS_DIR = Path("voice_models")
 VOICE_MODELS_DIR.mkdir(exist_ok=True)
+DATA_DIR = Path("data")
+GUIDES_DIR = DATA_DIR / "guides"
+PROTOCOLS_DIR = DATA_DIR / "protocols"
+BOOKS_DIR = DATA_DIR / "books"
+GAMES_DIR = DATA_DIR / "games"
+DB_PATH = DATA_DIR / "db" / "bunker.db"
+
+# Ensure data dirs exist
+for d in [GUIDES_DIR, PROTOCOLS_DIR, BOOKS_DIR, GAMES_DIR, DATA_DIR / "db", DATA_DIR / "zim", DATA_DIR / "avatar"]:
+    d.mkdir(parents=True, exist_ok=True)
 
 # ─── Lazy-loaded voice engines ────────────────────────────────────────────────
 _whisper_model = None
@@ -740,6 +757,395 @@ async def pull_model(request: Request):
                         yield f"data: {line}\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream")
+
+
+# ─── SQLite setup ────────────────────────────────────────────────────────────
+
+def _init_db():
+    """Create tables if they don't exist"""
+    conn = sqlite3.connect(str(DB_PATH))
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS supplies (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            category TEXT DEFAULT 'outros',
+            quantity REAL DEFAULT 0,
+            unit TEXT DEFAULT 'un',
+            expiry TEXT,
+            notes TEXT DEFAULT '',
+            created_at TEXT DEFAULT (datetime('now','localtime')),
+            updated_at TEXT DEFAULT (datetime('now','localtime'))
+        );
+        CREATE TABLE IF NOT EXISTS books (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            author TEXT DEFAULT '',
+            file TEXT NOT NULL,
+            lang TEXT DEFAULT 'pt',
+            size_kb INTEGER DEFAULT 0,
+            read_pct REAL DEFAULT 0
+        );
+        CREATE TABLE IF NOT EXISTS journal (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT UNIQUE NOT NULL,
+            content TEXT DEFAULT '',
+            mood TEXT DEFAULT 'neutral',
+            created_at TEXT DEFAULT (datetime('now','localtime'))
+        );
+    """)
+    conn.close()
+
+_init_db()
+
+
+def _db():
+    """Get a SQLite connection with row factory"""
+    conn = sqlite3.connect(str(DB_PATH))
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+# ─── Guides API ──────────────────────────────────────────────────────────────
+
+@app.get("/api/guides")
+async def list_guides():
+    """List all guides from data/guides/_index.json"""
+    idx = GUIDES_DIR / "_index.json"
+    if idx.exists():
+        return JSONResponse(json.loads(idx.read_text(encoding="utf-8")))
+    # Fallback: scan directory for .md files
+    guides = []
+    for f in sorted(GUIDES_DIR.glob("*.md")):
+        guides.append({"id": f.stem, "title": f.stem.replace("-", " ").title(), "category": "geral"})
+    return guides
+
+
+@app.get("/api/guides/{guide_id}")
+async def get_guide(guide_id: str):
+    """Return markdown content of a guide"""
+    safe = Path(guide_id).stem
+    # Check root and disaster-specific subdirectory
+    for subdir in [GUIDES_DIR, GUIDES_DIR / "disaster-specific"]:
+        fp = subdir / f"{safe}.md"
+        if fp.exists():
+            return Response(fp.read_text(encoding="utf-8"), media_type="text/markdown")
+    return JSONResponse({"error": "Guide not found"}, status_code=404)
+
+
+# ─── Protocols API ───────────────────────────────────────────────────────────
+
+@app.get("/api/protocols")
+async def list_protocols():
+    """List all emergency protocols"""
+    idx = PROTOCOLS_DIR / "_index.json"
+    if idx.exists():
+        return JSONResponse(json.loads(idx.read_text(encoding="utf-8")))
+    protocols = []
+    for f in sorted(PROTOCOLS_DIR.glob("*.json")):
+        if f.name == "_index.json":
+            continue
+        try:
+            data = json.loads(f.read_text(encoding="utf-8"))
+            protocols.append({"id": f.stem, "title": data.get("title", f.stem), "urgency": data.get("urgency", "normal")})
+        except json.JSONDecodeError:
+            pass
+    return protocols
+
+
+@app.get("/api/protocols/{proto_id}")
+async def get_protocol(proto_id: str):
+    """Return full decision tree for a protocol"""
+    safe = Path(proto_id).stem
+    fp = PROTOCOLS_DIR / f"{safe}.json"
+    if fp.exists():
+        return JSONResponse(json.loads(fp.read_text(encoding="utf-8")))
+    return JSONResponse({"error": "Protocol not found"}, status_code=404)
+
+
+# ─── Supplies API (SQLite CRUD) ──────────────────────────────────────────────
+
+@app.get("/api/supplies")
+async def list_supplies(category: str = None):
+    """List supplies, optionally filtered by category"""
+    conn = _db()
+    if category:
+        rows = conn.execute("SELECT * FROM supplies WHERE category = ? ORDER BY expiry", (category,)).fetchall()
+    else:
+        rows = conn.execute("SELECT * FROM supplies ORDER BY category, expiry").fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+@app.get("/api/supplies/summary")
+async def supplies_summary():
+    """Aggregated supply dashboard"""
+    conn = _db()
+    total = conn.execute("SELECT COUNT(*) as c FROM supplies").fetchone()["c"]
+    today = date.today().isoformat()
+    expiring_7 = conn.execute(
+        "SELECT COUNT(*) as c FROM supplies WHERE expiry IS NOT NULL AND expiry != '' AND expiry <= date(?, '+7 days')", (today,)
+    ).fetchone()["c"]
+    expiring_30 = conn.execute(
+        "SELECT COUNT(*) as c FROM supplies WHERE expiry IS NOT NULL AND expiry != '' AND expiry <= date(?, '+30 days')", (today,)
+    ).fetchone()["c"]
+    categories = conn.execute(
+        "SELECT category, COUNT(*) as count, SUM(quantity) as total_qty FROM supplies GROUP BY category ORDER BY count DESC"
+    ).fetchall()
+    conn.close()
+    return {
+        "total": total,
+        "expiring_7d": expiring_7,
+        "expiring_30d": expiring_30,
+        "categories": [dict(r) for r in categories],
+    }
+
+
+@app.post("/api/supplies")
+async def create_supply(request: Request):
+    body = await request.json()
+    conn = _db()
+    cur = conn.execute(
+        "INSERT INTO supplies (name, category, quantity, unit, expiry, notes) VALUES (?, ?, ?, ?, ?, ?)",
+        (body.get("name", ""), body.get("category", "outros"), body.get("quantity", 0),
+         body.get("unit", "un"), body.get("expiry", ""), body.get("notes", "")),
+    )
+    conn.commit()
+    item_id = cur.lastrowid
+    row = conn.execute("SELECT * FROM supplies WHERE id = ?", (item_id,)).fetchone()
+    conn.close()
+    return dict(row)
+
+
+@app.put("/api/supplies/{item_id}")
+async def update_supply(item_id: int, request: Request):
+    body = await request.json()
+    conn = _db()
+    fields = []
+    values = []
+    for key in ("name", "category", "quantity", "unit", "expiry", "notes"):
+        if key in body:
+            fields.append(f"{key} = ?")
+            values.append(body[key])
+    if not fields:
+        conn.close()
+        return JSONResponse({"error": "No fields to update"}, status_code=400)
+    fields.append("updated_at = datetime('now','localtime')")
+    values.append(item_id)
+    conn.execute(f"UPDATE supplies SET {', '.join(fields)} WHERE id = ?", values)
+    conn.commit()
+    row = conn.execute("SELECT * FROM supplies WHERE id = ?", (item_id,)).fetchone()
+    conn.close()
+    if row:
+        return dict(row)
+    return JSONResponse({"error": "Not found"}, status_code=404)
+
+
+@app.delete("/api/supplies/{item_id}")
+async def delete_supply(item_id: int):
+    conn = _db()
+    conn.execute("DELETE FROM supplies WHERE id = ?", (item_id,))
+    conn.commit()
+    conn.close()
+    return {"deleted": True, "id": item_id}
+
+
+# ─── Books API ───────────────────────────────────────────────────────────────
+
+@app.get("/api/books")
+async def list_books(q: str = None):
+    """List books, optionally search by title/author"""
+    conn = _db()
+    if q:
+        rows = conn.execute(
+            "SELECT * FROM books WHERE title LIKE ? OR author LIKE ? ORDER BY title",
+            (f"%{q}%", f"%{q}%"),
+        ).fetchall()
+    else:
+        rows = conn.execute("SELECT * FROM books ORDER BY title").fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+@app.get("/api/books/{book_id}/file")
+async def serve_book(book_id: int):
+    """Serve EPUB file"""
+    conn = _db()
+    row = conn.execute("SELECT * FROM books WHERE id = ?", (book_id,)).fetchone()
+    conn.close()
+    if not row:
+        return JSONResponse({"error": "Book not found"}, status_code=404)
+    fp = BOOKS_DIR / row["file"]
+    if fp.exists():
+        return FileResponse(str(fp), media_type="application/epub+zip", filename=row["file"])
+    return JSONResponse({"error": "File not found"}, status_code=404)
+
+
+@app.put("/api/books/{book_id}/progress")
+async def update_book_progress(book_id: int, request: Request):
+    body = await request.json()
+    conn = _db()
+    conn.execute("UPDATE books SET read_pct = ? WHERE id = ?", (body.get("read_pct", 0), book_id))
+    conn.commit()
+    conn.close()
+    return {"updated": True, "id": book_id}
+
+
+# ─── Games API ───────────────────────────────────────────────────────────────
+
+@app.get("/api/games")
+async def list_games():
+    """List available games"""
+    idx = GAMES_DIR / "_index.json"
+    if idx.exists():
+        return JSONResponse(json.loads(idx.read_text(encoding="utf-8")))
+    games = []
+    for f in sorted(GAMES_DIR.glob("*.html")):
+        games.append({"id": f.stem, "name": f.stem.replace("-", " ").title(), "file": f.name})
+    return games
+
+
+@app.get("/api/games/{name}")
+async def serve_game(name: str):
+    """Serve a game HTML file"""
+    safe = Path(name).stem
+    fp = GAMES_DIR / f"{safe}.html"
+    if fp.exists():
+        return HTMLResponse(fp.read_text(encoding="utf-8"))
+    return JSONResponse({"error": "Game not found"}, status_code=404)
+
+
+# ─── Journal API ─────────────────────────────────────────────────────────────
+
+@app.get("/api/journal")
+async def list_journal(limit: int = 30):
+    """List journal entries, newest first"""
+    conn = _db()
+    rows = conn.execute("SELECT * FROM journal ORDER BY date DESC LIMIT ?", (limit,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+@app.post("/api/journal")
+async def upsert_journal(request: Request):
+    """Create or update journal entry for a date"""
+    body = await request.json()
+    entry_date = body.get("date", date.today().isoformat())
+    content = body.get("content", "")
+    mood = body.get("mood", "neutral")
+    conn = _db()
+    conn.execute(
+        "INSERT INTO journal (date, content, mood) VALUES (?, ?, ?) ON CONFLICT(date) DO UPDATE SET content=?, mood=?",
+        (entry_date, content, mood, content, mood),
+    )
+    conn.commit()
+    row = conn.execute("SELECT * FROM journal WHERE date = ?", (entry_date,)).fetchone()
+    conn.close()
+    return dict(row)
+
+
+# ─── Kiwix status ────────────────────────────────────────────────────────────
+
+@app.get("/api/kiwix/status")
+async def kiwix_status():
+    """Check if Kiwix is running and list ZIM files"""
+    zim_dir = DATA_DIR / "zim"
+    zims = []
+    if zim_dir.exists():
+        for f in sorted(zim_dir.glob("*.zim")):
+            size_gb = f.stat().st_size / (1024 ** 3)
+            zims.append({"name": f.stem, "file": f.name, "size_gb": round(size_gb, 2)})
+
+    # Check if kiwix-serve is running on port 8889
+    running = False
+    try:
+        async with httpx.AsyncClient(timeout=2) as c:
+            r = await c.get("http://localhost:8889/")
+            running = r.status_code == 200
+    except Exception:
+        pass
+
+    return {"running": running, "port": 8889, "zim_files": zims}
+
+
+# ─── Setup status ────────────────────────────────────────────────────────────
+
+@app.get("/api/setup/status")
+async def setup_status():
+    """Report what offline content has been downloaded"""
+    return {
+        "setup_complete": (DATA_DIR / ".setup_complete").exists(),
+        "guides": len(list(GUIDES_DIR.glob("*.md"))),
+        "protocols": len([f for f in PROTOCOLS_DIR.glob("*.json") if f.name != "_index.json"]),
+        "books": len(list(BOOKS_DIR.glob("*.epub"))),
+        "games": len(list(GAMES_DIR.glob("*.html"))),
+        "zim_files": len(list((DATA_DIR / "zim").glob("*.zim"))),
+        "maps": len(list(MAPS_DIR.glob("*.pmtiles"))),
+        "kiwix_binary": (Path("tools") / "kiwix-serve.exe").exists() or shutil.which("kiwix-serve") is not None,
+        "db_exists": DB_PATH.exists(),
+    }
+
+
+# ─── System status ───────────────────────────────────────────────────────────
+
+@app.get("/api/status")
+async def system_status():
+    """System health: CPU, RAM, disk, IP, uptime, server info"""
+    # Uptime
+    uptime_sec = int(time.time() - SERVER_START_TIME)
+
+    # Local IP (non-loopback)
+    ip = "127.0.0.1"
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+    except Exception:
+        pass
+
+    # psutil stats (optional — graceful degradation if not installed)
+    cpu_pct = ram_pct = ram_used_mb = ram_total_mb = None
+    disk_pct = disk_free_gb = disk_total_gb = None
+    try:
+        import psutil
+        cpu_pct = psutil.cpu_percent(interval=0.1)
+        vm = psutil.virtual_memory()
+        ram_pct = round(vm.percent, 1)
+        ram_used_mb = round(vm.used / 1024 / 1024)
+        ram_total_mb = round(vm.total / 1024 / 1024)
+        d = psutil.disk_usage(str(Path.home()))
+        disk_pct = round(d.percent, 1)
+        disk_free_gb = round(d.free / 1024 / 1024 / 1024, 1)
+        disk_total_gb = round(d.total / 1024 / 1024 / 1024, 1)
+    except ImportError:
+        pass
+
+    # Content summary
+    content = {
+        "guides": len(list(GUIDES_DIR.glob("*.md"))),
+        "protocols": len([f for f in PROTOCOLS_DIR.glob("*.json") if f.name != "_index.json"]),
+        "books": len(list(BOOKS_DIR.glob("*.epub"))),
+        "games": len(list(GAMES_DIR.glob("*.html"))),
+        "zim_files": len(list((DATA_DIR / "zim").glob("*.zim"))),
+        "maps": len(list(MAPS_DIR.glob("*.pmtiles"))),
+    }
+
+    return {
+        "ip": ip,
+        "port": 8888,
+        "uptime_sec": uptime_sec,
+        "python": platform.python_version(),
+        "os": f"{platform.system()} {platform.release()}",
+        "cpu_pct": cpu_pct,
+        "ram_pct": ram_pct,
+        "ram_used_mb": ram_used_mb,
+        "ram_total_mb": ram_total_mb,
+        "disk_pct": disk_pct,
+        "disk_free_gb": disk_free_gb,
+        "disk_total_gb": disk_total_gb,
+        "content": content,
+        "server_time": datetime.now().isoformat(),
+    }
 
 
 # ─── Static ──────────────────────────────────────────────────────────────────

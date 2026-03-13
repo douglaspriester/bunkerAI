@@ -1,0 +1,182 @@
+{
+  "id": "bleeding",
+  "title": "Hemorragia Grave",
+  "urgency": "critical",
+  "description": "Protocolo para controle de sangramento grave. Acao rapida pode salvar a vida.",
+  "steps": [
+    {
+      "id": "check-safety",
+      "type": "decision",
+      "text": "O local e seguro para voce se aproximar?",
+      "detail": "Use luvas se disponiveis. Evite contato direto com sangue se possivel (use sacola plastica, pano).",
+      "yes": "assess-bleeding",
+      "no": "wait-safe"
+    },
+    {
+      "id": "wait-safe",
+      "type": "action",
+      "text": "NAO se aproxime! Ligue 192 (SAMU) e aguarde o local ficar seguro.",
+      "warning": "Sua seguranca vem primeiro.",
+      "next": null
+    },
+    {
+      "id": "assess-bleeding",
+      "type": "action",
+      "text": "Ligue 192 (SAMU) ou peca para alguem ligar. Localize a ORIGEM do sangramento.",
+      "detail": "Remova ou corte a roupa para visualizar o ferimento. Procure por sangramento que nao para sozinho.",
+      "next": "check-embedded"
+    },
+    {
+      "id": "check-embedded",
+      "type": "decision",
+      "text": "Ha algum objeto cravado no ferimento? (faca, vidro, metal, madeira)",
+      "yes": "embedded-object",
+      "no": "identify-type"
+    },
+    {
+      "id": "embedded-object",
+      "type": "action",
+      "text": "NAO remova o objeto! Estabilize-o com curativos ao redor e aplique pressao nas LATERAIS.",
+      "warning": "NUNCA puxe um objeto cravado! Ele pode estar tamponando vasos e remove-lo piora o sangramento.",
+      "detail": "Use panos ou bandagens empilhados ao redor do objeto para estabilizar. Pressione nas laterais, nao sobre o objeto.",
+      "next": "call-help-embedded"
+    },
+    {
+      "id": "call-help-embedded",
+      "type": "action",
+      "text": "Mantenha pressao lateral, imobilize o objeto e aguarde o socorro. Monitore sinais de choque.",
+      "next": "check-shock"
+    },
+    {
+      "id": "identify-type",
+      "type": "info",
+      "text": "Identifique o tipo de sangramento:",
+      "detail": "ARTERIAL: vermelho vivo, jorrando em esguichos ritmados. VENOSO: vermelho escuro, fluxo continuo. CAPILAR: vermelho, escorrendo devagar.",
+      "next": "is-limb"
+    },
+    {
+      "id": "is-limb",
+      "type": "decision",
+      "text": "O sangramento e em um MEMBRO (braco ou perna)?",
+      "yes": "limb-severity",
+      "no": "torso-bleeding"
+    },
+    {
+      "id": "torso-bleeding",
+      "type": "action",
+      "text": "Sangramento no tronco/cabeca/pescoco: aplique pressao DIRETA e FIRME com pano limpo. Use as duas maos se necessario.",
+      "warning": "Em ferimentos no tronco, NAO e possivel usar torniquete. Pressao direta e a unica opcao.",
+      "detail": "Empilhe mais pano por cima se o sangue encharcar. NUNCA remova o primeiro pano.",
+      "next": "maintain-pressure-torso"
+    },
+    {
+      "id": "maintain-pressure-torso",
+      "type": "action",
+      "text": "Mantenha pressao firme e constante. Nao solte. Se possivel, use bandagem para fixar o curativo com pressao.",
+      "next": "check-shock"
+    },
+    {
+      "id": "limb-severity",
+      "type": "decision",
+      "text": "O sangramento e grave? (jorrando, nao para com pressao, sangue formando poca no chao, amputacao)",
+      "yes": "direct-pressure-first",
+      "no": "mild-bleeding"
+    },
+    {
+      "id": "mild-bleeding",
+      "type": "action",
+      "text": "Aplique pressao direta com pano limpo por 10-15 minutos. Eleve o membro acima do nivel do coracao.",
+      "detail": "Nao fique verificando se parou — mantenha a pressao constante por pelo menos 10 minutos.",
+      "next": "mild-check"
+    },
+    {
+      "id": "mild-check",
+      "type": "decision",
+      "text": "O sangramento parou ou diminuiu significativamente?",
+      "yes": "bandage",
+      "no": "direct-pressure-first"
+    },
+    {
+      "id": "bandage",
+      "type": "action",
+      "text": "Faca um curativo compressivo. Envolva firmemente com bandagem. Monitore a circulacao (dedos nao podem ficar roxos ou dormentes).",
+      "next": "seek-medical"
+    },
+    {
+      "id": "seek-medical",
+      "type": "end",
+      "text": "Procure atendimento medico para limpeza e avaliacao do ferimento, mesmo que o sangramento tenha parado."
+    },
+    {
+      "id": "direct-pressure-first",
+      "type": "action",
+      "text": "Aplique PRESSAO DIRETA FORTE sobre o ferimento com pano ou gaze. Use o peso do corpo se necessario!",
+      "detail": "Se o sangue encharcar o pano, coloque MAIS pano por cima. NUNCA remova o primeiro pano.",
+      "warning": "Pressione com FORCA. Nao tenha medo de machucar — voce esta salvando a vida da pessoa!",
+      "next": "pressure-working"
+    },
+    {
+      "id": "pressure-working",
+      "type": "decision",
+      "text": "A pressao direta esta controlando o sangramento?",
+      "yes": "maintain-pressure",
+      "no": "tourniquet-needed"
+    },
+    {
+      "id": "maintain-pressure",
+      "type": "action",
+      "text": "Mantenha a pressao! Eleve o membro. Nao solte ate o socorro chegar.",
+      "detail": "Se possivel, fixe o curativo com bandagem para liberar suas maos. Monitore a pessoa.",
+      "next": "check-shock"
+    },
+    {
+      "id": "tourniquet-needed",
+      "type": "action",
+      "text": "TORNIQUETE NECESSARIO! Use um torniquete comercial ou improvise com faixa larga (5+ cm) e bastao.",
+      "warning": "Torniquete so em MEMBROS e em sangramento com RISCO DE VIDA!",
+      "detail": "NUNCA use fio, corda fina ou arame — causa dano tecidual grave.",
+      "next": "apply-tourniquet"
+    },
+    {
+      "id": "apply-tourniquet",
+      "type": "action",
+      "text": "Aplique o torniquete 5-7 cm ACIMA do ferimento (entre o ferimento e o coracao). NUNCA sobre uma articulacao.",
+      "detail": "Enrole a faixa, insira o bastao, gire ate o sangramento PARAR completamente. Prenda o bastao.",
+      "next": "mark-time"
+    },
+    {
+      "id": "mark-time",
+      "type": "action",
+      "text": "MARQUE A HORA na testa da pessoa ou no torniquete. Escreva 'TQ' e o horario (ex: TQ 14:30).",
+      "warning": "NUNCA afrouxe o torniquete depois de aplicado! So o medico pode remover.",
+      "detail": "O membro vai doer muito. Isso e esperado. A dor significa que esta funcionando.",
+      "next": "check-shock"
+    },
+    {
+      "id": "check-shock",
+      "type": "info",
+      "text": "Verifique sinais de CHOQUE: pele palida/fria/pegajosa, respiracao rapida, pulso fraco e rapido, confusao, sede intensa.",
+      "next": "has-shock-signs"
+    },
+    {
+      "id": "has-shock-signs",
+      "type": "decision",
+      "text": "A pessoa apresenta sinais de choque? (palida, fria, suando, confusa, agitada)",
+      "yes": "treat-shock",
+      "no": "monitor-final"
+    },
+    {
+      "id": "treat-shock",
+      "type": "action",
+      "text": "Deite a pessoa e ELEVE AS PERNAS 20-30 cm (posicao de choque). Cubra com cobertor para manter aquecida.",
+      "warning": "NAO eleve as pernas se houver fratura na pelve, perna ou coluna, ou ferimento no tronco.",
+      "detail": "Nao de liquidos. Mantenha a pessoa calma e aquecida. Fale com ela. Monitore respiracao.",
+      "next": "monitor-final"
+    },
+    {
+      "id": "monitor-final",
+      "type": "end",
+      "text": "Continue monitorando a pessoa ate o socorro chegar. Verifique respiracao e nivel de consciencia a cada minuto. Mantenha a pressao no ferimento. Se parar de respirar, inicie RCP."
+    }
+  ]
+}

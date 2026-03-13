@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Checkers - Bunker AI</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #0a0a0f;
+  color: #e0e0e0;
+  font-family: 'Courier New', monospace;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+}
+.title-bar {
+  width: 100%;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 20px; background: #0d1117;
+  border-bottom: 1px solid #00d4ff33;
+}
+.title-bar h1 { font-size: 1.2em; color: #00d4ff; }
+.back-btn {
+  background: none; border: 1px solid #00d4ff; color: #00d4ff;
+  padding: 5px 12px; cursor: pointer; font-family: inherit;
+  font-size: 0.85em; border-radius: 3px; transition: all 0.2s;
+}
+.back-btn:hover { background: #00d4ff22; }
+.toolbar {
+  display: flex; gap: 15px; padding: 10px; align-items: center; flex-wrap: wrap; justify-content: center;
+}
+.status { font-size: 0.95em; }
+.status .turn { color: #00d4ff; font-weight: bold; }
+.stat { font-size: 0.85em; }
+.stat .val { color: #ff6b35; font-weight: bold; }
+.btn {
+  background: #0d1117; border: 1px solid #00d4ff; color: #00d4ff;
+  padding: 5px 15px; cursor: pointer; font-family: inherit;
+  font-size: 0.8em; border-radius: 3px; transition: all 0.2s;
+}
+.btn:hover { background: #00d4ff22; }
+.board {
+  display: grid; grid-template-columns: repeat(8, 1fr);
+  border: 2px solid #00d4ff44;
+  width: min(92vw, 480px); aspect-ratio: 1;
+  margin: 10px;
+}
+.cell {
+  aspect-ratio: 1;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.1s;
+}
+.cell.light { background: #1a2332; }
+.cell.dark { background: #0d1117; }
+.cell.selected { background: #00d4ff33 !important; }
+.cell.valid-move::after {
+  content: ''; position: absolute;
+  width: 30%; height: 30%; border-radius: 50%;
+  background: #00d4ff55;
+}
+.cell.valid-jump { background: #ff6b3522 !important; }
+.cell.last-move { background: #00d4ff11 !important; }
+.piece {
+  width: 75%; height: 75%;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: clamp(1em, 3.5vw, 1.8em);
+  font-weight: bold;
+  transition: transform 0.15s;
+  position: relative;
+}
+.piece.red {
+  background: radial-gradient(circle at 35% 35%, #ff6b35, #cc4400);
+  border: 2px solid #ff8855;
+  color: #fff;
+}
+.piece.black {
+  background: radial-gradient(circle at 35% 35%, #4a5568, #1a202c);
+  border: 2px solid #718096;
+  color: #e0e0e0;
+}
+.piece.king::after {
+  content: '\u265A';
+  position: absolute;
+  font-size: 0.7em;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+}
+.piece.red.king::after { color: #fff; text-shadow: 0 0 4px #000; }
+.piece.black.king::after { color: #ffd700; text-shadow: 0 0 4px #000; }
+.overlay {
+  position: fixed; top:0;left:0;right:0;bottom:0; background: #0a0a0fdd;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10;
+}
+.overlay.hidden { display: none; }
+.overlay h2 { color: #00d4ff; font-size: 2em; margin-bottom: 10px; }
+.overlay p { margin: 5px 0; font-size: 1.1em; }
+.overlay .btn { padding: 10px 30px; font-size: 1em; margin-top: 15px; }
+.must-jump-msg {
+  color: #ff6b35; font-size: 0.85em; font-weight: bold;
+  padding: 4px 10px; background: #ff6b3511; border-radius: 3px;
+}
+.must-jump-msg.hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="title-bar">
+  <button class="back-btn" onclick="window.parent.postMessage('close-game','*');history.back();">&larr; Voltar</button>
+  <h1>CHECKERS</h1>
+  <div></div>
+</div>
+<div class="toolbar">
+  <div class="status" id="status"><span class="turn">Red</span>'s turn</div>
+  <div class="stat">Red: <span class="val" id="redCount">12</span></div>
+  <div class="stat">Black: <span class="val" id="blackCount">12</span></div>
+  <span class="must-jump-msg hidden" id="jumpMsg">Must jump!</span>
+  <button class="btn" onclick="newGame()">New Game</button>
+</div>
+<div class="board" id="board"></div>
+
+<div class="overlay hidden" id="endOverlay">
+  <h2 id="endMsg"></h2>
+  <button class="btn" onclick="newGame()">Play Again</button>
+</div>
+
+<script>
+// Board: 0=empty, 'r'=red, 'b'=black, 'R'=red king, 'B'=black king
+// Red starts at top (rows 0-2), moves down. Black at bottom (rows 5-7), moves up.
+
+let board, turn, selected, validMoves, lastMove, gameOver, mustJump, chainPiece;
+
+function isRed(p) { return p==='r'||p==='R'; }
+function isBlack(p) { return p==='b'||p==='B'; }
+function isKing(p) { return p==='R'||p==='B'; }
+function isColor(p,c) { return c==='r'?isRed(p):isBlack(p); }
+function enemyOf(c) { return c==='r'?'b':'r'; }
+
+function newGame() {
+  document.getElementById('endOverlay').classList.add('hidden');
+  board = Array.from({length:8},()=>Array(8).fill(0));
+  // place pieces
+  for(let r=0;r<3;r++) for(let c=0;c<8;c++) {
+    if((r+c)%2===1) board[r][c]='r';
+  }
+  for(let r=5;r<8;r++) for(let c=0;c<8;c++) {
+    if((r+c)%2===1) board[r][c]='b';
+  }
+  turn='r'; selected=null; validMoves=[]; lastMove=null;
+  gameOver=false; mustJump=false; chainPiece=null;
+  render();
+}
+
+function getMovesForPiece(r,c) {
+  const p=board[r][c];
+  if(!p||!isColor(p,turn)) return {simple:[],jumps:[]};
+  const dirs=[];
+  if(isRed(p)||isKing(p)) dirs.push([1,-1],[1,1]); // red goes down
+  if(isBlack(p)||isKing(p)) dirs.push([-1,-1],[-1,1]); // black goes up
+
+  const simple=[], jumps=[];
+  for(const [dr,dc] of dirs) {
+    const nr=r+dr, nc=c+dc;
+    if(nr<0||nr>7||nc<0||nc>7) continue;
+    if(!board[nr][nc]) {
+      simple.push({r:nr,c:nc});
+    } else if(isColor(board[nr][nc],enemyOf(turn))) {
+      const jr=nr+dr, jc=nc+dc;
+      if(jr>=0&&jr<=7&&jc>=0&&jc<=7&&!board[jr][jc]) {
+        jumps.push({r:jr,c:jc,captR:nr,captC:nc});
+      }
+    }
+  }
+  return {simple,jumps};
+}
+
+function getAllJumps() {
+  const jumps=[];
+  for(let r=0;r<8;r++) for(let c=0;c<8;c++) {
+    if(isColor(board[r][c],turn)) {
+      const m=getMovesForPiece(r,c);
+      if(m.jumps.length>0) jumps.push({r,c,moves:m.jumps});
+    }
+  }
+  return jumps;
+}
+
+function getValidMoves(r,c) {
+  const m=getMovesForPiece(r,c);
+  const allJumps=getAllJumps();
+  // mandatory jump rule
+  if(allJumps.length>0) {
+    // must use a piece that can jump
+    const myJumps=allJumps.find(j=>j.r===r&&j.c===c);
+    return myJumps ? myJumps.moves.map(j=>({...j,isJump:true})) : [];
+  }
+  return m.simple.map(s=>({...s,isJump:false}));
+}
+
+function cellClick(r,c) {
+  if(gameOver) return;
+
+  // if we're in a chain jump, only that piece can move
+  if(chainPiece) {
+    if(r===chainPiece.r && c===chainPiece.c) {
+      // re-select same piece
+      selected={r,c};
+      validMoves=getValidMoves(r,c);
+      render(); return;
+    }
+    const vm=validMoves.find(m=>m.r===r&&m.c===c);
+    if(vm) {
+      executeMove(chainPiece.r,chainPiece.c,vm);
+      return;
+    }
+    return; // ignore other clicks during chain
+  }
+
+  // check if clicking valid move destination
+  if(selected) {
+    const vm=validMoves.find(m=>m.r===r&&m.c===c);
+    if(vm) {
+      executeMove(selected.r,selected.c,vm);
+      return;
+    }
+  }
+
+  // select piece
+  if(board[r][c] && isColor(board[r][c],turn)) {
+    const moves=getValidMoves(r,c);
+    if(moves.length>0||(getAllJumps().length===0)) {
+      selected={r,c};
+      validMoves=moves;
+    } else {
+      // this piece has no valid moves (must jump with another)
+      selected=null; validMoves=[];
+    }
+  } else {
+    selected=null; validMoves=[];
+  }
+  mustJump = getAllJumps().length>0;
+  render();
+}
+
+function executeMove(fromR,fromC,move) {
+  const piece=board[fromR][fromC];
+  board[move.r][move.c]=piece;
+  board[fromR][fromC]=0;
+  lastMove={fromR,fromC,toR:move.r,toC:move.c};
+
+  if(move.isJump) {
+    board[move.captR][move.captC]=0;
+  }
+
+  // king promotion
+  if(isRed(piece)&&!isKing(piece)&&move.r===7) board[move.r][move.c]='R';
+  if(isBlack(piece)&&!isKing(piece)&&move.r===0) board[move.r][move.c]='B';
+
+  // check chain jumps
+  if(move.isJump) {
+    const moreMoves=getMovesForPiece(move.r,move.c);
+    if(moreMoves.jumps.length>0) {
+      // chain jump
+      chainPiece={r:move.r,c:move.c};
+      selected={r:move.r,c:move.c};
+      validMoves=moreMoves.jumps.map(j=>({...j,isJump:true}));
+      mustJump=true;
+      render();
+      return;
+    }
+  }
+
+  // end turn
+  chainPiece=null;
+  turn=enemyOf(turn);
+  selected=null; validMoves=[];
+  mustJump=getAllJumps().length>0;
+  render();
+  checkGameOver();
+}
+
+function checkGameOver() {
+  let redCount=0, blackCount=0, canMove=false;
+  for(let r=0;r<8;r++) for(let c=0;c<8;c++) {
+    if(isRed(board[r][c])) redCount++;
+    if(isBlack(board[r][c])) blackCount++;
+    if(isColor(board[r][c],turn)) {
+      const m=getMovesForPiece(r,c);
+      if(m.simple.length>0||m.jumps.length>0) canMove=true;
+    }
+  }
+  document.getElementById('redCount').textContent=redCount;
+  document.getElementById('blackCount').textContent=blackCount;
+
+  if(redCount===0) { endGame('Black wins!'); return; }
+  if(blackCount===0) { endGame('Red wins!'); return; }
+  if(!canMove) { endGame((turn==='r'?'Black':'Red')+' wins! (no moves)'); }
+}
+
+function endGame(msg) {
+  gameOver=true;
+  document.getElementById('endMsg').textContent=msg;
+  document.getElementById('endOverlay').classList.remove('hidden');
+}
+
+function render() {
+  const statusEl=document.getElementById('status');
+  if(!gameOver) {
+    statusEl.innerHTML=`<span class="turn">${turn==='r'?'Red':'Black'}</span>'s turn`;
+  } else {
+    statusEl.textContent='Game Over';
+  }
+  document.getElementById('jumpMsg').classList.toggle('hidden',!mustJump);
+
+  const bEl=document.getElementById('board');
+  bEl.innerHTML='';
+  for(let r=0;r<8;r++) for(let c=0;c<8;c++) {
+    const cell=document.createElement('div');
+    cell.className='cell '+((r+c)%2===0?'light':'dark');
+    if(selected&&selected.r===r&&selected.c===c) cell.classList.add('selected');
+    const vm=validMoves.find(m=>m.r===r&&m.c===c);
+    if(vm) cell.classList.add(vm.isJump?'valid-jump':'valid-move');
+    if(lastMove&&((lastMove.fromR===r&&lastMove.fromC===c)||(lastMove.toR===r&&lastMove.toC===c))) cell.classList.add('last-move');
+
+    if(board[r][c]) {
+      const piece=document.createElement('div');
+      piece.className='piece';
+      if(isRed(board[r][c])) piece.classList.add('red');
+      else piece.classList.add('black');
+      if(isKing(board[r][c])) piece.classList.add('king');
+      cell.appendChild(piece);
+    }
+    const rr=r,cc=c;
+    cell.onclick=()=>cellClick(rr,cc);
+    bEl.appendChild(cell);
+  }
+
+  // counts
+  let rc=0,bc=0;
+  for(let r=0;r<8;r++) for(let c=0;c<8;c++) { if(isRed(board[r][c]))rc++; if(isBlack(board[r][c]))bc++; }
+  document.getElementById('redCount').textContent=rc;
+  document.getElementById('blackCount').textContent=bc;
+}
+
+newGame();
+</script>
+</body>
+</html>

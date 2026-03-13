@@ -1,0 +1,62 @@
+[
+  {
+    "id": "cpr",
+    "title": "RCP — Ressuscitação Cardiopulmonar",
+    "urgency": "critical",
+    "icon": "❤️"
+  },
+  {
+    "id": "bleeding",
+    "title": "Hemorragia Grave",
+    "urgency": "critical",
+    "icon": "🩸"
+  },
+  {
+    "id": "choking",
+    "title": "Engasgo / Obstrução de Vias Aéreas",
+    "urgency": "critical",
+    "icon": "😰"
+  },
+  {
+    "id": "burn",
+    "title": "Queimaduras",
+    "urgency": "high",
+    "icon": "🔥"
+  },
+  {
+    "id": "fracture",
+    "title": "Fraturas e Imobilização",
+    "urgency": "high",
+    "icon": "🦴"
+  },
+  {
+    "id": "hypothermia",
+    "title": "Hipotermia",
+    "urgency": "high",
+    "icon": "🥶"
+  },
+  {
+    "id": "dehydration",
+    "title": "Desidratação",
+    "urgency": "medium",
+    "icon": "💧"
+  },
+  {
+    "id": "snake-bite",
+    "title": "Picada de Cobra",
+    "urgency": "critical",
+    "icon": "🐍"
+  },
+  {
+    "id": "wound-infection",
+    "title": "Infecção de Ferimentos",
+    "urgency": "medium",
+    "icon": "🩹"
+  },
+  {
+    "id": "shock",
+    "title": "Choque (Estado de Choque)",
+    "urgency": "critical",
+    "icon": "⚡"
+  }
+]

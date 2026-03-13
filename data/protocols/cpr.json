@@ -1,0 +1,191 @@
+{
+  "id": "cpr",
+  "title": "RCP - Ressuscitacao Cardiopulmonar",
+  "urgency": "critical",
+  "description": "Protocolo de ressuscitacao cardiopulmonar para adultos. Siga cada passo com calma e determinacao.",
+  "steps": [
+    {
+      "id": "check-safety",
+      "type": "decision",
+      "text": "O local e seguro para voce se aproximar?",
+      "detail": "Verifique: trafego, fios eletricos, gas, incendio, agua.",
+      "yes": "check-response",
+      "no": "wait-safe"
+    },
+    {
+      "id": "wait-safe",
+      "type": "action",
+      "text": "NAO se aproxime! Aguarde o local ficar seguro ou ligue 192 (SAMU) imediatamente.",
+      "warning": "Sua seguranca vem primeiro. Voce nao pode ajudar se virar vitima.",
+      "next": null
+    },
+    {
+      "id": "check-response",
+      "type": "action",
+      "text": "Sacuda os ombros da pessoa com firmeza e pergunte em voz alta: 'VOCE ESTA BEM? PODE ME OUVIR?'",
+      "detail": "Sacuda ambos os ombros. Fale perto do ouvido. Espere 5-10 segundos por resposta.",
+      "next": "responds"
+    },
+    {
+      "id": "responds",
+      "type": "decision",
+      "text": "A pessoa respondeu? (moveu, falou, gemeu, abriu os olhos)",
+      "yes": "recovery-position-conscious",
+      "no": "call-help"
+    },
+    {
+      "id": "recovery-position-conscious",
+      "type": "action",
+      "text": "A pessoa esta consciente. Coloque-a em posicao de recuperacao (de lado) e monitore.",
+      "detail": "Deite a pessoa de lado, com a perna de cima flexionada para estabilidade. Mantenha as vias aereas livres. Fique ao lado e observe a respiracao.",
+      "next": "monitor-conscious"
+    },
+    {
+      "id": "monitor-conscious",
+      "type": "action",
+      "text": "Ligue 192 (SAMU) e continue monitorando. Nao deixe a pessoa sozinha.",
+      "next": null
+    },
+    {
+      "id": "call-help",
+      "type": "action",
+      "text": "GRITE por ajuda! Peca para alguem ligar 192 (SAMU) e buscar um DEA (desfibrilador). Se estiver sozinho, ligue VOCE no viva-voz.",
+      "warning": "Nao perca tempo - grite AGORA e ligue 192!",
+      "detail": "Diga ao telefone: 'Tenho uma pessoa inconsciente que nao responde. Preciso de ambulancia.' Informe o endereco.",
+      "next": "check-breathing"
+    },
+    {
+      "id": "check-breathing",
+      "type": "action",
+      "text": "Verifique a RESPIRACAO: incline a cabeca para tras, levante o queixo. Olhe o peito, ouca e sinta o ar por ATE 10 SEGUNDOS.",
+      "detail": "Coloque seu ouvido perto da boca da pessoa. Olhe se o peito sobe e desce. Sinta o ar no seu rosto. Conte ate 10.",
+      "next": "breathing-check"
+    },
+    {
+      "id": "breathing-check",
+      "type": "decision",
+      "text": "A pessoa esta respirando NORMALMENTE? (peito subindo e descendo de forma regular)",
+      "detail": "Respiracao agonica (gasping irregular, tipo 'peixe fora da agua') NAO e respiracao normal.",
+      "yes": "recovery-position-breathing",
+      "no": "start-compressions"
+    },
+    {
+      "id": "recovery-position-breathing",
+      "type": "action",
+      "text": "Coloque em posicao de recuperacao (de lado). Aguarde o SAMU monitorando a respiracao a cada minuto.",
+      "detail": "Se parar de respirar a qualquer momento, vire a pessoa de costas e inicie compressoes.",
+      "next": null
+    },
+    {
+      "id": "start-compressions",
+      "type": "action",
+      "text": "INICIE COMPRESSOES TORACICAS AGORA! Coloque a base da mao no CENTRO do peito (entre os mamilos). Coloque a outra mao por cima, entrelace os dedos.",
+      "warning": "Cada segundo sem compressoes reduz a chance de sobrevivencia!",
+      "detail": "Bracos esticados, ombros diretamente acima das maos. Use o peso do seu corpo.",
+      "next": "do-compressions"
+    },
+    {
+      "id": "do-compressions",
+      "type": "action",
+      "text": "Faca 30 COMPRESSOES: empurre FORTE e RAPIDO. Profundidade: 5-6 cm. Ritmo: 100-120 por minuto.",
+      "detail": "Conte em voz alta: 1, 2, 3... ate 30. Ritmo da musica 'Stayin Alive'. Deixe o peito voltar completamente entre cada compressao. NAO tire as maos do peito.",
+      "warning": "Empurre com FORCA. E normal sentir costelas estalando. Continue!",
+      "next": "rescue-breaths-question"
+    },
+    {
+      "id": "rescue-breaths-question",
+      "type": "decision",
+      "text": "Voce se sente capaz de fazer respiracao boca-a-boca?",
+      "detail": "Se nao quiser ou nao souber, continue APENAS com compressoes. Compressoes sozinhas ja salvam vidas!",
+      "yes": "open-airway",
+      "no": "compressions-only"
+    },
+    {
+      "id": "compressions-only",
+      "type": "action",
+      "text": "Continue fazendo compressoes sem parar! 100-120 por minuto. Nao pare ate o SAMU chegar ou a pessoa reagir.",
+      "detail": "Se tiver outra pessoa, revezem a cada 2 minutos para nao cansar. Troque RAPIDO (menos de 10 segundos).",
+      "next": "check-aed"
+    },
+    {
+      "id": "open-airway",
+      "type": "action",
+      "text": "Abra as vias aereas: incline a cabeca para tras com uma mao na testa e levante o queixo com a outra.",
+      "detail": "Isso impede a lingua de bloquear a garganta.",
+      "next": "give-breaths"
+    },
+    {
+      "id": "give-breaths",
+      "type": "action",
+      "text": "De 2 VENTILACOES: feche o nariz, cubra a boca completamente com a sua, sopre por 1 segundo ate ver o peito subir. Repita.",
+      "detail": "Se o peito NAO subir: reposicione a cabeca e tente novamente. Se ainda nao subir, volte as compressoes (pode haver obstrucao).",
+      "warning": "Cada ventilacao dura apenas 1 segundo. Nao sopre demais!",
+      "next": "continue-cycle"
+    },
+    {
+      "id": "continue-cycle",
+      "type": "action",
+      "text": "Continue o ciclo: 30 COMPRESSOES + 2 VENTILACOES. Nao pare!",
+      "detail": "Reveze com outra pessoa a cada 2 minutos se possivel. A troca deve ser RAPIDA (menos de 10 segundos).",
+      "next": "check-aed"
+    },
+    {
+      "id": "check-aed",
+      "type": "decision",
+      "text": "Chegou um DEA (desfibrilador automatico)?",
+      "yes": "use-aed",
+      "no": "check-recovery"
+    },
+    {
+      "id": "use-aed",
+      "type": "action",
+      "text": "LIGUE o DEA e siga as instrucoes de voz do aparelho. Cole as palhetas no peito nu e seco da vitima conforme o desenho.",
+      "detail": "Uma palheta abaixo da clavicula direita, outra no lado esquerdo abaixo da axila. Afaste-se quando o DEA mandar. Nao toque na pessoa durante a analise/choque.",
+      "warning": "NINGUEM pode tocar na pessoa durante o choque! Grite: 'AFASTEM-SE!'",
+      "next": "post-aed"
+    },
+    {
+      "id": "post-aed",
+      "type": "action",
+      "text": "Apos o choque (ou se o DEA indicar 'sem choque'), retome IMEDIATAMENTE as compressoes 30:2. O DEA avisara quando reanalisar.",
+      "next": "check-recovery"
+    },
+    {
+      "id": "check-recovery",
+      "type": "decision",
+      "text": "A pessoa deu sinais de vida? (moveu-se, tossiu, abriu os olhos, comecou a respirar)",
+      "yes": "person-recovered",
+      "no": "check-exhaustion"
+    },
+    {
+      "id": "person-recovered",
+      "type": "action",
+      "text": "OTIMO! Coloque em posicao de recuperacao (de lado). Continue monitorando a respiracao ate o SAMU chegar.",
+      "detail": "Se parar de respirar novamente, reinicie as compressoes imediatamente.",
+      "warning": "Nao deixe a pessoa sozinha mesmo se parecer recuperada!",
+      "next": null
+    },
+    {
+      "id": "check-exhaustion",
+      "type": "decision",
+      "text": "Voce esta exausto e NAO ha ninguem para revezar?",
+      "detail": "Compressoes fracas sao melhores que nenhuma compressao.",
+      "yes": "exhausted",
+      "no": "keep-going"
+    },
+    {
+      "id": "exhausted",
+      "type": "action",
+      "text": "Faca o melhor que puder. Mesmo compressoes fracas ajudam. Continue ate o socorro chegar.",
+      "warning": "NAO desista! Cada compressao mantem sangue chegando ao cerebro.",
+      "next": null
+    },
+    {
+      "id": "keep-going",
+      "type": "action",
+      "text": "Continue os ciclos 30:2 (ou compressoes continuas). Nao pare ate: socorro chegar, pessoa recuperar, ou voce nao conseguir mais.",
+      "detail": "Se houver outra pessoa, troque a cada 2 minutos. Mantenha o ritmo forte e rapido.",
+      "next": "check-aed"
+    }
+  ]
+}

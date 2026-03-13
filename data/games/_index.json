@@ -1,0 +1,50 @@
+[
+  {
+    "id": "snake",
+    "name": "Snake",
+    "icon": "🐍",
+    "desc": "Clássico jogo da cobrinha"
+  },
+  {
+    "id": "tetris",
+    "name": "Tetris",
+    "icon": "🧱",
+    "desc": "Encaixe os blocos"
+  },
+  {
+    "id": "2048",
+    "name": "2048",
+    "icon": "🔢",
+    "desc": "Combine os números"
+  },
+  {
+    "id": "minesweeper",
+    "name": "Campo Minado",
+    "icon": "💣",
+    "desc": "Encontre as minas"
+  },
+  {
+    "id": "sudoku",
+    "name": "Sudoku",
+    "icon": "📝",
+    "desc": "Preencha a grade 9x9"
+  },
+  {
+    "id": "solitaire",
+    "name": "Paciência",
+    "icon": "🃏",
+    "desc": "Jogo de cartas clássico"
+  },
+  {
+    "id": "chess",
+    "name": "Xadrez",
+    "icon": "♟️",
+    "desc": "Xadrez para 2 jogadores"
+  },
+  {
+    "id": "checkers",
+    "name": "Damas",
+    "icon": "⚫",
+    "desc": "Jogo de damas clássico"
+  }
+]

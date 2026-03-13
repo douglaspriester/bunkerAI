@@ -1,0 +1,239 @@
+{
+  "id": "burn",
+  "title": "Queimaduras",
+  "urgency": "critical",
+  "description": "Protocolo para tratamento de queimaduras termicas, quimicas e eletricas.",
+  "steps": [
+    {
+      "id": "stop-burning",
+      "type": "action",
+      "text": "PARE O PROCESSO DE QUEIMADURA! Afaste a pessoa da fonte de calor. Se a roupa estiver em chamas: PARE, DEITE, ROLE.",
+      "warning": "Sua seguranca primeiro! Nao entre em ambientes em chamas.",
+      "next": "burn-type"
+    },
+    {
+      "id": "burn-type",
+      "type": "decision",
+      "text": "A queimadura foi causada por PRODUTO QUIMICO?",
+      "yes": "chemical-burn",
+      "no": "check-electrical"
+    },
+    {
+      "id": "check-electrical",
+      "type": "decision",
+      "text": "A queimadura foi causada por ELETRICIDADE?",
+      "yes": "electrical-burn",
+      "no": "thermal-assess"
+    },
+    {
+      "id": "chemical-burn",
+      "type": "decision",
+      "text": "O produto quimico e um PO SECO? (cal, cimento, soda caustica em po)",
+      "yes": "dry-chemical",
+      "no": "wet-chemical"
+    },
+    {
+      "id": "dry-chemical",
+      "type": "action",
+      "text": "ESCOVE o po seco da pele ANTES de lavar com agua! Use pano, escova ou luva. Depois, lave com agua corrente por 20+ minutos.",
+      "warning": "Alguns pos quimicos REAGEM com agua e pioram a queimadura se nao forem removidos antes!",
+      "next": "chemical-flush"
+    },
+    {
+      "id": "wet-chemical",
+      "type": "action",
+      "text": "LAVE IMEDIATAMENTE com agua corrente abundante por pelo menos 20 MINUTOS. Remova roupas contaminadas DURANTE a lavagem.",
+      "warning": "20 minutos MINIMO! Nao pare antes. Use agua corrente, nao balde ou bacia.",
+      "next": "chemical-flush"
+    },
+    {
+      "id": "chemical-flush",
+      "type": "action",
+      "text": "Continue lavando com agua. Ligue 192 (SAMU). Se possivel, identifique o produto quimico para informar ao medico.",
+      "detail": "Se atingiu os OLHOS: lave com agua corrente por 20+ minutos, mantendo as palpebras abertas. Incline a cabeca para o lado afetado nao contaminar o outro olho.",
+      "next": "seek-emergency"
+    },
+    {
+      "id": "electrical-burn",
+      "type": "action",
+      "text": "DESLIGUE a fonte de energia antes de tocar na vitima! Puxe o plugue ou desligue o disjuntor.",
+      "warning": "NUNCA toque na pessoa se ela ainda estiver em contato com a fonte eletrica! Voce pode ser eletrocutado!",
+      "detail": "Se for alta tensao (postes, cabos), mantenha distancia de pelo menos 10 metros e ligue 193 (Bombeiros).",
+      "next": "electrical-assess"
+    },
+    {
+      "id": "electrical-assess",
+      "type": "action",
+      "text": "Queimaduras eletricas tem ENTRADA e SAIDA. Procure ambas as marcas. O dano interno pode ser MUITO maior que o visivel.",
+      "detail": "Verifique se a pessoa esta respirando e consciente. Queimaduras eletricas podem causar parada cardiaca.",
+      "next": "electrical-breathing"
+    },
+    {
+      "id": "electrical-breathing",
+      "type": "decision",
+      "text": "A pessoa esta respirando e consciente?",
+      "yes": "cool-electrical",
+      "no": "start-cpr-burn"
+    },
+    {
+      "id": "start-cpr-burn",
+      "type": "action",
+      "text": "Inicie RCP IMEDIATAMENTE! Ligue 192. Siga o protocolo de RCP (30 compressoes + 2 ventilacoes).",
+      "warning": "Queimaduras eletricas frequentemente causam parada cardiaca! Priorize RCP sobre a queimadura.",
+      "next": null
+    },
+    {
+      "id": "cool-electrical",
+      "type": "action",
+      "text": "Resfrie as queimaduras visiveis com agua corrente. Ligue 192. TODA queimadura eletrica precisa de avaliacao hospitalar.",
+      "warning": "Mesmo que a queimadura pareca pequena, o dano interno pode ser grave (musculos, orgaos, coracao).",
+      "next": "seek-emergency"
+    },
+    {
+      "id": "thermal-assess",
+      "type": "action",
+      "text": "Resfrie a queimadura com AGUA CORRENTE FRIA (nao gelada!) por 10-20 MINUTOS. Comece IMEDIATAMENTE.",
+      "warning": "NAO use gelo, agua gelada, manteiga, pasta de dente, clara de ovo ou qualquer remedio caseiro!",
+      "detail": "Agua corrente da torneira e o ideal. O resfriamento reduz a dor e a profundidade da queimadura.",
+      "next": "remove-items"
+    },
+    {
+      "id": "remove-items",
+      "type": "action",
+      "text": "DURANTE o resfriamento, remova aneis, pulseiras, relogios e roupas soltas perto da queimadura.",
+      "detail": "A area vai inchar. Se joias ou roupas ficarem presas depois do inchacho, sera muito pior. Remova AGORA.",
+      "warning": "Se a roupa estiver GRUDADA na pele, NAO tente remover! Corte ao redor.",
+      "next": "assess-degree"
+    },
+    {
+      "id": "assess-degree",
+      "type": "info",
+      "text": "Avalie o GRAU da queimadura:",
+      "detail": "1o GRAU: pele vermelha, dolorida, SEM bolhas (ex: queimadura de sol). 2o GRAU: bolhas, pele vermelha/branca, MUITO dolorida. 3o GRAU: pele branca/marrom/preta, pode ser INDOLOR (nervos destruidos), aspecto seco/duro.",
+      "next": "check-critical"
+    },
+    {
+      "id": "check-critical",
+      "type": "decision",
+      "text": "A queimadura e em algum destes locais CRITICOS: rosto, pescoco, maos, pes, articulacoes, genitais?",
+      "yes": "critical-location",
+      "no": "check-size"
+    },
+    {
+      "id": "critical-location",
+      "type": "action",
+      "text": "Queimadura em area CRITICA! Ligue 192 (SAMU). Continue resfriando com agua. Cubra com pano limpo umido.",
+      "warning": "Queimaduras no rosto/pescoco podem causar inchacho nas vias aereas. Monitore a respiracao!",
+      "next": "seek-emergency"
+    },
+    {
+      "id": "check-size",
+      "type": "decision",
+      "text": "A queimadura e MAIOR que a palma da mao da vitima?",
+      "detail": "A palma da mao (com dedos fechados) equivale a aproximadamente 1% da superficie corporal.",
+      "yes": "check-large",
+      "no": "check-degree-treatment"
+    },
+    {
+      "id": "check-large",
+      "type": "decision",
+      "text": "A queimadura e circunferencial (envolve completamente um membro, como um bracelete)?",
+      "yes": "circumferential",
+      "no": "moderate-burn"
+    },
+    {
+      "id": "circumferential",
+      "type": "action",
+      "text": "Queimadura CIRCUNFERENCIAL e EMERGENCIA! Ligue 192. O inchacho pode cortar a circulacao do membro.",
+      "warning": "Precisa de atendimento hospitalar URGENTE. Eleve o membro e monitore circulacao (cor, sensibilidade, pulso).",
+      "next": "seek-emergency"
+    },
+    {
+      "id": "moderate-burn",
+      "type": "action",
+      "text": "Queimadura extensa. Ligue 192 (SAMU). Continue resfriando. Cubra com pano limpo e umido. Nao estoure bolhas.",
+      "next": "check-shock-burn"
+    },
+    {
+      "id": "check-shock-burn",
+      "type": "decision",
+      "text": "A pessoa esta palida, fria, tremendo, confusa ou com pulso rapido? (sinais de choque)",
+      "yes": "treat-shock-burn",
+      "no": "seek-emergency"
+    },
+    {
+      "id": "treat-shock-burn",
+      "type": "action",
+      "text": "Trate o CHOQUE: deite a pessoa, eleve as pernas (se nao houver queimaduras nelas), cubra com cobertor.",
+      "detail": "Oferecer pequenos goles de agua se a pessoa estiver consciente e sem vomitos. Mantenha aquecida.",
+      "next": "seek-emergency"
+    },
+    {
+      "id": "check-degree-treatment",
+      "type": "decision",
+      "text": "A queimadura tem BOLHAS?",
+      "yes": "second-degree",
+      "no": "check-third"
+    },
+    {
+      "id": "check-third",
+      "type": "decision",
+      "text": "A pele esta branca, marrom ou preta, com aspecto seco ou duro?",
+      "yes": "third-degree",
+      "no": "first-degree"
+    },
+    {
+      "id": "first-degree",
+      "type": "action",
+      "text": "Queimadura de 1o grau (superficial). Continue resfriando. Aplique hidratante ou aloe vera depois. Para dor: ibuprofeno 400mg ou paracetamol 1g.",
+      "detail": "Geralmente cura em 3-7 dias sem cicatriz. Proteja do sol. Procure medico se a dor nao melhorar ou surgirem bolhas.",
+      "next": null
+    },
+    {
+      "id": "second-degree",
+      "type": "action",
+      "text": "Queimadura de 2o grau. NAO estoure as bolhas! Cubra com gaze nao aderente ou pano limpo e SOLTO.",
+      "warning": "NUNCA estoure bolhas — elas protegem contra infeccao! Nao aplique algodao diretamente.",
+      "detail": "Para dor: ibuprofeno 400mg ou paracetamol 1g. Procure atendimento medico para avaliacao.",
+      "next": "dress-wound"
+    },
+    {
+      "id": "third-degree",
+      "type": "action",
+      "text": "Queimadura de 3o GRAU — EMERGENCIA! Ligue 192 (SAMU). Cubra com pano limpo e SECO. Nao aplique agua fria na area carbonizada.",
+      "warning": "Queimaduras de 3o grau precisam de tratamento hospitalar URGENTE. Nao tente tratar em casa!",
+      "next": "seek-emergency"
+    },
+    {
+      "id": "dress-wound",
+      "type": "action",
+      "text": "Cubra a queimadura com curativo NAO ADERENTE, solto. Nao use algodao. Fixe com bandagem sem apertar.",
+      "detail": "Troque o curativo diariamente. Procure medico se: area aumentar, pus, cheiro ruim, febre, dor piorando.",
+      "next": "pain-management"
+    },
+    {
+      "id": "pain-management",
+      "type": "info",
+      "text": "Controle da DOR: Ibuprofeno 400mg (se nao for alergico e nao tiver problemas estomacais) OU Paracetamol 1g. Repita a cada 6-8 horas se necessario.",
+      "detail": "Mantenha a area queimada elevada para reduzir inchacho. Beba bastante agua.",
+      "next": "follow-up"
+    },
+    {
+      "id": "follow-up",
+      "type": "end",
+      "text": "Procure medico nas proximas 24 horas para avaliacao. Se apresentar sinais de infeccao (vermelhidao crescente, pus, febre, cheiro ruim), procure IMEDIATAMENTE."
+    },
+    {
+      "id": "seek-emergency",
+      "type": "end",
+      "text": "EMERGENCIA! Mantenha a pessoa aquecida e calma. Continue monitorando respiracao e consciencia ate o SAMU chegar. Se parar de respirar, inicie RCP."
+    },
+    {
+      "id": "inhalation-check",
+      "type": "info",
+      "text": "Suspeita de INALACAO DE FUMACA: fuligem ao redor do nariz/boca, rouquidao, tosse, queimaduras no rosto. EMERGENCIA — ligue 192 imediatamente.",
+      "detail": "As vias aereas podem inchar rapidamente. A pessoa pode piorar muito rapido. Mantenha sentada se possivel (facilita a respiracao).",
+      "next": "seek-emergency"
+    }
+  ]
+}

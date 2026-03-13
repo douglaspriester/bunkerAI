@@ -28,476 +28,16 @@ const state = {
   abortController: null,  // AbortController for active stream
   characters: {},         // { id: { name, emoji, color, desc, systemPrompt, voice } }
   activeCharacterId: null,
+  activeProtocol: null,
+  currentProtocol: null,
 };
 
-// ─── Guide Data ─────────────────────────────────────────────────────────────
-const GUIDES = {
-  shelter: {
-    tag: "PRIORIDADE 1",
-    title: "Abrigo de Emergencia",
-    subtitle: "Na regra dos 3, voce sobrevive 3 horas sem abrigo em condicoes extremas. Antes de agua, antes de comida — abrigo vem primeiro.",
-    image: "./img/guide-shelter.jpg",
-    content: `
-      <h2>Por que abrigo e prioridade</h2>
-      <p>Hipotermia mata mais rapido que fome ou sede. Mesmo em climas tropicais, uma noite de chuva sem protecao pode causar hipotermia. O abrigo regula sua temperatura corporal e protege contra vento, chuva e exposicao solar.</p>
-      
-      <div class="tip-box">
-        <div class="tip-label">DON'T PANIC — DICA</div>
-        <p>A regra dos 3: 3 minutos sem ar, 3 horas sem abrigo, 3 dias sem agua, 3 semanas sem comida. Priorize nessa ordem.</p>
-      </div>
-
-      <h2>Lean-to (Telhado Inclinado)</h2>
-      <h3>Quando usar</h3>
-      <p>O abrigo mais rapido de construir. Ideal quando voce tem pouco tempo antes de escurecer ou quando a chuva esta chegando.</p>
-      <h3>Como construir</h3>
-      <ol>
-        <li><strong>Encontre um suporte:</strong> uma arvore caida, pedra grande, ou amarre um galho grosso (2-3m) entre duas arvores na altura do quadril.</li>
-        <li><strong>Monte a estrutura:</strong> encoste galhos menores (1.5-2m) num angulo de 45-60° contra o suporte principal, lado a lado, com 20-30cm de espaco entre eles.</li>
-        <li><strong>Cubra com folhas:</strong> comece de baixo para cima (como telhas), usando folhas grandes, capim, ou casca de arvore. Quanto mais camadas, melhor a impermeabilizacao.</li>
-        <li><strong>Isole o chao:</strong> coloque uma camada grossa de folhas secas ou capim no chao — voce perde mais calor pelo chao do que pelo ar.</li>
-      </ol>
-
-      <h2>Debris Hut (Cabana de Detritos)</h2>
-      <h3>Quando usar</h3>
-      <p>Quando voce precisa de maximo isolamento termico. Perfeito para noites frias sozinho — o espaco apertado conserva calor corporal.</p>
-      <h3>Como construir</h3>
-      <ol>
-        <li><strong>Galho principal (ridgepole):</strong> um galho de 2.5-3m, apoiado num toco ou forquilha a 60cm do chao.</li>
-        <li><strong>Costelas:</strong> galhos menores encostados dos dois lados, criando um formato de barraca com espaco apenas para seu corpo.</li>
-        <li><strong>Cobertura:</strong> empilhe folhas, galhos e detritos sobre toda a estrutura. Minimo 30cm de espessura — mais e melhor.</li>
-        <li><strong>Entrada:</strong> empilhe material na entrada para bloquear vento. Use sua mochila como porta.</li>
-      </ol>
-
-      <div class="warn-box">
-        <div class="warn-label">ATENCAO</div>
-        <p>Nunca construa abrigo no leito seco de um rio — enchentes repentinas podem ocorrer. Evite areas sob arvores mortas (widow makers) e encostas instáveis.</p>
-      </div>
-
-      <h2>Abrigo com Lona/Plastico</h2>
-      <p>Se voce tem uma lona, plastico, ou ate sacos de lixo grandes, suas opcoes melhoram muito:</p>
-      <ul>
-        <li><strong>A-Frame:</strong> amarre uma corda entre duas arvores, jogue a lona por cima, prenda as pontas com pedras.</li>
-        <li><strong>Lean-to coberto:</strong> mesma estrutura do lean-to, mas com a lona como camada impermeavel antes das folhas.</li>
-        <li><strong>Poncho shelter:</strong> com um poncho ou saco de lixo grande, crie um abrigo minimo amarrando nas arvores.</li>
-      </ul>
-
-      <h2>Contexto Brasil</h2>
-      <p>No clima tropical brasileiro, priorize protecao contra chuva e insetos mais que contra frio. Folhas de palmeira sao excelentes para cobertura. Bananeiras fornecem folhas enormes que servem como telhas naturais. Sempre verifique o chao por formigas, aranhas e cobras antes de montar.</p>
-
-      <h2>Checklist Rapido</h2>
-      <ul class="checklist">
-        <li>Local elevado, longe de rios e encostas</li>
-        <li>Protecao contra vento dominante</li>
-        <li>Material para isolamento do chao</li>
-        <li>Cobertura com minimo 30cm de espessura</li>
-        <li>Entrada virada contra o vento</li>
-        <li>Verificar por perigos naturais (arvores mortas, insetos)</li>
-      </ul>
-
-      <div class="guide-footer">
-        Baseado em: SAS Survival Handbook (John Wiseman), Bushcraft 101 (Dave Canterbury) · 
-        <a href="https://www.perplexity.ai/computer" target="_blank">Created with Perplexity Computer</a>
-      </div>
-    `
-  },
-  fire: {
-    tag: "PRIORIDADE 2",
-    title: "Tecnicas de Fogo",
-    subtitle: "Fogo e aquecimento, purificacao de agua, sinal de resgate, protecao contra animais e o maior motivador psicologico que existe numa situacao de sobrevivencia.",
-    image: "./img/guide-fire.jpg",
-    content: `
-      <h2>Os 3 elementos do fogo</h2>
-      <p>Todo fogo precisa de: <strong>combustivel</strong> (material que queima), <strong>oxigenio</strong> (ar) e <strong>calor</strong> (fonte de ignicao). Remova qualquer um e o fogo morre. Entender isso e a base de tudo.</p>
-
-      <h2>Preparando o material</h2>
-      <p>Antes de tentar acender qualquer coisa, prepare seus materiais em tres categorias:</p>
-      <ol>
-        <li><strong>Tinder (isca):</strong> material fino que pega fogo com uma faisca. Capim seco, casca de arvore desfiada, algodao, papel, fungos secos (como amadou). Quanto mais fino e seco, melhor.</li>
-        <li><strong>Kindling (gravetos):</strong> galhos finos (grossura de um lapis ate um dedo). Comecam a queimar com o calor do tinder.</li>
-        <li><strong>Fuel (lenha):</strong> galhos e troncos maiores que mantem o fogo aceso por horas.</li>
-      </ol>
-
-      <div class="tip-box">
-        <div class="tip-label">DON'T PANIC — DICA</div>
-        <p>Galhos mortos ainda presos na arvore sao os mais secos — nunca pegue galhos do chao umido se tiver opcao. Madeira morta em pe e o melhor combustivel.</p>
-      </div>
-
-      <h2>Metodo 1: Ferro Rod (Pederneira Moderna)</h2>
-      <p>O metodo mais confiavel. Funciona molhado, em altitude, e dura milhares de usos.</p>
-      <ol>
-        <li>Prepare um ninho de tinder do tamanho de uma bola de tenis</li>
-        <li>Segure o ferro rod sobre o tinder com a mao que nao raspa</li>
-        <li>Raspe o striker (ou costas de uma faca) ao longo do rod com pressao firme</li>
-        <li>Direcione as faiscas para o centro do tinder</li>
-        <li>Assim que pegar, sopre gentilmente e adicione kindling</li>
-      </ol>
-
-      <h2>Metodo 2: Bow Drill (Arco de Friccao)</h2>
-      <p>Metodo primitivo que funciona sem nenhum equipamento moderno — apenas madeira e corda.</p>
-      <ol>
-        <li><strong>Fireboard:</strong> tabua plana de madeira macia (cedro, salgueiro, choupo)</li>
-        <li><strong>Spindle:</strong> vara reta de 30-40cm, mesma madeira macia</li>
-        <li><strong>Bow:</strong> galho curvo com corda (cadarco, paracord, fibra vegetal)</li>
-        <li><strong>Socket:</strong> pedra com cavidade ou madeira dura para pressionar o topo do spindle</li>
-        <li>Enrole a corda do arco no spindle, coloque sobre o fireboard, e mova o arco rapido</li>
-        <li>A friccao cria po negro quente — quando fumar, transfira para o tinder</li>
-      </ol>
-
-      <h2>Metodo 3: Lente / Lupa</h2>
-      <p>Fundo de garrafa PET com agua, lente de oculos, ou ate um saco plastico com agua podem concentrar luz solar. Funciona apenas com sol direto e forte.</p>
-
-      <h2>Metodo 4: Bateria + Palha de Aco</h2>
-      <p>Toque os dois polos de uma bateria (9V e perfeita) na palha de aco. A faiscas eletrica acende instantaneamente. Funciona ate com pilha AA e um pedaco de papel aluminio.</p>
-
-      <h2>Estruturas de Fogueira</h2>
-      <ul>
-        <li><strong>Teepee:</strong> gravetos em cone — otimo para iniciar. Queima rapido e quente.</li>
-        <li><strong>Log Cabin:</strong> troncos empilhados em quadrado — queima longa e estavel, boa para cozinhar.</li>
-        <li><strong>Star Fire:</strong> troncos longos em estrela com fogo no centro — empurre conforme queimam. Economiza lenha.</li>
-        <li><strong>Dakota Hole:</strong> dois buracos conectados — fogo escondido, eficiente e resistente ao vento.</li>
-      </ul>
-
-      <div class="warn-box">
-        <div class="warn-label">ATENCAO</div>
-        <p>Nunca deixe fogo sem supervisao. Em areas secas, limpe um circulo de 3m ao redor. Tenha agua ou terra para apagar. No Brasil, incendio florestal e crime ambiental — use com responsabilidade.</p>
-      </div>
-
-      <div class="guide-footer">
-        Baseado em: SAS Survival Handbook, Bushcraft 101, Deep Survival (Laurence Gonzales) · 
-        <a href="https://www.perplexity.ai/computer" target="_blank">Created with Perplexity Computer</a>
-      </div>
-    `
-  },
-  water: {
-    tag: "PRIORIDADE 3",
-    title: "Purificacao de Agua",
-    subtitle: "Voce sobrevive apenas 3 dias sem agua. Mas beber agua contaminada pode matar ainda mais rapido. Saber purificar e tao importante quanto encontrar.",
-    image: "./img/guide-water.jpg",
-    content: `
-      <h2>Fontes de agua na natureza</h2>
-      <p>Em ordem de preferencia (menor risco de contaminacao):</p>
-      <ol>
-        <li><strong>Agua da chuva:</strong> a mais segura — colete diretamente com lona, folhas grandes, ou qualquer recipiente limpo.</li>
-        <li><strong>Nascentes:</strong> agua que brota do chao — geralmente limpa, mas sempre purifique.</li>
-        <li><strong>Riachos de montanha:</strong> agua corrente e mais segura que parada.</li>
-        <li><strong>Rios grandes:</strong> maior risco de contaminacao por agropecuaria e esgoto.</li>
-        <li><strong>Agua parada:</strong> lagos e poças — alto risco, purifique sempre.</li>
-      </ol>
-
-      <h2>Metodo 1: Fervura</h2>
-      <p>O metodo mais seguro e acessivel. Mata 99.9% dos patogenos.</p>
-      <ul>
-        <li>Ferva a agua por <strong>1 minuto</strong> em altitudes normais</li>
-        <li>Em altitudes acima de 2000m, ferva por <strong>3 minutos</strong></li>
-        <li>Se nao tem recipiente metalico, use uma pedra quente colocada na agua dentro de um recipiente improvisado (bambu, casca de arvore)</li>
-      </ul>
-
-      <div class="tip-box">
-        <div class="tip-label">DON'T PANIC — DICA</div>
-        <p>Uma garrafa PET transparente cheia de agua, deixada no sol forte por 6 horas (metodo SODIS — Solar Disinfection), mata a maioria das bacterias. E ciencia da OMS.</p>
-      </div>
-
-      <h2>Metodo 2: Pastilhas/Quimico</h2>
-      <ul>
-        <li><strong>Cloro (agua sanitaria):</strong> 2 gotas por litro de agua limpa. Espere 30 minutos. Use agua sanitaria pura (sem perfume).</li>
-        <li><strong>Iodo:</strong> 5 gotas de tintura de iodo 2% por litro. Espere 30 min. Gosto ruim mas funciona.</li>
-        <li><strong>Pastilhas comerciais:</strong> (Aquatabs, Hidrosteril) — siga as instrucoes do fabricante.</li>
-      </ul>
-
-      <h2>Metodo 3: Filtro Improvisado</h2>
-      <p>Nao substitui a purificacao, mas remove sedimentos e melhora o gosto:</p>
-      <ol>
-        <li>Corte uma garrafa PET ao meio</li>
-        <li>Coloque de cabeca para baixo (funil)</li>
-        <li>Camadas de baixo para cima: algodao ou tecido, carvao moido, areia fina, cascalho</li>
-        <li>Despeje agua por cima e colete embaixo</li>
-        <li><strong>Depois do filtro, ainda precisa ferver ou tratar quimicamente</strong></li>
-      </ol>
-
-      <h2>Metodo 4: Destilacao Solar (Solar Still)</h2>
-      <p>Extrai agua do solo usando o calor do sol:</p>
-      <ol>
-        <li>Cave um buraco de 50cm de profundidade e 1m de largura</li>
-        <li>Coloque um recipiente no centro</li>
-        <li>Cubra com plastico transparente</li>
-        <li>Coloque uma pedra no centro do plastico (sobre o recipiente)</li>
-        <li>A evaporacao condensa no plastico e goteja no recipiente</li>
-      </ol>
-      <p>Producao: 0.5-1L por dia. Pouco, mas pode salvar.</p>
-
-      <h2>LifeStraw e Filtros Portateis</h2>
-      <p>Se voce pode investir em um item de sobrevivencia, um filtro portatil e o melhor custo-beneficio:</p>
-      <ul>
-        <li><strong>LifeStraw:</strong> filtra ate 4.000L, remove 99.99% das bacterias</li>
-        <li><strong>Sawyer Mini:</strong> filtra ate 400.000L, acoplavel em garrafa PET</li>
-        <li><strong>Grayl GeoPress:</strong> purifica (nao so filtra) — remove virus tambem</li>
-      </ul>
-
-      <h2>Sinais de agua contaminada</h2>
-      <ul>
-        <li>Espuma na superficie</li>
-        <li>Cheiro forte ou quimico</li>
-        <li>Cor escura ou esverdeada</li>
-        <li>Ausencia total de vida aquatica</li>
-        <li>Proximidade de areas industriais ou agropecuarias</li>
-      </ul>
-
-      <div class="warn-box">
-        <div class="warn-label">ATENCAO</div>
-        <p>Desidratacao severa causa confusao mental, que leva a decisoes piores, que aceleram a desidratacao. Beba ANTES de sentir sede. Se a urina esta escura, voce ja esta desidratado.</p>
-      </div>
-
-      <div class="guide-footer">
-        Baseado em: SAS Survival Handbook, 98.6 Degrees (Cody Lundin), OMS SODIS Guidelines · 
-        <a href="https://www.perplexity.ai/computer" target="_blank">Created with Perplexity Computer</a>
-      </div>
-    `
-  },
-  urban: {
-    tag: "SOBREVIVENCIA URBANA",
-    title: "Kit e Preparacao Urbana",
-    subtitle: "Apagoes, enchentes, colapso de infraestrutura — desastres urbanos exigem preparacao diferente. Seu kit e seu plano sao a diferenca entre caos e controle.",
-    image: "./img/guide-urban.jpg",
-    content: `
-      <h2>Bug-Out Bag (Mochila de Emergencia)</h2>
-      <p>Uma mochila pronta para sair de casa em 5 minutos com tudo que voce precisa para 72 horas. Mantenha sempre preparada perto da porta.</p>
-
-      <h2>Checklist do Kit 72h</h2>
-      <ul class="checklist">
-        <li>Agua: 3L por pessoa (ou filtro portatil + garrafa)</li>
-        <li>Comida: barras energeticas, enlatados, comida liofilizada</li>
-        <li>Documentos: copias em saco plastico (RG, CPF, passaporte, certidoes)</li>
-        <li>Dinheiro em especie: notas pequenas (R$10, R$20, R$50)</li>
-        <li>Lanterna + pilhas extras (ou lanterna a dinamo)</li>
-        <li>Radio portatil AM/FM (comunicacao quando celular cai)</li>
-        <li>Kit primeiro socorros completo</li>
-        <li>Remedios pessoais para 7 dias</li>
-        <li>Power bank carregado + cabos</li>
-        <li>Muda de roupa + capa de chuva</li>
-        <li>Canivete ou multiferramenta</li>
-        <li>Fita adesiva (silver tape)</li>
-        <li>Corda/paracord (10m)</li>
-        <li>Isqueiro + ferro rod de backup</li>
-        <li>Mapa fisico da regiao (GPS depende de sinal)</li>
-      </ul>
-
-      <div class="tip-box">
-        <div class="tip-label">DON'T PANIC — DICA</div>
-        <p>Revise seu kit a cada 6 meses: troque agua, verifique validade dos alimentos e remedios, recarregue power banks. Um kit desatualizado e quase tao ruim quanto nenhum kit.</p>
-      </div>
-
-      <h2>Plano de Comunicacao Familiar</h2>
-      <ul>
-        <li><strong>Ponto de encontro primario:</strong> local proximo de casa (praca, escola)</li>
-        <li><strong>Ponto de encontro secundario:</strong> fora do bairro, caso nao consigam chegar ao primario</li>
-        <li><strong>Contato fora da cidade:</strong> uma pessoa de referencia que todos possam ligar</li>
-        <li><strong>SMS funciona quando ligacao nao:</strong> em crises, redes ficam congestionadas — SMS usa menos banda</li>
-      </ul>
-
-      <h2>Apagao / Blackout</h2>
-      <ol>
-        <li>Desligue equipamentos eletronicos para evitar dano quando a energia voltar</li>
-        <li>Abra a geladeira o minimo possivel (mantem frio por 4-6h fechada)</li>
-        <li>Use lanternas, NAO velas (risco de incendio)</li>
-        <li>Se tiver gerador, NUNCA use em area fechada (monoxido de carbono mata)</li>
-        <li>Carregue celular no modo aviao para economizar bateria</li>
-      </ol>
-
-      <h2>Enchentes</h2>
-      <ul>
-        <li>Suba para andares altos — nunca tente atravessar agua corrente a pe ou de carro</li>
-        <li>15cm de agua corrente derruba um adulto; 60cm arrasta um carro</li>
-        <li>Desligue eletricidade e gas antes de evacuar</li>
-        <li>Agua de enchente e altamente contaminada — evite qualquer contato</li>
-      </ul>
-
-      <h2>Seguranca Pessoal em Crise</h2>
-      <p>Contexto brasileiro — situacoes de crise podem escalar:</p>
-      <ul>
-        <li><strong>Perfil baixo:</strong> nao ostente recursos. Mochila discreta, sem marcas caras.</li>
-        <li><strong>Movimento em grupo:</strong> sempre que possivel, mova-se acompanhado</li>
-        <li><strong>Consciencia situacional:</strong> observe o ambiente, identifique saidas, evite multidoes</li>
-        <li><strong>Rotas alternativas:</strong> conheca pelo menos 3 caminhos diferentes para seus destinos-chave</li>
-      </ul>
-
-      <div class="warn-box">
-        <div class="warn-label">ATENCAO</div>
-        <p>Em situacoes de panico coletivo, a maior ameaca sao as outras pessoas. Evite multidoes, mantenha a calma, tome decisoes racionais. O panico e contagioso — nao entre nele.</p>
-      </div>
-
-      <div class="guide-footer">
-        Baseado em: The Unthinkable (Amanda Ripley), Build the Perfect Bug Out Bag, Defesa Civil BR · 
-        <a href="https://www.perplexity.ai/computer" target="_blank">Created with Perplexity Computer</a>
-      </div>
-    `
-  },
-  firstaid: {
-    tag: "EMERGENCIA MEDICA",
-    title: "Primeiros Socorros",
-    subtitle: "Nos primeiros minutos apos um acidente, suas acoes determinam se alguem vive ou morre. Conhecimento basico de primeiros socorros e a habilidade mais valiosa que existe.",
-    image: "./img/guide-firstaid.jpg",
-    content: `
-      <h2>Protocolo ABCDE</h2>
-      <p>Em qualquer emergencia medica, siga esta ordem:</p>
-      <ol>
-        <li><strong>A — Airway (Via aerea):</strong> A via aerea esta desobstruida? Incline a cabeca para tras e levante o queixo.</li>
-        <li><strong>B — Breathing (Respiracao):</strong> Esta respirando? Olhe o peito subir, ouca, sinta o ar.</li>
-        <li><strong>C — Circulation (Circulacao):</strong> Ha sangramento grave? Controle hemorragias primeiro.</li>
-        <li><strong>D — Disability (Neurológico):</strong> Esta consciente? Responde a estimulos?</li>
-        <li><strong>E — Exposure (Exposicao):</strong> Examine o corpo todo por lesoes ocultas. Previna hipotermia.</li>
-      </ol>
-
-      <h2>Controle de Hemorragia</h2>
-      <h3>Pressao direta</h3>
-      <p>A primeira e mais importante acao. Pressione firme sobre o ferimento com pano limpo, gaze, ou ate a propria camiseta. Nao tire o pano se encharcar — adicione mais camadas por cima.</p>
-      
-      <h3>Torniquete</h3>
-      <p>Para sangramentos que nao param com pressao em membros (bracos/pernas):</p>
-      <ol>
-        <li>Use cinto, corda, tira de tecido — nao arame ou barbante fino</li>
-        <li>Aplique 5-7cm acima da ferida (entre a ferida e o coracao)</li>
-        <li>Aperte ate o sangramento parar</li>
-        <li>Anote o horario de aplicacao (escreva no braco da pessoa se precisar)</li>
-        <li>NAO afrouxe — deixe para o medico no hospital</li>
-      </ol>
-
-      <div class="warn-box">
-        <div class="warn-label">ATENCAO</div>
-        <p>Torniquete e ultimo recurso — pode causar perda do membro. Use apenas quando pressao direta nao funciona e a vida esta em risco. Hemorragia grave mata em 3-5 minutos.</p>
-      </div>
-
-      <h2>RCP (Ressuscitacao Cardiopulmonar)</h2>
-      <ol>
-        <li>Confirme que a pessoa nao responde e nao respira normalmente</li>
-        <li>Ligue 192 (SAMU) ou peca para alguem ligar</li>
-        <li>Coloque a pessoa de costas em superficie dura</li>
-        <li>Mãos sobrepostas no centro do peito, entre os mamilos</li>
-        <li>Comprima 5-6cm, ritmo de 100-120/min (ritmo da musica "Stayin' Alive")</li>
-        <li>30 compressoes, 2 ventilacoes (se treinado). So compressoes se nao treinado.</li>
-        <li>Nao pare ate o SAMU chegar ou a pessoa reagir</li>
-      </ol>
-
-      <div class="tip-box">
-        <div class="tip-label">DON'T PANIC — DICA</div>
-        <p>RCP feita por leigo, mesmo imperfeita, TRIPLICA a chance de sobrevivencia. E melhor fazer errado do que nao fazer. Voce nao vai "piorar" alguem que ja nao tem pulso.</p>
-      </div>
-
-      <h2>Fraturas e Imobilizacao</h2>
-      <ul>
-        <li><strong>Sinais:</strong> dor intensa, deformidade, incapacidade de mover, inchaço</li>
-        <li><strong>Regra:</strong> imobilize a articulacao acima e abaixo da fratura</li>
-        <li><strong>Tala improvisada:</strong> revistas enroladas, galhos retos, papelao, travesseiro</li>
-        <li><strong>Amarre sem apertar demais</strong> — verifique circulacao (dedos rosados e com sensacao)</li>
-        <li><strong>Nunca tente realinhar</strong> uma fratura — imobilize como esta</li>
-      </ul>
-
-      <h2>Queimaduras</h2>
-      <ul>
-        <li><strong>1o grau (vermelhidao):</strong> agua corrente fria por 10-20 min. Nao use gelo, pasta de dente, ou manteiga.</li>
-        <li><strong>2o grau (bolhas):</strong> agua fria, NAO estoure bolhas, cubra com gaze umida.</li>
-        <li><strong>3o grau (carbonizacao):</strong> cubra com pano limpo umido, va ao hospital imediatamente.</li>
-      </ul>
-
-      <h2>Kit Primeiro Socorros Essencial</h2>
-      <ul class="checklist">
-        <li>Gaze esteril e bandagens elasticas</li>
-        <li>Esparadrapo/micropore</li>
-        <li>Luvas descartaveis (minimo 4 pares)</li>
-        <li>Tesoura e pinca</li>
-        <li>Antisseptico (clorexidina ou iodopovidona)</li>
-        <li>Soro fisiologico (lavagem de feridas)</li>
-        <li>Analgesico e anti-inflamatorio</li>
-        <li>Anti-histaminico (reacoes alergicas)</li>
-        <li>Cobertor termico de emergencia</li>
-        <li>Torniquete comercial (CAT ou similar)</li>
-      </ul>
-
-      <div class="guide-footer">
-        Baseado em: Wilderness First Aid (NOLS), Manual SAMU, Where There Is No Doctor (David Werner) · 
-        <a href="https://www.perplexity.ai/computer" target="_blank">Created with Perplexity Computer</a>
-      </div>
-    `
-  },
-  navigation: {
-    tag: "ORIENTACAO",
-    title: "Navegacao e Sinalizacao",
-    subtitle: "Perdido sem GPS? As estrelas, o sol e a natureza ao redor fornecem tudo que voce precisa para encontrar direcao. E se precisar de resgate, saiba como ser encontrado.",
-    image: "./img/guide-navigation.jpg",
-    content: `
-      <h2>Navegacao pelo Sol</h2>
-      <h3>Metodo da Sombra</h3>
-      <ol>
-        <li>Finca uma vara reta no chao (1m de altura)</li>
-        <li>Marque a ponta da sombra com uma pedra</li>
-        <li>Espere 15-20 minutos</li>
-        <li>Marque a nova ponta da sombra</li>
-        <li>Uma linha entre as duas pedras indica Leste-Oeste (primeira marca = Oeste)</li>
-        <li>Uma linha perpendicular indica Norte-Sul</li>
-      </ol>
-      <p><strong>No Hemisferio Sul (Brasil):</strong> o sol esta mais ao norte, entao sombras apontam mais para o sul ao meio-dia.</p>
-
-      <h2>Navegacao pelas Estrelas</h2>
-      <h3>Cruzeiro do Sul (Hemisferio Sul)</h3>
-      <p>A constelacao mais importante para nos brasileiros:</p>
-      <ol>
-        <li>Encontre o Cruzeiro do Sul — 4 estrelas em forma de cruz</li>
-        <li>Prolongue o eixo maior da cruz 4.5 vezes para baixo</li>
-        <li>O ponto final indica aproximadamente o Polo Sul Celeste</li>
-        <li>Desse ponto, trace uma linha vertical ate o horizonte — la esta o Sul</li>
-      </ol>
-
-      <div class="tip-box">
-        <div class="tip-label">DON'T PANIC — DICA</div>
-        <p>Se voce se perdeu: PARE. Sente, pense, observe, planeje. Andar sem direcao so piora as coisas. Pessoas perdidas tendem a andar em circulos — a navegacao impede isso.</p>
-      </div>
-
-      <h2>Bussola Natural</h2>
-      <ul>
-        <li><strong>Musgo:</strong> tende a crescer no lado sul das arvores no Hemisferio Sul (menos sol direto)</li>
-        <li><strong>Cupinzeiros:</strong> muitos tem formato que aponta Norte-Sul</li>
-        <li><strong>Antenas de TV/satelite:</strong> em areas urbanas brasileiras, geralmente apontam para Nordeste (satelites geoestacionarios)</li>
-        <li><strong>Igrejas catolicas antigas:</strong> altar geralmente voltado para o Leste</li>
-      </ul>
-
-      <h2>Sinalizacao para Resgate</h2>
-      <h3>Regra dos 3</h3>
-      <p>Qualquer sinal em grupo de 3 e universalmente reconhecido como pedido de socorro: 3 fogueiras em triangulo, 3 apitos, 3 sinais luminosos.</p>
-
-      <h3>Sinais visuais</h3>
-      <ul>
-        <li><strong>Espelho de sinalizacao:</strong> pode ser visto a 50km+ em dia claro. Use qualquer superficie reflexiva (CD, celular, lata).</li>
-        <li><strong>Fumaca:</strong> de dia, fumaca branca (folhas verdes no fogo). Sinal de dia mais eficaz.</li>
-        <li><strong>SOS no chao:</strong> escreva grande (minimo 3m de altura por letra) com pedras, galhos, ou cavando na terra.</li>
-        <li><strong>Cores contrastantes:</strong> laranja e o melhor para ser visto. Na falta, qualquer cor que contraste com o terreno.</li>
-      </ul>
-
-      <h3>Sinais sonoros</h3>
-      <ul>
-        <li><strong>Apito:</strong> alcanca 1.5km+, nao cansa como gritar. 3 apitos = socorro.</li>
-        <li><strong>Batida em metal:</strong> som viaja longe, especialmente em vales</li>
-      </ul>
-
-      <h2>Se voce esta REALMENTE perdido</h2>
-      <ol>
-        <li><strong>PARE</strong> — nao continue andando sem rumo</li>
-        <li><strong>Fique visivel</strong> — area aberta, sinais no chao</li>
-        <li><strong>Agua e abrigo</strong> — cuide das necessidades basicas enquanto espera</li>
-        <li><strong>Siga um rio descendo</strong> — rios levam a civilizacao (se decidir se mover)</li>
-        <li><strong>Deixe trilha</strong> — galhos quebrados, pedras empilhadas, fitas em arvores</li>
-      </ol>
-
-      <div class="warn-box">
-        <div class="warn-label">ATENCAO</div>
-        <p>Celular sem sinal ainda funciona para ligar 190/192/193 — emergencias usam qualquer operadora disponivel. Mesmo com "sem servico", tente ligar.</p>
-      </div>
-
-      <div class="guide-footer">
-        Baseado em: SAS Survival Handbook, Deep Survival (Laurence Gonzales), Bushcraft 101 · 
-        <a href="https://www.perplexity.ai/computer" target="_blank">Created with Perplexity Computer</a>
-      </div>
-    `
-  }
-};
+// ─── Guide/Protocol/Game Data (loaded from API) ─────────────────────────────
+const guidesCache = {};  // { id: { title, content(md) } }
+let guidesIndex = [];    // [{ id, title, icon, emoji }]
+let protocolsIndex = []; // [{ id, title, urgency, emoji }]
+let gamesIndex = [];     // [{ id, title, emoji }]
+let searchIndex = null;  // MiniSearch instance
 
 // Sci-fi loading phrases
 const LOADING_PHRASES = [
@@ -623,6 +163,11 @@ document.addEventListener("DOMContentLoaded", () => {
   renderSidebarCharacters();
   // Load sidebar apps list in background
   fetch("/api/build/list").then(r => r.json()).then(d => renderSidebarApps(d.apps || [])).catch(() => {});
+  // Phase 3: Load guides, protocols, games from API
+  loadGuidesIndex();
+  loadProtocolsIndex();
+  loadGamesIndex();
+  initSearch();
 });
 
 // ─── Persistence (with fallback) ────────────────────────────────────────────
@@ -802,33 +347,91 @@ function isFavorited(text) {
   return state.favorites.some(f => f.text === text.slice(0, 200));
 }
 
-// ─── Guides ─────────────────────────────────────────────────────────────────
-function openGuide(guideId) {
-  const guide = GUIDES[guideId];
-  if (!guide) return;
+// ─── Guides (dynamic, loaded from API) ──────────────────────────────────────
+async function loadGuidesIndex() {
+  try {
+    const r = await fetch('/api/guides');
+    const d = await r.json();
+    guidesIndex = Array.isArray(d) ? d : (d.guides || []);
+    renderSidebarGuides();
+    indexContent();
+  } catch(e) { console.warn('Guides load failed:', e); }
+}
+
+function renderSidebarGuides() {
+  const list = document.getElementById('guideList');
+  if (!list) return;
+  // Keep the map item at the end
+  const mapItem = list.querySelector('[data-guide="map"]');
+  list.innerHTML = '';
+
+  const icons = {
+    water: '\u{1F4A7}', fire: '\u{1F525}', shelter: '\u{1F3E0}', firstaid: '\u{1FA7A}', navigation: '\u{1F9ED}',
+    'food-foraging': '\u{1F33F}', 'food-preservation': '\u{1F96B}', 'radio-comms': '\u{1F4FB}',
+    'hygiene-sanitation': '\u{1F9FC}', 'defense-security': '\u{1F6E1}\uFE0F', 'mental-health': '\u{1F9E0}',
+    'power-electricity': '\u26A1', 'tools-repair': '\u{1F527}', 'knots-ropes': '\u{1FAA2}',
+    'animal-trapping': '\u{1FAA4}', 'medicine-plants': '\u{1F331}', 'weather-prediction': '\u{1F326}\uFE0F',
+    urban: '\u{1F3D9}\uFE0F'
+  };
+
+  for (const g of guidesIndex) {
+    const li = document.createElement('li');
+    li.className = 'nav-item nav-guide';
+    li.dataset.guide = g.id;
+    li.onclick = () => openGuide(g.id);
+    li.innerHTML = `<span class="nav-emoji">${icons[g.id] || '\u{1F4D6}'}</span><span>${escapeHtml(g.title)}</span>`;
+    list.appendChild(li);
+  }
+
+  // Re-add map item
+  if (mapItem) list.appendChild(mapItem);
+  else {
+    const li = document.createElement('li');
+    li.className = 'nav-item nav-guide nav-map-item';
+    li.dataset.guide = 'map';
+    li.onclick = () => openMap();
+    li.innerHTML = `<span class="nav-emoji">\u{1F5FA}\uFE0F</span><span>Mapa Offline</span>`;
+    list.appendChild(li);
+  }
+}
+
+async function openGuide(guideId) {
   state.activeGuide = guideId;
+  const content = document.getElementById('guideContent');
+  content.innerHTML = '<div class="guide-loading">Carregando...</div>';
 
-  const content = document.getElementById("guideContent");
-  content.innerHTML = `
-    <img class="guide-hero" src="${guide.image}" alt="${guide.title}" />
-    <div class="guide-body">
-      <span class="guide-tag">${guide.tag}</span>
-      <h1>${guide.title}</h1>
-      <p class="guide-subtitle">${guide.subtitle}</p>
-      ${guide.content}
-    </div>`;
-
-  // Update sidebar active
-  document.querySelectorAll(".nav-guide").forEach(el => el.classList.remove("active"));
-  const activeGuide = document.querySelector(`[data-guide="${guideId}"]`);
-  if (activeGuide) activeGuide.classList.add("active");
-
-  // Update fav button
-  updateGuideFavBtn();
+  document.querySelectorAll('.nav-guide').forEach(el => el.classList.remove('active'));
+  const activeEl = document.querySelector(`[data-guide="${guideId}"]`);
+  if (activeEl) activeEl.classList.add('active');
 
   showGuideView();
-  document.getElementById("sidebar").classList.remove("open");
-  content.scrollTop = 0;
+  document.getElementById('sidebar').classList.remove('open');
+
+  try {
+    // Check cache first
+    if (!guidesCache[guideId]) {
+      const r = await fetch(`/api/guides/${guideId}`);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const ct = r.headers.get('content-type') || '';
+      // Server returns raw markdown text; store as string
+      const text = await r.text();
+      guidesCache[guideId] = ct.includes('json') ? JSON.parse(text) : { content: text };
+    }
+    const guide = guidesCache[guideId];
+    const titleFromIndex = guidesIndex.find(g => g.id === guideId);
+    const title = titleFromIndex?.title || guideId;
+
+    content.innerHTML = `
+      <div class="guide-body">
+        <h1>${escapeHtml(title)}</h1>
+        <div class="guide-md-content">${markdownToHtml(guide.content || '')}</div>
+      </div>`;
+    content.scrollTop = 0;
+  } catch(e) {
+    content.innerHTML = `<div class="guide-error">Erro ao carregar guia: ${e.message}</div>`;
+  }
+
+  updateGuideFavBtn();
 }
 
 function closeGuide() {
@@ -839,8 +442,8 @@ function closeGuide() {
 
 function toggleFavGuide() {
   if (!state.activeGuide) return;
-  const guide = GUIDES[state.activeGuide];
-  const text = guide.title;
+  const titleFromIndex = guidesIndex.find(g => g.id === state.activeGuide)?.title;
+  const text = titleFromIndex || state.activeGuide;
   if (isFavorited(text)) {
     const fav = state.favorites.find(f => f.text === text.slice(0, 200));
     if (fav) removeFavorite(fav.id);
@@ -852,9 +455,10 @@ function toggleFavGuide() {
 
 function updateGuideFavBtn() {
   const btn = document.getElementById("btnFavGuide");
-  if (!state.activeGuide) return;
-  const guide = GUIDES[state.activeGuide];
-  if (isFavorited(guide.title)) {
+  if (!state.activeGuide || !btn) return;
+  const titleFromIndex = guidesIndex.find(g => g.id === state.activeGuide)?.title;
+  const text = titleFromIndex || state.activeGuide;
+  if (isFavorited(text)) {
     btn.classList.add("faved");
   } else {
     btn.classList.remove("faved");
@@ -862,13 +466,18 @@ function updateGuideFavBtn() {
 }
 
 // ─── View Switching ─────────────────────────────────────────────────────────
-const ALL_VIEWS = ["chatView", "guideView", "mapView", "appsView", "charactersView", "ttsView"];
+const ALL_VIEWS = ["chatView", "guideView", "mapView", "appsView", "charactersView", "ttsView", "protocolView", "suppliesView", "booksView", "gamesView", "gamePlayView", "wikiView", "journalView"];
 
 function showView(id) {
   ALL_VIEWS.forEach(v => {
     const el = document.getElementById(v);
     if (el) el.classList.toggle("hidden", v !== id);
   });
+  // Stop journal clock when leaving journal view
+  if (id !== 'journalView' && _clockInterval) {
+    clearInterval(_clockInterval);
+    _clockInterval = null;
+  }
 }
 
 function showChatView() { showView("chatView"); }
@@ -2750,6 +2359,827 @@ function haversine(lat1, lon1, lat2, lon2) {
 function formatDistance(meters) {
   if (meters < 1000) return `${Math.round(meters)}m`;
   return `${(meters / 1000).toFixed(2)}km`;
+}
+
+// ─── Protocols (loaded from API) ─────────────────────────────────────────────
+async function loadProtocolsIndex() {
+  try {
+    const r = await fetch('/api/protocols');
+    const d = await r.json();
+    protocolsIndex = Array.isArray(d) ? d : (d.protocols || []);
+    renderSidebarProtocols();
+    indexContent();
+  } catch(e) { console.warn('Protocols load failed:', e); }
+}
+
+function renderSidebarProtocols() {
+  const list = document.getElementById('protocolList');
+  if (!list) return;
+  list.innerHTML = '';
+
+  const urgencyEmoji = { critical: '\u{1F534}', high: '\u{1F7E0}', medium: '\u{1F7E1}' };
+
+  for (const p of protocolsIndex) {
+    const li = document.createElement('li');
+    li.className = 'nav-item nav-protocol';
+    li.dataset.protocol = p.id;
+    li.onclick = () => openProtocol(p.id);
+    li.innerHTML = `<span class="nav-emoji">${urgencyEmoji[p.urgency] || '\u{1F7E2}'}</span><span>${escapeHtml(p.title)}</span>`;
+    list.appendChild(li);
+  }
+}
+
+async function openProtocol(protocolId) {
+  state.activeProtocol = protocolId;
+  const content = document.getElementById('protocolContent');
+  if (!content) return;
+
+  content.innerHTML = '<div class="guide-loading">Carregando protocolo...</div>';
+  showView('protocolView');
+  document.getElementById('sidebar').classList.remove('open');
+
+  try {
+    const r = await fetch(`/api/protocols/${protocolId}`);
+    const protocol = await r.json();
+    state.currentProtocol = protocol;
+    renderProtocolStep(protocol, protocol.steps[0].id);
+  } catch(e) {
+    content.innerHTML = `<div class="guide-error">Erro ao carregar protocolo: ${e.message}</div>`;
+  }
+}
+
+function renderProtocolStep(protocol, stepId) {
+  const content = document.getElementById('protocolContent');
+  const titleEl = document.getElementById('protocolTitle');
+  const step = protocol.steps.find(s => s.id === stepId);
+  if (!step) { content.innerHTML = '<div class="guide-error">Passo n\u00E3o encontrado</div>'; return; }
+
+  if (titleEl) titleEl.textContent = protocol.title;
+
+  const urgency = protocol.urgency || 'medium';
+  const urgencyLabel = { critical: '🚨 CRITICO', high: '⚠️ URGENTE', medium: '📋 PROTOCOLO' };
+
+  let html = `<div class="protocol-step">`;
+  html += `<div class="protocol-urgency ${urgency}">${urgencyLabel[urgency] || urgency.toUpperCase()}</div>`;
+
+  if (step.type === 'decision') {
+    html += `<div class="protocol-step-text">${escapeHtml(step.text)}</div>`;
+    if (step.detail) html += `<div class="protocol-step-detail">${escapeHtml(step.detail)}</div>`;
+    html += `<div class="protocol-buttons">`;
+    if (step.yes) html += `<button class="protocol-btn protocol-btn-yes" onclick="renderProtocolStep(state.currentProtocol,'${step.yes}')">✓ SIM</button>`;
+    if (step.no)  html += `<button class="protocol-btn protocol-btn-no"  onclick="renderProtocolStep(state.currentProtocol,'${step.no}')">✗ NÃO</button>`;
+    html += `</div>`;
+  } else if (step.type === 'action' || step.type === 'info') {
+    html += `<div class="protocol-step-text">${escapeHtml(step.text)}</div>`;
+    if (step.detail) html += `<div class="protocol-step-detail">${escapeHtml(step.detail)}</div>`;
+    if (step.next) html += `<div class="protocol-buttons"><button class="protocol-btn protocol-btn-next" onclick="renderProtocolStep(state.currentProtocol,'${step.next}')">PRÓXIMO →</button></div>`;
+    else html += `<div class="protocol-buttons"><button class="protocol-btn protocol-btn-end" onclick="openProtocol('${protocol.id}')">↺ REINICIAR</button></div>`;
+  } else if (step.type === 'end') {
+    html += `<div class="protocol-step-icon">✅</div>`;
+    html += `<div class="protocol-step-text">${escapeHtml(step.text)}</div>`;
+    html += `<div class="protocol-buttons"><button class="protocol-btn protocol-btn-end" onclick="openProtocol('${protocol.id}')">↺ REINICIAR PROTOCOLO</button></div>`;
+  }
+
+  html += `</div>`;
+  content.innerHTML = html;
+}
+
+function closeProtocol() {
+  state.activeProtocol = null;
+  state.currentProtocol = null;
+  showChatView();
+}
+
+// ─── Games (loaded from API) ────────────────────────────────────────────────
+async function loadGamesIndex() {
+  try {
+    const r = await fetch('/api/games');
+    const d = await r.json();
+    gamesIndex = Array.isArray(d) ? d : (d.games || []);
+  } catch(e) { console.warn('Games load failed:', e); }
+}
+
+function openGamesPanel() {
+  showView('gamesView');
+  document.getElementById('sidebar').classList.remove('open');
+  renderGamesGrid();
+}
+
+function renderGamesGrid() {
+  const grid = document.getElementById('gamesGrid');
+  if (!grid) return;
+  if (gamesIndex.length === 0) {
+    grid.innerHTML = '<div class="panel-empty">Nenhum jogo dispon\u00EDvel.</div>';
+    return;
+  }
+  const emojis = { snake: '🐍', tetris: '🧱', '2048': '🔢', minesweeper: '💣', sudoku: '🔲', solitaire: '🃏', chess: '♟️', checkers: '⚫' };
+  grid.innerHTML = gamesIndex.map(g => `
+    <div class="game-card" onclick="openGame('${escapeHtml(g.id || g.name)}')">
+      <div class="game-card-icon">${emojis[g.id || g.name] || '🎮'}</div>
+      <div class="game-card-name">${escapeHtml(g.title || g.name)}</div>
+      ${g.desc ? `<div class="game-card-desc">${escapeHtml(g.desc)}</div>` : ''}
+    </div>`).join('');
+}
+
+function openGame(name) {
+  showView('gamePlayView');
+  const frame = document.getElementById('gameFrame');
+  const titleEl = document.getElementById('gameTitle');
+  const game = gamesIndex.find(g => (g.id || g.name) === name);
+  if (titleEl) titleEl.textContent = game?.title || name;
+  if (frame) frame.src = `/api/games/${encodeURIComponent(name)}`;
+}
+
+function closeGame() {
+  const frame = document.getElementById('gameFrame');
+  if (frame) frame.src = 'about:blank';
+  showView('gamesView');
+}
+
+// Listen for game close postMessage
+window.addEventListener('message', (e) => {
+  if (e.data === 'close-game') closeGame();
+});
+
+// ─── Supplies (loaded from API) ─────────────────────────────────────────────
+async function openSuppliesPanel() {
+  showView('suppliesView');
+  document.getElementById('sidebar').classList.remove('open');
+  await loadSupplies();
+}
+
+let _suppliesAll = [];
+let _suppliesCategory = 'all';
+
+async function loadSupplies() {
+  const tableWrap = document.getElementById('suppliesContent');
+  if (!tableWrap) return;
+  tableWrap.innerHTML = '<div class="guide-loading">Carregando suprimentos...</div>';
+  try {
+    const [itemsR, summR] = await Promise.all([
+      fetch('/api/supplies'),
+      fetch('/api/supplies/summary')
+    ]);
+    const items = await itemsR.json();
+    const summary = await summR.json();
+    _suppliesAll = Array.isArray(items) ? items : (items.supplies || []);
+    renderSuppliesDashboard(summary);
+    renderSuppliesTable(_suppliesAll);
+  } catch(e) {
+    tableWrap.innerHTML = `<div class="guide-error">Erro: ${e.message}</div>`;
+  }
+}
+
+function renderSuppliesDashboard(summary) {
+  const dash = document.getElementById('suppliesDashboard');
+  if (!dash) return;
+  dash.innerHTML = `
+    <div class="sup-stat"><div class="sup-stat-value">${summary.total || 0}</div><div class="sup-stat-label">Total itens</div></div>
+    <div class="sup-stat warn"><div class="sup-stat-value">${summary.expiring_7d || 0}</div><div class="sup-stat-label">Vencendo 7d</div></div>
+    <div class="sup-stat danger"><div class="sup-stat-value">${summary.expiring_30d || 0}</div><div class="sup-stat-label">Vencendo 30d</div></div>
+  `;
+}
+
+function filterSupplies(cat) {
+  _suppliesCategory = cat;
+  // Update tab active state
+  document.querySelectorAll('.sup-tab').forEach(t =>
+    t.classList.toggle('active', t.dataset.cat === cat)
+  );
+  const filtered = cat === 'all' ? _suppliesAll : _suppliesAll.filter(i => i.category === cat);
+  renderSuppliesTable(filtered);
+}
+
+function renderSuppliesTable(items) {
+  const wrap = document.getElementById('suppliesContent');
+  if (!wrap) return;
+
+  if (items.length === 0) {
+    wrap.innerHTML = '<div class="panel-empty">Nenhum suprimento nesta categoria.</div>';
+    return;
+  }
+
+  let html = '<table class="supplies-table"><thead><tr>';
+  html += '<th>Nome</th><th>Qtd</th><th>Unidade</th><th>Categoria</th><th>Validade</th><th></th>';
+  html += '</tr></thead><tbody>';
+
+  for (const item of items) {
+    const ec = getExpiryClass(item.expiry);
+    html += `<tr>
+      <td>${escapeHtml(item.name)}</td>
+      <td>${item.quantity}</td>
+      <td>${escapeHtml(item.unit || '\u2014')}</td>
+      <td>${escapeHtml(item.category || '\u2014')}</td>
+      <td class="${ec}">${item.expiry || '\u2014'}</td>
+      <td><div class="sup-actions">
+        <button class="btn-edit" onclick="showEditSupply(${item.id})" title="Editar">✏</button>
+        <button class="btn-del" onclick="deleteSupply(${item.id})" title="Remover">\u00D7</button>
+      </div></td>
+    </tr>`;
+  }
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+}
+
+function getExpiryClass(expiry) {
+  if (!expiry) return '';
+  const diff = (new Date(expiry) - new Date()) / (1000 * 60 * 60 * 24);
+  if (diff < 0)  return 'expiry-expired';
+  if (diff < 7)  return 'expiry-danger';
+  if (diff < 30) return 'expiry-warn';
+  return 'expiry-ok';
+}
+
+function _buildSupplyModal(titleText, item, onSave) {
+  document.getElementById('supModal')?.remove();
+  const sel = (val) => ({
+    food: '', water: '', medicine: '', fuel: '', tools: '', other: ''
+  });
+  const opts = ['food','water','medicine','fuel','tools','other'];
+  const labels = { food:'Comida', water:'Água', medicine:'Remédio', fuel:'Combustível', tools:'Ferramentas', other:'Outros' };
+  const optHtml = opts.map(o =>
+    `<option value="${o}"${(item.category||'other') === o ? ' selected' : ''}>${labels[o]}</option>`
+  ).join('');
+
+  const overlay = document.createElement('div');
+  overlay.className = 'sup-modal-overlay';
+  overlay.id = 'supModal';
+  overlay.innerHTML = `
+    <div class="sup-modal">
+      <h3>${titleText}</h3>
+      <label>Nome *</label>
+      <input id="supName" type="text" placeholder="Ex: Feijão carioca" value="${escapeHtml(item.name||'')}" autofocus />
+      <label>Quantidade</label>
+      <input id="supQty" type="number" value="${item.quantity != null ? item.quantity : 1}" min="0" step="any" />
+      <label>Unidade</label>
+      <input id="supUnit" type="text" placeholder="kg, L, un, cx..." value="${escapeHtml(item.unit||'un')}" />
+      <label>Categoria</label>
+      <select id="supCat">${optHtml}</select>
+      <label>Notas</label>
+      <input id="supNotes" type="text" placeholder="Observações opcionais..." value="${escapeHtml(item.notes||'')}" />
+      <label>Validade</label>
+      <input id="supExpiry" type="date" value="${item.expiry||''}" />
+      <div class="sup-modal-actions">
+        <button class="btn-sm btn-accent" onclick="${onSave}">Salvar</button>
+        <button class="btn-sm" onclick="document.getElementById('supModal').remove()">Cancelar</button>
+      </div>
+    </div>`;
+
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+  document.getElementById('supName')?.focus();
+}
+
+function showAddSupply() {
+  _buildSupplyModal('+ Adicionar Suprimento', {}, 'submitAddSupply()');
+}
+
+function showEditSupply(id) {
+  const item = _suppliesAll.find(i => i.id === id);
+  if (!item) return;
+  _buildSupplyModal('✏ Editar Suprimento', item, `submitEditSupply(${id})`);
+}
+
+function _collectSupplyForm() {
+  return {
+    name:     document.getElementById('supName')?.value.trim(),
+    quantity: parseFloat(document.getElementById('supQty')?.value) || 1,
+    unit:     document.getElementById('supUnit')?.value.trim() || 'un',
+    category: document.getElementById('supCat')?.value || 'other',
+    expiry:   document.getElementById('supExpiry')?.value || null,
+    notes:    document.getElementById('supNotes')?.value.trim() || null,
+  };
+}
+
+async function submitAddSupply() {
+  const data = _collectSupplyForm();
+  if (!data.name) return;
+  try {
+    await fetch('/api/supplies', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(data)
+    });
+    document.getElementById('supModal')?.remove();
+    loadSupplies();
+  } catch(e) { alert('Erro: ' + e.message); }
+}
+
+async function submitEditSupply(id) {
+  const data = _collectSupplyForm();
+  if (!data.name) return;
+  try {
+    await fetch(`/api/supplies/${id}`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(data)
+    });
+    document.getElementById('supModal')?.remove();
+    loadSupplies();
+  } catch(e) { alert('Erro: ' + e.message); }
+}
+
+async function deleteSupply(id) {
+  if (!confirm('Remover item?')) return;
+  try {
+    await fetch(`/api/supplies/${id}`, { method: 'DELETE' });
+    loadSupplies();
+  } catch(e) { alert('Erro: ' + e.message); }
+}
+
+// ─── Books (loaded from API) ────────────────────────────────────────────────
+async function openBooksPanel() {
+  showView('booksView');
+  document.getElementById('sidebar').classList.remove('open');
+  await loadBooks();
+}
+
+async function loadBooks(q = '') {
+  const grid = document.getElementById('booksContent');
+  if (!grid) return;
+  grid.innerHTML = '<div class="guide-loading">Carregando biblioteca...</div>';
+  try {
+    const url = q ? `/api/books?q=${encodeURIComponent(q)}` : '/api/books';
+    const r = await fetch(url);
+    const d = await r.json();
+    renderBooks(Array.isArray(d) ? d : (d.books || []));
+  } catch(e) {
+    grid.innerHTML = `<div class="guide-error">Erro: ${e.message}</div>`;
+  }
+}
+
+function renderBooks(books) {
+  const grid = document.getElementById('booksContent');
+  if (!grid) return;
+  if (books.length === 0) {
+    grid.innerHTML = '<div class="panel-empty">Nenhum livro encontrado.<br>Coloque arquivos .epub em <code>data/books/</code></div>';
+    return;
+  }
+  grid.innerHTML = books.map(b => `
+    <div class="book-card" onclick="openBook(${b.id})">
+      <div class="book-card-title">${escapeHtml(b.title)}</div>
+      <div class="book-card-author">${escapeHtml(b.author || 'Autor desconhecido')}</div>
+      <div class="book-card-progress"><div class="book-card-progress-bar" style="width:${b.read_pct || 0}%"></div></div>
+      <div class="book-card-meta">
+        <span>${b.lang || 'PT'}</span>
+        <span>${Math.round((b.size_kb || 0) / 1024 * 10) / 10} MB</span>
+      </div>
+    </div>`).join('');
+}
+
+function openBook(id) {
+  // TODO: Phase 5 - epub.js reader
+  window.open(`/api/books/${id}/file`, '_blank');
+}
+
+// ─── Wiki / Kiwix ────────────────────────────────────────────────────────────
+async function openWikiPanel() {
+  showView('wikiView');
+  document.getElementById('sidebar').classList.remove('open');
+  const frame = document.getElementById('wikiFrame');
+  const statusEl = document.getElementById('wikiStatus');
+  const offlineMsg = document.getElementById('wikiOfflineMsg');
+  const dot = statusEl?.querySelector('.sys-dot');
+  const statusTxt = statusEl?.querySelector('span:last-child');
+
+  if (statusTxt) statusTxt.textContent = 'Verificando...';
+
+  try {
+    const r = await fetch('/api/kiwix/status');
+    const d = await r.json();
+    if (d.running) {
+      if (frame) frame.src = 'http://localhost:8889';
+      if (offlineMsg) offlineMsg.classList.add('hidden');
+      if (dot) { dot.classList.remove('sys-warn'); dot.classList.add('sys-ok'); }
+      if (statusTxt) statusTxt.textContent = 'Online';
+    } else {
+      if (frame) { frame.src = 'about:blank'; }
+      if (offlineMsg) offlineMsg.classList.remove('hidden');
+      if (dot) { dot.classList.remove('sys-ok'); dot.classList.add('sys-warn'); }
+      if (statusTxt) statusTxt.textContent = 'Indispon\u00EDvel';
+    }
+  } catch {
+    if (offlineMsg) offlineMsg.classList.remove('hidden');
+    if (dot) { dot.classList.remove('sys-ok'); dot.classList.add('sys-warn'); }
+    if (statusTxt) statusTxt.textContent = 'Erro';
+  }
+}
+
+// ─── Journal ────────────────────────────────────────────────────────────────
+let _journalMood = null;
+let _journalCurrentDate = new Date().toISOString().slice(0, 10);
+let _journalEntries = [];
+let _clockInterval = null;
+let _calYear = null;
+let _calMonth = null;
+
+async function openJournalPanel() {
+  showView('journalView');
+  document.getElementById('sidebar').classList.remove('open');
+  _journalCurrentDate = new Date().toISOString().slice(0, 10); // reset to today on open
+  const now = new Date();
+  _calYear  = now.getFullYear();
+  _calMonth = now.getMonth();
+  await loadJournal();
+  _startClock();
+}
+
+async function loadJournal() {
+  const content = document.getElementById('journalContent');
+  if (!content) return;
+  content.innerHTML = '<div class="guide-loading">Carregando diário...</div>';
+  try {
+    const r = await fetch('/api/journal');
+    const d = await r.json();
+    _journalEntries = Array.isArray(d) ? d : (d.entries || []);
+    renderJournal(_journalEntries);
+  } catch(e) {
+    content.innerHTML = `<div class="guide-error">Erro: ${e.message}</div>`;
+  }
+}
+
+function renderJournal(entries) {
+  const content = document.getElementById('journalContent');
+  if (!content) return;
+  _journalEntries = entries;
+
+  let html = '';
+
+  // ── Clock bar ──
+  html += '<div class="journal-clock-bar">';
+  html += '<div id="journalClock" class="journal-clock">00:00:00</div>';
+  html += '</div>';
+
+  // ── Two-column layout: calendar left, editor+timeline right ──
+  html += '<div class="journal-layout">';
+
+  // Left column: calendar + status
+  html += '<div class="journal-left">';
+  html += '<div id="journalCalendar" class="journal-cal"></div>';
+  html += '<div id="journalStatus" class="journal-status-card"><div class="guide-loading">Carregando status...</div></div>';
+  html += '</div>';
+
+  // Right column: editor + timeline
+  html += '<div class="journal-right">';
+  html += '<div id="journalEditor" class="journal-editor"></div>';
+  if (entries.length > 0) {
+    html += '<div class="journal-timeline">';
+    html += '<div class="journal-timeline-title">Entradas anteriores</div>';
+    for (const e of entries.slice(0, 30)) {
+      const preview = (e.content || '').slice(0, 100) + ((e.content||'').length > 100 ? '…' : '');
+      const isActive = e.date === _journalCurrentDate;
+      html += `<div class="journal-entry${isActive ? ' active' : ''}" onclick="loadJournalDate('${e.date}')">
+        <div class="journal-entry-date">${e.date}</div>
+        <div class="journal-entry-mood">${e.mood || ''}</div>
+        <div class="journal-entry-preview">${escapeHtml(preview)}</div>
+      </div>`;
+    }
+    html += '</div>';
+  }
+  html += '</div>'; // .journal-right
+
+  html += '</div>'; // .journal-layout
+
+  content.innerHTML = html;
+  renderJournalEditor();
+  renderJournalCalendar();
+  loadJournalStatus();
+}
+
+function _journalNavDates() {
+  const today = new Date().toISOString().slice(0, 10);
+  const existingDates = _journalEntries.map(e => e.date);
+  // Always include today even if no entry yet
+  return [...new Set([...existingDates, today])].sort();
+}
+
+// ── Live clock ──
+function _startClock() {
+  clearInterval(_clockInterval);
+  _updateClock();
+  _clockInterval = setInterval(_updateClock, 1000);
+}
+
+function _updateClock() {
+  const el = document.getElementById('journalClock');
+  if (!el) { clearInterval(_clockInterval); return; }
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  const ss = String(now.getSeconds()).padStart(2, '0');
+  el.textContent = `${hh}:${mm}:${ss}`;
+}
+
+// ── Mini calendar ──
+function renderJournalCalendar() {
+  const cal = document.getElementById('journalCalendar');
+  if (!cal) return;
+
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  const year  = _calYear  ?? now.getFullYear();
+  const month = _calMonth ?? now.getMonth();   // 0-indexed
+
+  const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+                      'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const dayLetters = ['D','S','T','Q','Q','S','S'];
+
+  // Days that have journal entries this month
+  const entryDates = new Set(_journalEntries.map(e => e.date));
+
+  const firstDay = new Date(year, month, 1).getDay(); // 0=Sun
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  let html = '<div class="journal-cal-header">';
+  html += `<button class="journal-cal-nav" onclick="shiftCalMonth(-1)">◀</button>`;
+  html += `<span class="journal-cal-title">${monthNames[month]} ${year}</span>`;
+  html += `<button class="journal-cal-nav" onclick="shiftCalMonth(1)">▶</button>`;
+  html += '</div>';
+
+  html += '<div class="journal-cal-weekdays">';
+  for (const d of dayLetters) html += `<div class="journal-cal-wd">${d}</div>`;
+  html += '</div>';
+
+  html += '<div class="journal-cal-grid">';
+  // Empty cells before first day
+  for (let i = 0; i < firstDay; i++) html += '<div class="journal-cal-day empty"></div>';
+  // Days
+  for (let d = 1; d <= daysInMonth; d++) {
+    const isoDate = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const classes = ['journal-cal-day'];
+    if (isoDate === today) classes.push('today');
+    if (isoDate === _journalCurrentDate) classes.push('selected');
+    if (entryDates.has(isoDate)) classes.push('has-entry');
+    html += `<div class="${classes.join(' ')}" onclick="loadJournalDate('${isoDate}')">${d}</div>`;
+  }
+  html += '</div>';
+
+  cal.innerHTML = html;
+}
+
+function shiftCalMonth(dir) {
+  const now = new Date();
+  _calMonth = (_calMonth ?? now.getMonth()) + dir;
+  _calYear  = _calYear ?? now.getFullYear();
+  if (_calMonth > 11) { _calMonth = 0;  _calYear++; }
+  if (_calMonth < 0)  { _calMonth = 11; _calYear--; }
+  renderJournalCalendar();
+}
+
+// ── Server status card ──
+async function loadJournalStatus() {
+  const el = document.getElementById('journalStatus');
+  if (!el) return;
+  try {
+    const r = await fetch('/api/status');
+    const d = await r.json();
+    renderJournalStatus(d);
+  } catch(e) {
+    el.innerHTML = '<div class="guide-error">Status indisponível</div>';
+  }
+}
+
+function _uptimeStr(sec) {
+  if (sec < 60) return `${sec}s`;
+  if (sec < 3600) return `${Math.floor(sec/60)}m ${sec%60}s`;
+  const h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60);
+  return `${h}h ${m}m`;
+}
+
+function _statusBar(pct, cls) {
+  const p = Math.max(0, Math.min(100, pct || 0));
+  const col = p > 85 ? 'danger' : p > 60 ? 'warn' : 'ok';
+  return `<div class="status-bar"><div class="status-bar-fill ${col}" style="width:${p}%"></div></div>`;
+}
+
+function renderJournalStatus(d) {
+  const el = document.getElementById('journalStatus');
+  if (!el) return;
+
+  const hasPsutil = d.cpu_pct != null;
+  let html = '<div class="status-card-title">📡 Status do Servidor</div>';
+  html += '<div class="status-grid">';
+
+  // IP + Port
+  html += `<div class="status-item"><span class="status-label">IP</span><span class="status-val">${d.ip}:${d.port}</span></div>`;
+  // Uptime
+  html += `<div class="status-item"><span class="status-label">Uptime</span><span class="status-val">${_uptimeStr(d.uptime_sec)}</span></div>`;
+  // OS
+  html += `<div class="status-item"><span class="status-label">SO</span><span class="status-val">${d.os}</span></div>`;
+  // Python
+  html += `<div class="status-item"><span class="status-label">Python</span><span class="status-val">${d.python}</span></div>`;
+
+  if (hasPsutil) {
+    // CPU
+    html += `<div class="status-item full"><span class="status-label">CPU</span><span class="status-val">${d.cpu_pct}%</span>${_statusBar(d.cpu_pct)}</div>`;
+    // RAM
+    const ramUsed = d.ram_used_mb >= 1024 ? `${(d.ram_used_mb/1024).toFixed(1)} GB` : `${d.ram_used_mb} MB`;
+    const ramTotal = d.ram_total_mb >= 1024 ? `${(d.ram_total_mb/1024).toFixed(1)} GB` : `${d.ram_total_mb} MB`;
+    html += `<div class="status-item full"><span class="status-label">RAM</span><span class="status-val">${ramUsed} / ${ramTotal} (${d.ram_pct}%)</span>${_statusBar(d.ram_pct)}</div>`;
+    // Disk
+    html += `<div class="status-item full"><span class="status-label">Disco livre</span><span class="status-val">${d.disk_free_gb} GB / ${d.disk_total_gb} GB (${d.disk_pct}%)</span>${_statusBar(d.disk_pct)}</div>`;
+  } else {
+    html += `<div class="status-item full"><span class="status-label">Métricas</span><span class="status-val status-dim">Instale psutil para detalhes</span></div>`;
+  }
+
+  // Content summary
+  if (d.content) {
+    const c = d.content;
+    html += `<div class="status-item full status-content">`;
+    html += `<span class="status-label">Conteúdo offline</span>`;
+    html += `<div class="status-content-grid">`;
+    html += `<span>📋 ${c.guides} guias</span><span>🚨 ${c.protocols} protocolos</span>`;
+    html += `<span>📚 ${c.books} livros</span><span>🎮 ${c.games} jogos</span>`;
+    html += `<span>🗺️ ${c.maps} mapas</span><span>🌐 ${c.zim_files} ZIM</span>`;
+    html += `</div></div>`;
+  }
+
+  html += '</div>'; // .status-grid
+  html += `<button class="status-refresh-btn" onclick="loadJournalStatus()">⟳ Atualizar</button>`;
+
+  el.innerHTML = html;
+}
+
+function renderJournalEditor() {
+  const editorEl = document.getElementById('journalEditor');
+  if (!editorEl) return;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const isToday = _journalCurrentDate === today;
+  const entry = _journalEntries.find(e => e.date === _journalCurrentDate);
+  _journalMood = entry?.mood || null;
+
+  const allDates = _journalNavDates();
+  const idx = allDates.indexOf(_journalCurrentDate);
+  const hasPrev = idx > 0;
+  const hasNext = idx < allDates.length - 1;
+
+  const moods = [['😊','Bem'],['😐','Normal'],['😟','Preocupado'],['😰','Ansioso'],['😤','Irritado']];
+
+  let html = '';
+
+  // Date nav row
+  html += '<div class="journal-date-nav">';
+  html += `<button class="journal-nav-btn" onclick="navigateJournal(-1)"${hasPrev ? '' : ' disabled'}>◀</button>`;
+  html += `<div class="journal-date">${_journalCurrentDate}${isToday ? ' <span class="journal-today-badge">hoje</span>' : ''}</div>`;
+  html += `<button class="journal-nav-btn" onclick="navigateJournal(1)"${hasNext ? '' : ' disabled'}>▶</button>`;
+  html += '</div>';
+
+  // Mood selector
+  html += '<div class="journal-mood-bar">';
+  for (const [emoji, label] of moods) {
+    const active = _journalMood === emoji ? ' active' : '';
+    html += `<span class="journal-mood${active}" onclick="setJournalMood('${emoji}')" title="${label}">${emoji}</span>`;
+  }
+  html += '</div>';
+
+  // Textarea
+  html += `<textarea id="journalText" class="journal-textarea" placeholder="Como foi seu dia no bunker...">${escapeHtml(entry?.content || '')}</textarea>`;
+
+  // Save row
+  html += '<div class="journal-save-row">';
+  html += '<span class="journal-saved" id="journalSaved">✓ Salvo</span>';
+  html += '<button class="btn-sm btn-accent" onclick="saveJournal()">Salvar entrada</button>';
+  html += '</div>';
+
+  editorEl.innerHTML = html;
+}
+
+function navigateJournal(dir) {
+  const allDates = _journalNavDates();
+  const idx = allDates.indexOf(_journalCurrentDate);
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= allDates.length) return;
+  _journalCurrentDate = allDates[newIdx];
+  const d = new Date(_journalCurrentDate + 'T00:00:00');
+  _calYear  = d.getFullYear();
+  _calMonth = d.getMonth();
+  renderJournalEditor();
+  renderJournalCalendar();
+  // Sync active highlight in timeline
+  document.querySelectorAll('.journal-entry').forEach(el => {
+    const ed = el.querySelector('.journal-entry-date')?.textContent?.trim();
+    el.classList.toggle('active', ed === _journalCurrentDate);
+  });
+}
+
+function loadJournalDate(date) {
+  _journalCurrentDate = date;
+  // Sync calendar month to show the selected date
+  const d = new Date(date + 'T00:00:00');
+  _calYear  = d.getFullYear();
+  _calMonth = d.getMonth();
+  renderJournalEditor();
+  renderJournalCalendar();
+  // Sync active highlight in timeline
+  document.querySelectorAll('.journal-entry').forEach(el => {
+    const ed = el.querySelector('.journal-entry-date')?.textContent?.trim();
+    el.classList.toggle('active', ed === date);
+  });
+  document.getElementById('journalEditor')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function setJournalMood(emoji) {
+  _journalMood = emoji;
+  document.querySelectorAll('.journal-mood').forEach(b =>
+    b.classList.toggle('active', b.textContent === emoji)
+  );
+}
+
+async function saveJournal() {
+  const text = document.getElementById('journalText')?.value || '';
+  try {
+    await fetch('/api/journal', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ date: _journalCurrentDate, content: text, mood: _journalMood })
+    });
+    // Update local cache so re-renders are accurate without a full reload
+    const idx = _journalEntries.findIndex(e => e.date === _journalCurrentDate);
+    if (idx >= 0) {
+      _journalEntries[idx] = { ..._journalEntries[idx], content: text, mood: _journalMood };
+    } else {
+      _journalEntries.push({ date: _journalCurrentDate, content: text, mood: _journalMood });
+      _journalEntries.sort((a, b) => b.date.localeCompare(a.date));
+    }
+    // Refresh timeline item preview
+    document.querySelectorAll('.journal-entry').forEach(el => {
+      const d = el.querySelector('.journal-entry-date')?.textContent?.trim();
+      if (d === _journalCurrentDate) {
+        const prev = el.querySelector('.journal-entry-preview');
+        if (prev) prev.textContent = text.slice(0, 100) + (text.length > 100 ? '…' : '');
+        const moodEl = el.querySelector('.journal-entry-mood');
+        if (moodEl) moodEl.textContent = _journalMood || '';
+      }
+    });
+    const indicator = document.getElementById('journalSaved');
+    if (indicator) {
+      indicator.classList.add('show');
+      setTimeout(() => indicator.classList.remove('show'), 2000);
+    }
+  } catch(e) { alert('Erro: ' + e.message); }
+}
+
+// ─── MiniSearch (global search) ─────────────────────────────────────────────
+function initSearch() {
+  // MiniSearch is loaded via <script> tag in index.html
+  // indexContent() is called after guides/protocols load
+}
+
+function indexContent() {
+  if (typeof MiniSearch === 'undefined') return;
+  searchIndex = new MiniSearch({
+    fields: ['title', 'id'],
+    storeFields: ['title', 'type', 'id'],
+    searchOptions: { prefix: true, fuzzy: 0.2 }
+  });
+
+  const docs = [];
+  for (const g of guidesIndex) {
+    docs.push({ id: 'guide-' + g.id, title: g.title, type: 'guide', _id: g.id });
+  }
+  for (const p of protocolsIndex) {
+    docs.push({ id: 'proto-' + p.id, title: p.title, type: 'protocol', _id: p.id });
+  }
+  for (const g of gamesIndex) {
+    docs.push({ id: 'game-' + (g.id||g.name), title: g.title||g.name, type: 'game', _id: g.id||g.name });
+  }
+
+  searchIndex.addAll(docs);
+}
+
+function globalSearch(query) {
+  if (!searchIndex || !query.trim()) return [];
+  return searchIndex.search(query).slice(0, 10);
+}
+
+function onSearchInput(query) {
+  const results = globalSearch(query);
+  const dropdown = document.getElementById('searchResults');
+  if (!dropdown) return;
+
+  if (!query.trim() || results.length === 0) {
+    dropdown.classList.add('hidden');
+    return;
+  }
+
+  const typeLabel = { guide: 'Guia', protocol: 'Protocolo', game: 'Jogo' };
+  dropdown.innerHTML = results.map(r =>
+    `<div class="search-result-item" onclick="openSearchResult('${r.type}', '${escapeHtml(r._id || r.id)}')">
+      <div class="search-result-type">${typeLabel[r.type] || r.type}</div>
+      <div class="search-result-title">${escapeHtml(r.title)}</div>
+    </div>`
+  ).join('');
+  dropdown.classList.remove('hidden');
+}
+
+function openSearchResult(type, id) {
+  document.getElementById('searchResults')?.classList.add('hidden');
+  const searchEl = document.getElementById('globalSearch');
+  if (searchEl) searchEl.value = '';
+  if (type === 'guide') openGuide(id);
+  else if (type === 'protocol') openProtocol(id);
+  else if (type === 'game') openGame(id);
 }
 
 // ─── Utils ──────────────────────────────────────────────────────────────────

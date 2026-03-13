@@ -55,10 +55,9 @@ echo [..] Verificando modelos necessarios...
 echo     (primeiro download pode demorar, mas so acontece uma vez^)
 echo.
 
-call :pull_model "gemma3:12b" "chat + visao"
-call :pull_model "qwen2.5-coder:14b" "app builder"
-call :pull_model "phi4" "modelo rapido"
+call :pull_model "gemma3:12b" "chat principal + visao"
 call :pull_model "dolphin3" "cerebro sem filtros"
+call :pull_model "qwen2.5-coder:7b" "app builder + codigo"
 
 :skip_models
 
@@ -89,8 +88,56 @@ if !errorlevel! neq 0 (
     echo      Verifique sua conexao com a internet no primeiro uso.
 )
 
-REM ---- Map hint ----
+REM ---- Criar diretorios de dados ----
+if not exist "data\guides\disaster-specific" mkdir "data\guides\disaster-specific" 2>nul
+if not exist "data\protocols" mkdir "data\protocols" 2>nul
+if not exist "data\books" mkdir "data\books" 2>nul
+if not exist "data\games" mkdir "data\games" 2>nul
+if not exist "data\avatar" mkdir "data\avatar" 2>nul
+if not exist "data\zim" mkdir "data\zim" 2>nul
+if not exist "data\db" mkdir "data\db" 2>nul
+if not exist "tools" mkdir "tools" 2>nul
+if not exist "static\lib" mkdir "static\lib" 2>nul
 if not exist "static\maps" mkdir "static\maps" 2>nul
+
+REM ---- Auto-setup (primeira execucao) ----
+if not exist "data\.setup_complete" (
+    echo.
+    echo ================================================================
+    echo   PRIMEIRO USO — Configurando conteudo offline...
+    echo   Isso acontece apenas uma vez.
+    echo ================================================================
+    echo.
+    python setup_downloads.py
+    if !errorlevel! neq 0 (
+        echo [!!] Setup incompleto. Alguns recursos podem nao estar disponiveis.
+        echo      Rode start.bat novamente para tentar de novo.
+    )
+)
+
+REM ---- Iniciar Kiwix (se ZIM existir) ----
+set "KIWIX_EXE="
+if exist "tools\kiwix-serve.exe" set "KIWIX_EXE=tools\kiwix-serve.exe"
+if not defined KIWIX_EXE (
+    where kiwix-serve >nul 2>&1
+    if !errorlevel! equ 0 set "KIWIX_EXE=kiwix-serve"
+)
+
+if defined KIWIX_EXE (
+    REM Check if any ZIM files exist
+    set "HAS_ZIM="
+    for %%f in (data\zim\*.zim) do set "HAS_ZIM=1"
+    if defined HAS_ZIM (
+        echo [..] Iniciando Kiwix (Wikipedia offline) na porta 8889...
+        start "" /b !KIWIX_EXE! --port 8889 --library data\zim\*.zim >nul 2>&1
+        echo [OK] Kiwix iniciado em http://localhost:8889
+    ) else (
+        echo [--] Nenhum arquivo ZIM encontrado. Wikipedia offline nao disponivel.
+        echo      Coloque arquivos .zim em data\zim\ para ativar.
+    )
+) else (
+    echo [--] kiwix-serve nao encontrado. Wikipedia offline nao disponivel.
+)
 
 echo.
 echo ================================================================

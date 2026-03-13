@@ -1,0 +1,92 @@
+[
+  {
+    "id": "water",
+    "title": "Purificação e Obtenção de Água",
+    "category": "essencial",
+    "icon": "💧"
+  },
+  {
+    "id": "fire",
+    "title": "Técnicas de Fogo",
+    "category": "essencial",
+    "icon": "🔥"
+  },
+  {
+    "id": "shelter",
+    "title": "Construção de Abrigos",
+    "category": "essencial",
+    "icon": "🏠"
+  },
+  {
+    "id": "firstaid",
+    "title": "Primeiros Socorros",
+    "category": "médico",
+    "icon": "🏥"
+  },
+  {
+    "id": "food-foraging",
+    "title": "Alimentação e Forrageamento",
+    "category": "essencial",
+    "icon": "🌿"
+  },
+  {
+    "id": "navigation",
+    "title": "Navegação sem GPS",
+    "category": "mobilidade",
+    "icon": "🧭"
+  },
+  {
+    "id": "radio-comms",
+    "title": "Comunicação por Rádio",
+    "category": "comunicação",
+    "icon": "📻"
+  },
+  {
+    "id": "hygiene-sanitation",
+    "title": "Higiene e Saneamento",
+    "category": "saúde",
+    "icon": "🧼"
+  },
+  {
+    "id": "defense-security",
+    "title": "Defesa e Segurança",
+    "category": "segurança",
+    "icon": "🛡️"
+  },
+  {
+    "id": "mental-health",
+    "title": "Saúde Mental e Resiliência",
+    "category": "saúde",
+    "icon": "🧠"
+  },
+  {
+    "id": "power-electricity",
+    "title": "Energia e Eletricidade",
+    "category": "infraestrutura",
+    "icon": "⚡"
+  },
+  {
+    "id": "tools-repair",
+    "title": "Ferramentas e Reparos",
+    "category": "infraestrutura",
+    "icon": "🔧"
+  },
+  {
+    "id": "knots-ropes",
+    "title": "Nós e Cordas",
+    "category": "habilidades",
+    "icon": "🪢"
+  },
+  {
+    "id": "medicine-plants",
+    "title": "Plantas Medicinais",
+    "category": "médico",
+    "icon": "🌱"
+  },
+  {
+    "id": "weather-prediction",
+    "title": "Previsão do Tempo",
+    "category": "mobilidade",
+    "icon": "🌤️"
+  }
+]

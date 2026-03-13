@@ -1,0 +1,245 @@
+{
+  "id": "choking",
+  "title": "Engasgo - Obstrucao de Vias Aereas",
+  "urgency": "critical",
+  "description": "Protocolo para desobstrucao de vias aereas em adultos, criancas e bebes.",
+  "steps": [
+    {
+      "id": "who-choking",
+      "type": "decision",
+      "text": "A vitima e um BEBE (menor de 1 ano)?",
+      "yes": "infant-choking",
+      "no": "check-age"
+    },
+    {
+      "id": "check-age",
+      "type": "decision",
+      "text": "A vitima e uma GESTANTE ou pessoa muito OBESA?",
+      "yes": "special-population",
+      "no": "check-conscious"
+    },
+    {
+      "id": "check-conscious",
+      "type": "decision",
+      "text": "A pessoa esta CONSCIENTE? (acordada, de pe ou sentada)",
+      "yes": "can-cough",
+      "no": "unconscious-protocol"
+    },
+    {
+      "id": "can-cough",
+      "type": "decision",
+      "text": "A pessoa CONSEGUE tossir com forca, falar ou respirar?",
+      "detail": "Sinais de obstrucao GRAVE: nao consegue falar, tosse fraca/silenciosa, leva as maos ao pescoco, labios ficando roxos.",
+      "yes": "encourage-cough",
+      "no": "severe-obstruction"
+    },
+    {
+      "id": "encourage-cough",
+      "type": "action",
+      "text": "INCENTIVE a pessoa a continuar tossindo com forca! NAO bata nas costas se ela esta tossindo bem.",
+      "detail": "A tosse e o mecanismo mais eficaz. Fique ao lado, observe e encoraje. Nao interfira enquanto a tosse for produtiva.",
+      "warning": "NAO bata nas costas enquanto a tosse for FORTE — pode deslocar o objeto para posicao pior.",
+      "next": "cough-resolved"
+    },
+    {
+      "id": "cough-resolved",
+      "type": "decision",
+      "text": "O objeto saiu? A pessoa esta respirando normalmente?",
+      "yes": "resolved",
+      "no": "severe-obstruction"
+    },
+    {
+      "id": "resolved",
+      "type": "end",
+      "text": "Otimo! Objeto removido. Procure atendimento medico para verificar se ha lesoes na garganta, especialmente se foram feitas manobras de compressao."
+    },
+    {
+      "id": "severe-obstruction",
+      "type": "action",
+      "text": "Ligue 192 (SAMU) ou peca para alguem ligar! Fique ATRAS da pessoa. Incline-a levemente para frente.",
+      "next": "back-blows"
+    },
+    {
+      "id": "back-blows",
+      "type": "action",
+      "text": "De 5 GOLPES NAS COSTAS: com a base da mao, bata FIRME entre as omoplatas (ossos das costas).",
+      "detail": "Segure o peito da pessoa com a outra mao. Incline-a para frente para que o objeto saia pela boca e nao volte para dentro.",
+      "next": "back-blows-worked"
+    },
+    {
+      "id": "back-blows-worked",
+      "type": "decision",
+      "text": "O objeto saiu?",
+      "yes": "resolved",
+      "no": "heimlich"
+    },
+    {
+      "id": "heimlich",
+      "type": "action",
+      "text": "MANOBRA DE HEIMLICH: Fique atras da pessoa. Feche o punho e coloque ACIMA do umbigo e ABAIXO do esterno.",
+      "detail": "Coloque a outra mao sobre o punho. Puxe com forca para DENTRO e para CIMA, em movimento de 'J'.",
+      "next": "do-thrusts"
+    },
+    {
+      "id": "do-thrusts",
+      "type": "action",
+      "text": "Faca 5 COMPRESSOES ABDOMINAIS rapidas e firmes. Cada uma deve ser um movimento forte e distinto.",
+      "warning": "Compressoes firmes! Voce pode quebrar uma costela, mas esta salvando a vida!",
+      "next": "thrusts-worked"
+    },
+    {
+      "id": "thrusts-worked",
+      "type": "decision",
+      "text": "O objeto saiu?",
+      "yes": "resolved",
+      "no": "still-conscious"
+    },
+    {
+      "id": "still-conscious",
+      "type": "decision",
+      "text": "A pessoa ainda esta CONSCIENTE?",
+      "yes": "alternate-cycle",
+      "no": "unconscious-protocol"
+    },
+    {
+      "id": "alternate-cycle",
+      "type": "action",
+      "text": "ALTERNE: 5 golpes nas costas + 5 compressoes abdominais. Repita ate o objeto sair ou a pessoa perder a consciencia.",
+      "warning": "Nao desista! Continue alternando!",
+      "next": "back-blows"
+    },
+    {
+      "id": "unconscious-protocol",
+      "type": "action",
+      "text": "Pessoa INCONSCIENTE! Deite-a no chao DE COSTAS, com cuidado. Ligue 192 se ainda nao ligou.",
+      "warning": "A partir de agora, siga o protocolo de RCP com verificacao de boca!",
+      "next": "check-mouth"
+    },
+    {
+      "id": "check-mouth",
+      "type": "action",
+      "text": "Abra a boca e OLHE se consegue ver o objeto. Se VISIVEL e acessivel, remova com o dedo em gancho.",
+      "warning": "NAO enfie o dedo as cegas! So remova o que voce CONSEGUE VER. Dedo as cegas pode empurrar o objeto mais fundo.",
+      "next": "start-cpr"
+    },
+    {
+      "id": "start-cpr",
+      "type": "action",
+      "text": "Inicie 30 COMPRESSOES TORACICAS (igual RCP). Maos no centro do peito, 5-6 cm de profundidade, ritmo rapido.",
+      "detail": "As compressoes podem ajudar a deslocar o objeto alem de manter circulacao.",
+      "next": "attempt-breaths"
+    },
+    {
+      "id": "attempt-breaths",
+      "type": "action",
+      "text": "Abra vias aereas (cabeca inclinada, queixo levantado). Tente dar 2 VENTILACOES. Verifique se o peito sobe.",
+      "next": "breaths-worked"
+    },
+    {
+      "id": "breaths-worked",
+      "type": "decision",
+      "text": "O ar entrou? (o peito subiu)",
+      "yes": "continue-cpr",
+      "no": "reposition-retry"
+    },
+    {
+      "id": "reposition-retry",
+      "type": "action",
+      "text": "Reposicione a cabeca e tente novamente. Se ainda nao entrar, volte para 30 compressoes. Verifique a boca a cada ciclo.",
+      "next": "check-mouth"
+    },
+    {
+      "id": "continue-cpr",
+      "type": "action",
+      "text": "Continue RCP (30 compressoes + 2 ventilacoes) ate a pessoa recuperar ou o socorro chegar.",
+      "next": null
+    },
+    {
+      "id": "special-population",
+      "type": "action",
+      "text": "Para GESTANTES ou pessoas OBESAS: use COMPRESSOES TORACICAS em vez de abdominais.",
+      "detail": "Fique atras da pessoa, coloque os punhos no CENTRO DO PEITO (no esterno, nao no abdomen). Puxe firme para tras.",
+      "next": "special-thrusts"
+    },
+    {
+      "id": "special-thrusts",
+      "type": "action",
+      "text": "Alterne: 5 golpes nas costas + 5 compressoes TORACICAS. Continue ate o objeto sair ou a pessoa perder a consciencia.",
+      "next": "special-check"
+    },
+    {
+      "id": "special-check",
+      "type": "decision",
+      "text": "O objeto saiu?",
+      "yes": "resolved",
+      "no": "still-conscious"
+    },
+    {
+      "id": "infant-choking",
+      "type": "action",
+      "text": "BEBE ENGASGADO! Segure o bebe de BRUCOS sobre seu antebraco, com a cabeca mais baixa que o corpo. Apoie a cabeca com a mao.",
+      "warning": "Segure FIRME mas com cuidado. A cabeca do bebe deve ficar mais baixa que o tronco.",
+      "next": "infant-back-blows"
+    },
+    {
+      "id": "infant-back-blows",
+      "type": "action",
+      "text": "De 5 TAPAS NAS COSTAS do bebe, entre as omoplatas, com a base da mao. Firmes mas controlados.",
+      "next": "infant-check1"
+    },
+    {
+      "id": "infant-check1",
+      "type": "decision",
+      "text": "O objeto saiu?",
+      "yes": "infant-resolved",
+      "no": "infant-chest-thrusts"
+    },
+    {
+      "id": "infant-chest-thrusts",
+      "type": "action",
+      "text": "Vire o bebe DE BARRIGA PARA CIMA sobre seu antebraco. Use 2 DEDOS no centro do peito (entre os mamilos). Faca 5 compressoes.",
+      "detail": "Compressoes de 4 cm de profundidade. Use apenas 2 dedos (indicador e medio). Apoie a cabeca.",
+      "warning": "NAO use a manobra de Heimlich (compressao abdominal) em bebes!",
+      "next": "infant-check2"
+    },
+    {
+      "id": "infant-check2",
+      "type": "decision",
+      "text": "O objeto saiu?",
+      "yes": "infant-resolved",
+      "no": "infant-repeat"
+    },
+    {
+      "id": "infant-repeat",
+      "type": "action",
+      "text": "Alterne: 5 tapas nas costas + 5 compressoes toracicas. Ligue 192 se ainda nao ligou. Continue ate o objeto sair ou o bebe perder a consciencia.",
+      "next": "infant-conscious"
+    },
+    {
+      "id": "infant-conscious",
+      "type": "decision",
+      "text": "O bebe ainda esta consciente?",
+      "yes": "infant-back-blows",
+      "no": "infant-cpr"
+    },
+    {
+      "id": "infant-cpr",
+      "type": "action",
+      "text": "Bebe INCONSCIENTE! Coloque em superficie firme. Inicie RCP: 30 compressoes com 2 dedos + 2 sopros suaves (cobrindo boca E nariz do bebe).",
+      "warning": "Sopre SUAVEMENTE! Os pulmoes do bebe sao pequenos. Verifique a boca antes de cada sopro.",
+      "next": null
+    },
+    {
+      "id": "infant-resolved",
+      "type": "end",
+      "text": "Objeto removido! Leve o bebe ao medico IMEDIATAMENTE para avaliacao, mesmo que pareca bem."
+    },
+    {
+      "id": "self-choking",
+      "type": "info",
+      "text": "VOCE esta engasgado e sozinho?",
+      "detail": "Use o encosto de uma cadeira: posicione a borda logo acima do seu umbigo e jogue seu peso para frente com forca. Repita. Ou feche o punho, coloque acima do umbigo e empurre com a outra mao para dentro e para cima.",
+      "next": null
+    }
+  ]
+}
