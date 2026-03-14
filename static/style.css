@@ -3373,6 +3373,96 @@ body {
 }
 .os-toast.show { transform: translateX(0); opacity: 1; }
 
+/* ═══ Calculator ═══ */
+.calc-body { padding: 12px; height: 100%; display: flex; flex-direction: column; }
+.calc-display {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px 20px;
+  font-family: var(--font-mono); font-size: 32px;
+  color: var(--text-bright); text-align: right;
+  margin-bottom: 12px; overflow: hidden;
+  white-space: nowrap; text-overflow: ellipsis;
+  min-height: 60px; display: flex; align-items: center; justify-content: flex-end;
+}
+.calc-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 8px; flex: 1;
+}
+.calc-btn {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text-bright);
+  font-size: 20px; font-family: var(--font-mono);
+  cursor: pointer; transition: background var(--t), transform 0.1s;
+  padding: 12px;
+}
+.calc-btn:hover { background: var(--surface-3); }
+.calc-btn:active { transform: scale(0.95); }
+.calc-btn.calc-op { background: var(--accent-dim); color: var(--accent); border-color: var(--accent-dim); }
+.calc-btn.calc-op:hover { background: rgba(0,212,255,0.2); }
+.calc-btn.calc-fn { background: rgba(255,255,255,0.05); color: var(--text-muted); }
+.calc-btn.calc-fn:hover { background: rgba(255,255,255,0.1); }
+.calc-btn.calc-eq { background: var(--accent); color: var(--bg); font-weight: 700; }
+.calc-btn.calc-eq:hover { background: var(--accent-hover); }
+.calc-btn.calc-zero { grid-column: span 2; }
+
+/* ═══ Timer / Stopwatch ═══ */
+.timer-body { padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 16px; height: 100%; }
+.timer-mode-label { font-size: 13px; color: var(--text-muted); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 2px; }
+.timer-display {
+  font-family: var(--font-mono); font-size: 48px;
+  color: var(--text-bright); letter-spacing: 2px;
+  text-shadow: 0 0 20px rgba(0,212,255,0.3);
+}
+.timer-controls { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.timer-controls .calc-btn { font-size: 14px; padding: 10px 18px; }
+.countdown-setup {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; color: var(--text-muted); font-family: var(--font-mono);
+}
+.countdown-input {
+  width: 60px; padding: 6px 8px; text-align: center;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text-bright);
+  font-family: var(--font-mono); font-size: 16px;
+}
+.countdown-input:focus { border-color: var(--accent); outline: none; }
+.timer-laps {
+  width: 100%; flex: 1; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.timer-lap {
+  display: flex; justify-content: space-between;
+  padding: 6px 12px; font-family: var(--font-mono);
+  font-size: 13px; color: var(--text);
+  background: var(--surface-2); border-radius: var(--radius);
+}
+
+/* ═══ Unit Converter ═══ */
+.conv-body { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+.conv-category { text-align: center; }
+.conv-select {
+  padding: 8px 14px; background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text-bright);
+  font-family: var(--font-mono); font-size: 14px; cursor: pointer;
+}
+.conv-select:focus { border-color: var(--accent); outline: none; }
+.conv-row { display: flex; gap: 10px; align-items: center; }
+.conv-input {
+  flex: 1; padding: 14px 16px; background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  color: var(--text-bright); font-family: var(--font-mono); font-size: 22px;
+  text-align: right;
+}
+.conv-input:focus { border-color: var(--accent); outline: none; }
+.conv-result {
+  flex: 1; padding: 14px 16px; background: var(--surface-2);
+  border: 1px solid var(--accent-dim); border-radius: var(--radius);
+  color: var(--accent); font-family: var(--font-mono); font-size: 22px;
+  text-align: right; min-height: 52px;
+}
+.conv-swap { text-align: center; }
+.conv-swap .calc-btn { font-size: 22px; padding: 6px 20px; }
+
 /* ═══ Window snap indicator ═══ */
 .os-window.snap-left { box-shadow: -4px 0 0 var(--accent) !important; }
 .os-window.snap-right { box-shadow: 4px 0 0 var(--accent) !important; }

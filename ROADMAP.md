@@ -84,6 +84,9 @@ Roda num PC com placa de video boa, sem internet, usando modelos locais via Olla
 | Word Simples | 📄 | Rich text: bold, italic, listas, headings, contenteditable | ✅ Funcional |
 | Excel Simples | 📊 | Grid 10x30, formulas SUM/AVG/COUNT/MIN/MAX/IF | ✅ Funcional |
 | Monitor Sistema | 💻 | CPU, RAM, disco, uptime, conteudo — auto-refresh 5s | ✅ Funcional |
+| Calculadora | 🖩 | Calculadora com teclado, ±, %, operacoes | ✅ Funcional |
+| Timer | ⏱️ | Cronometro + contagem regressiva + voltas | ✅ Funcional |
+| Conversor | 🔢 | Temperatura, distancia, peso, volume, velocidade | ✅ Funcional |
 | Config Sistema | ⚙️ | Modelos, TTS, tema, sobre | ✅ Funcional (drawer) |
 
 ### Arquitetura do Window Manager

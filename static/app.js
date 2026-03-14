@@ -174,6 +174,9 @@ const OS_APPS = [
   { id: 'word',       name: 'Documento',     icon: '\u{1F4C4}', width: 750, height: 520, viewId: 'wordView' },
   { id: 'excel',      name: 'Planilha',      icon: '\u{1F4CA}', width: 850, height: 550, viewId: 'excelView' },
   { id: 'sysmon',     name: 'Monitor',       icon: '\u{1F4BB}', width: 400, height: 380, viewId: 'sysmonView' },
+  { id: 'calc',       name: 'Calculadora',   icon: '\u{1F5A9}', width: 320, height: 440, viewId: 'calcView' },
+  { id: 'timer',      name: 'Timer',         icon: '\u23F1\uFE0F', width: 360, height: 400, viewId: 'timerView' },
+  { id: 'converter',  name: 'Conversor',     icon: '\u{1F522}', width: 380, height: 460, viewId: 'converterView' },
   { id: 'settings',   name: 'Configura\u00E7\u00F5es', icon: '\u2699\uFE0F', width: 560, height: 520, viewId: null },
 ];
 
@@ -295,6 +298,9 @@ function _triggerAppOpen(appId) {
     case 'word': wordInit(); break;
     case 'excel': excelInit(); break;
     case 'sysmon': sysmonInit(); break;
+    case 'calc': calcInit(); break;
+    case 'timer': timerInit(); break;
+    case 'converter': converterInit(); break;
   }
 }
 
@@ -397,6 +403,10 @@ function closeWindow(winId) {
   if (win.appId === 'sysmon' && _sysmonInterval) {
     clearInterval(_sysmonInterval);
     _sysmonInterval = null;
+  }
+  if (win.appId === 'timer' && _timerInterval) {
+    clearInterval(_timerInterval);
+    _timerInterval = null;
   }
   if (win.appId === 'gamePlay') {
     const frame = document.getElementById('gameFrame');
@@ -4735,3 +4745,304 @@ async function excelDelete() {
 }
 
 function excelMarkDirty() { _excelDirty = true; }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CALCULATOR APP
+// ═══════════════════════════════════════════════════════════════════════════
+
+let _calcDisplay = '0';
+let _calcPrev = null;
+let _calcOp = null;
+let _calcReset = false;
+
+function calcInit() {
+  calcRender();
+}
+
+function calcRender() {
+  const display = document.getElementById('calcDisplay');
+  if (display) display.textContent = _calcDisplay;
+}
+
+function calcInput(val) {
+  if (_calcReset) { _calcDisplay = ''; _calcReset = false; }
+  if (val === '.' && _calcDisplay.includes('.')) return;
+  if (_calcDisplay === '0' && val !== '.') _calcDisplay = '';
+  _calcDisplay += val;
+  calcRender();
+}
+
+function calcOp(op) {
+  if (_calcPrev !== null && _calcOp && !_calcReset) {
+    calcEquals();
+  }
+  _calcPrev = parseFloat(_calcDisplay);
+  _calcOp = op;
+  _calcReset = true;
+}
+
+function calcEquals() {
+  if (_calcPrev === null || !_calcOp) return;
+  const curr = parseFloat(_calcDisplay);
+  let result;
+  switch (_calcOp) {
+    case '+': result = _calcPrev + curr; break;
+    case '-': result = _calcPrev - curr; break;
+    case '*': result = _calcPrev * curr; break;
+    case '/': result = curr === 0 ? 'Erro' : _calcPrev / curr; break;
+    default: return;
+  }
+  _calcDisplay = typeof result === 'number' ? String(parseFloat(result.toFixed(10))) : result;
+  _calcPrev = null;
+  _calcOp = null;
+  _calcReset = true;
+  calcRender();
+}
+
+function calcClear() {
+  _calcDisplay = '0';
+  _calcPrev = null;
+  _calcOp = null;
+  _calcReset = false;
+  calcRender();
+}
+
+function calcBackspace() {
+  if (_calcDisplay.length > 1) _calcDisplay = _calcDisplay.slice(0, -1);
+  else _calcDisplay = '0';
+  calcRender();
+}
+
+function calcPercent() {
+  _calcDisplay = String(parseFloat(_calcDisplay) / 100);
+  calcRender();
+}
+
+function calcNegate() {
+  if (_calcDisplay !== '0') {
+    _calcDisplay = _calcDisplay.startsWith('-') ? _calcDisplay.slice(1) : '-' + _calcDisplay;
+    calcRender();
+  }
+}
+
+// Keyboard support for calculator
+document.addEventListener('keydown', (e) => {
+  // Only if calculator window is active
+  const win = _activeWindowId ? _windows[_activeWindowId] : null;
+  if (!win || win.appId !== 'calc') return;
+  if (e.key >= '0' && e.key <= '9') { calcInput(e.key); e.preventDefault(); }
+  else if (e.key === '.') { calcInput('.'); e.preventDefault(); }
+  else if (e.key === '+') { calcOp('+'); e.preventDefault(); }
+  else if (e.key === '-') { calcOp('-'); e.preventDefault(); }
+  else if (e.key === '*') { calcOp('*'); e.preventDefault(); }
+  else if (e.key === '/') { calcOp('/'); e.preventDefault(); }
+  else if (e.key === 'Enter' || e.key === '=') { calcEquals(); e.preventDefault(); }
+  else if (e.key === 'Backspace') { calcBackspace(); e.preventDefault(); }
+  else if (e.key === 'Escape' || e.key === 'c' || e.key === 'C') { calcClear(); e.preventDefault(); }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TIMER / STOPWATCH APP
+// ═══════════════════════════════════════════════════════════════════════════
+
+let _timerInterval = null;
+let _timerMode = 'stopwatch'; // 'stopwatch' | 'countdown'
+let _timerMs = 0;
+let _timerRunning = false;
+let _timerCountdownTarget = 0; // ms
+let _timerLaps = [];
+
+function timerInit() {
+  timerRender();
+}
+
+function timerFormatTime(ms) {
+  const totalSec = Math.floor(ms / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  const cs = Math.floor((ms % 1000) / 10);
+  if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}.${String(cs).padStart(2,'0')}`;
+  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}.${String(cs).padStart(2,'0')}`;
+}
+
+function timerRender() {
+  const display = document.getElementById('timerDisplay');
+  const startBtn = document.getElementById('timerStartBtn');
+  const lapBtn = document.getElementById('timerLapBtn');
+  const lapsEl = document.getElementById('timerLaps');
+  const modeEl = document.getElementById('timerMode');
+  const countdownSetup = document.getElementById('countdownSetup');
+
+  if (display) display.textContent = timerFormatTime(_timerMs);
+  if (startBtn) startBtn.textContent = _timerRunning ? '⏸ Pausar' : '▶ Iniciar';
+  if (startBtn) startBtn.className = _timerRunning ? 'calc-btn calc-op' : 'calc-btn calc-eq';
+  if (lapBtn) lapBtn.style.display = _timerMode === 'stopwatch' ? '' : 'none';
+  if (modeEl) modeEl.textContent = _timerMode === 'stopwatch' ? 'Cronometro' : 'Contagem Regressiva';
+  if (countdownSetup) countdownSetup.style.display = (!_timerRunning && _timerMode === 'countdown') ? '' : 'none';
+
+  if (lapsEl) {
+    lapsEl.innerHTML = _timerLaps.map((lap, i) =>
+      `<div class="timer-lap"><span>Volta ${i+1}</span><span>${timerFormatTime(lap)}</span></div>`
+    ).join('');
+  }
+}
+
+function timerToggle() {
+  if (_timerRunning) {
+    // Pause
+    clearInterval(_timerInterval);
+    _timerInterval = null;
+    _timerRunning = false;
+  } else {
+    // Start
+    if (_timerMode === 'countdown' && _timerMs === 0) {
+      // Read countdown values
+      const mm = parseInt(document.getElementById('countdownMin')?.value || '0');
+      const ss = parseInt(document.getElementById('countdownSec')?.value || '0');
+      _timerMs = (mm * 60 + ss) * 1000;
+      _timerCountdownTarget = _timerMs;
+      if (_timerMs <= 0) return;
+    }
+    _timerRunning = true;
+    const startTime = Date.now() - (_timerMode === 'stopwatch' ? _timerMs : 0);
+    _timerInterval = setInterval(() => {
+      if (_timerMode === 'stopwatch') {
+        _timerMs = Date.now() - startTime;
+      } else {
+        _timerMs -= 100;
+        if (_timerMs <= 0) {
+          _timerMs = 0;
+          clearInterval(_timerInterval);
+          _timerInterval = null;
+          _timerRunning = false;
+          osToast('⏰ Timer finalizado!');
+          // Play alert sound via beep
+          try { const ctx = new AudioContext(); const osc = ctx.createOscillator(); osc.connect(ctx.destination); osc.frequency.value = 880; osc.start(); setTimeout(() => osc.stop(), 500); } catch {}
+        }
+      }
+      timerRender();
+    }, 100);
+  }
+  timerRender();
+}
+
+function timerReset() {
+  clearInterval(_timerInterval);
+  _timerInterval = null;
+  _timerRunning = false;
+  _timerMs = 0;
+  _timerLaps = [];
+  timerRender();
+}
+
+function timerLap() {
+  if (_timerRunning && _timerMode === 'stopwatch') {
+    _timerLaps.push(_timerMs);
+    timerRender();
+  }
+}
+
+function timerSwitchMode() {
+  timerReset();
+  _timerMode = _timerMode === 'stopwatch' ? 'countdown' : 'stopwatch';
+  timerRender();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// UNIT CONVERTER APP
+// ═══════════════════════════════════════════════════════════════════════════
+
+const CONV_CATEGORIES = {
+  'Temperatura': {
+    units: ['°C', '°F', 'K'],
+    convert: (val, from, to) => {
+      // Convert to Celsius first
+      let c;
+      if (from === '°C') c = val;
+      else if (from === '°F') c = (val - 32) * 5/9;
+      else c = val - 273.15; // K
+      // Convert from Celsius
+      if (to === '°C') return c;
+      if (to === '°F') return c * 9/5 + 32;
+      return c + 273.15; // K
+    }
+  },
+  'Distancia': {
+    units: ['m', 'km', 'cm', 'mm', 'mi', 'yd', 'ft', 'in'],
+    // All relative to meters
+    factors: { m:1, km:1000, cm:0.01, mm:0.001, mi:1609.344, yd:0.9144, ft:0.3048, in:0.0254 }
+  },
+  'Peso': {
+    units: ['kg', 'g', 'mg', 'lb', 'oz', 'ton'],
+    factors: { kg:1, g:0.001, mg:0.000001, lb:0.453592, oz:0.0283495, ton:1000 }
+  },
+  'Volume': {
+    units: ['L', 'mL', 'gal', 'qt', 'cup', 'm³'],
+    factors: { L:1, mL:0.001, gal:3.78541, qt:0.946353, cup:0.236588, 'm³':1000 }
+  },
+  'Velocidade': {
+    units: ['km/h', 'm/s', 'mph', 'knots'],
+    factors: { 'km/h':1, 'm/s':3.6, 'mph':1.60934, 'knots':1.852 }
+  }
+};
+
+let _convCategory = 'Temperatura';
+
+function converterInit() {
+  const catSel = document.getElementById('convCategory');
+  if (catSel && catSel.options.length === 0) {
+    Object.keys(CONV_CATEGORIES).forEach(cat => {
+      const opt = document.createElement('option');
+      opt.value = cat; opt.textContent = cat;
+      catSel.appendChild(opt);
+    });
+  }
+  converterUpdateUnits();
+}
+
+function converterUpdateUnits() {
+  const cat = document.getElementById('convCategory')?.value || _convCategory;
+  _convCategory = cat;
+  const cfg = CONV_CATEGORIES[cat];
+  if (!cfg) return;
+  const fromSel = document.getElementById('convFrom');
+  const toSel = document.getElementById('convTo');
+  if (!fromSel || !toSel) return;
+  fromSel.innerHTML = '';
+  toSel.innerHTML = '';
+  cfg.units.forEach((u, i) => {
+    fromSel.innerHTML += `<option value="${u}">${u}</option>`;
+    toSel.innerHTML += `<option value="${u}" ${i===1?'selected':''}>${u}</option>`;
+  });
+  converterCalc();
+}
+
+function converterCalc() {
+  const cat = _convCategory;
+  const cfg = CONV_CATEGORIES[cat];
+  if (!cfg) return;
+  const val = parseFloat(document.getElementById('convInput')?.value || '0');
+  const from = document.getElementById('convFrom')?.value;
+  const to = document.getElementById('convTo')?.value;
+  let result;
+  if (cfg.convert) {
+    result = cfg.convert(val, from, to);
+  } else {
+    // Factor-based conversion
+    const baseVal = val * cfg.factors[from];
+    result = baseVal / cfg.factors[to];
+  }
+  const resultEl = document.getElementById('convResult');
+  if (resultEl) resultEl.textContent = isNaN(result) ? '—' : parseFloat(result.toFixed(8));
+}
+
+function converterSwap() {
+  const fromSel = document.getElementById('convFrom');
+  const toSel = document.getElementById('convTo');
+  if (!fromSel || !toSel) return;
+  const tmp = fromSel.value;
+  fromSel.value = toSel.value;
+  toSel.value = tmp;
+  converterCalc();
+}

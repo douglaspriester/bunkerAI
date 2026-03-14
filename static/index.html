@@ -912,6 +912,73 @@ Use markdown: headers ##, listas com -, **negrito** para termos criticos, `codig
       </div>
     </div>
 
+    <!-- ═══ Calculator ═══ -->
+    <div class="panel-view hidden" id="calcView">
+      <div class="calc-body">
+        <div class="calc-display" id="calcDisplay">0</div>
+        <div class="calc-grid">
+          <button class="calc-btn calc-fn" onclick="calcClear()">C</button>
+          <button class="calc-btn calc-fn" onclick="calcNegate()">±</button>
+          <button class="calc-btn calc-fn" onclick="calcPercent()">%</button>
+          <button class="calc-btn calc-op" onclick="calcOp('/')">÷</button>
+          <button class="calc-btn" onclick="calcInput('7')">7</button>
+          <button class="calc-btn" onclick="calcInput('8')">8</button>
+          <button class="calc-btn" onclick="calcInput('9')">9</button>
+          <button class="calc-btn calc-op" onclick="calcOp('*')">×</button>
+          <button class="calc-btn" onclick="calcInput('4')">4</button>
+          <button class="calc-btn" onclick="calcInput('5')">5</button>
+          <button class="calc-btn" onclick="calcInput('6')">6</button>
+          <button class="calc-btn calc-op" onclick="calcOp('-')">−</button>
+          <button class="calc-btn" onclick="calcInput('1')">1</button>
+          <button class="calc-btn" onclick="calcInput('2')">2</button>
+          <button class="calc-btn" onclick="calcInput('3')">3</button>
+          <button class="calc-btn calc-op" onclick="calcOp('+')">+</button>
+          <button class="calc-btn calc-zero" onclick="calcInput('0')">0</button>
+          <button class="calc-btn" onclick="calcInput('.')">.</button>
+          <button class="calc-btn calc-eq" onclick="calcEquals()">=</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ Timer / Stopwatch ═══ -->
+    <div class="panel-view hidden" id="timerView">
+      <div class="timer-body">
+        <div class="timer-mode-label" id="timerMode">Cronometro</div>
+        <div class="timer-display" id="timerDisplay">00:00.00</div>
+        <div id="countdownSetup" class="countdown-setup" style="display:none">
+          <input type="number" id="countdownMin" value="5" min="0" max="999" class="countdown-input"> min
+          <input type="number" id="countdownSec" value="0" min="0" max="59" class="countdown-input"> seg
+        </div>
+        <div class="timer-controls">
+          <button class="calc-btn calc-eq" id="timerStartBtn" onclick="timerToggle()">▶ Iniciar</button>
+          <button class="calc-btn" id="timerLapBtn" onclick="timerLap()">Volta</button>
+          <button class="calc-btn calc-fn" onclick="timerReset()">Reset</button>
+          <button class="calc-btn calc-op" onclick="timerSwitchMode()">Modo</button>
+        </div>
+        <div class="timer-laps" id="timerLaps"></div>
+      </div>
+    </div>
+
+    <!-- ═══ Unit Converter ═══ -->
+    <div class="panel-view hidden" id="converterView">
+      <div class="conv-body">
+        <div class="conv-category">
+          <select id="convCategory" class="conv-select" onchange="converterUpdateUnits()"></select>
+        </div>
+        <div class="conv-row">
+          <input type="number" id="convInput" class="conv-input" value="1" oninput="converterCalc()">
+          <select id="convFrom" class="conv-select" onchange="converterCalc()"></select>
+        </div>
+        <div class="conv-swap">
+          <button class="calc-btn calc-fn" onclick="converterSwap()" title="Trocar">⇅</button>
+        </div>
+        <div class="conv-row">
+          <div class="conv-result" id="convResult">—</div>
+          <select id="convTo" class="conv-select" onchange="converterCalc()"></select>
+        </div>
+      </div>
+    </div>
+
   </main>
 
   </div><!-- /desktop -->
