@@ -177,6 +177,7 @@ const OS_APPS = [
   { id: 'calc',       name: 'Calculadora',   icon: '\u{1F5A9}', width: 320, height: 440, viewId: 'calcView' },
   { id: 'timer',      name: 'Timer',         icon: '\u23F1\uFE0F', width: 360, height: 400, viewId: 'timerView' },
   { id: 'converter',  name: 'Conversor',     icon: '\u{1F522}', width: 380, height: 460, viewId: 'converterView' },
+  { id: 'checklist',  name: 'Checklists',   icon: '\u2705', width: 500, height: 480, viewId: 'checklistView' },
   { id: 'settings',   name: 'Configura\u00E7\u00F5es', icon: '\u2699\uFE0F', width: 560, height: 520, viewId: null },
 ];
 
@@ -301,6 +302,7 @@ function _triggerAppOpen(appId) {
     case 'calc': calcInit(); break;
     case 'timer': timerInit(); break;
     case 'converter': converterInit(); break;
+    case 'checklist': checklistInit(); break;
   }
 }
 
@@ -390,6 +392,7 @@ function closeWindow(winId) {
   if (win.appId === 'notepad' && _notepadDirty && _notepadActiveId) { notepadSave(); osToast('📝 Nota salva automaticamente'); }
   if (win.appId === 'word' && _wordDirty && _wordActiveId) { wordSave(); osToast('📄 Documento salvo automaticamente'); }
   if (win.appId === 'excel' && _excelDirty && _excelActiveId) { excelSave(); osToast('📊 Planilha salva automaticamente'); }
+  if (win.appId === 'checklist' && _checklistDirty && _checklistActiveId) { checklistSave(); osToast('✅ Checklist salva automaticamente'); }
 
   // Clean up app-specific stuff
   if (win.appId === 'journal' && _clockInterval) {
@@ -5045,4 +5048,153 @@ function converterSwap() {
   fromSel.value = toSel.value;
   toSel.value = tmp;
   converterCalc();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CHECKLIST APP
+// ═══════════════════════════════════════════════════════════════════════════
+
+let _checklists = [];
+let _checklistActiveId = null;
+let _checklistItems = []; // [{ text, done }]
+let _checklistDirty = false;
+
+async function checklistInit() {
+  await checklistLoadList();
+}
+
+async function checklistLoadList() {
+  try {
+    const r = await fetch('/api/notes?doc_type=checklist');
+    _checklists = await r.json();
+  } catch { _checklists = []; }
+  checklistRenderList();
+}
+
+function checklistRenderList() {
+  const el = document.getElementById('checklistList');
+  if (!el) return;
+  if (_checklists.length === 0) {
+    el.innerHTML = '<div class="notepad-list-empty">Nenhuma checklist.<br>Clique + Nova.</div>';
+    return;
+  }
+  el.innerHTML = _checklists.map(n => {
+    let items = [];
+    try { items = JSON.parse(n.content || '[]'); } catch {}
+    const done = items.filter(i => i.done).length;
+    const total = items.length;
+    const pct = total > 0 ? Math.round(done / total * 100) : 0;
+    return `
+      <div class="notepad-list-item ${n.id === _checklistActiveId ? 'active' : ''}" onclick="checklistSelect(${n.id})">
+        <div class="notepad-list-title">${escapeHtml(n.title || 'Sem titulo')}</div>
+        <div class="notepad-list-date">${total > 0 ? done+'/'+total+' ('+pct+'%)' : 'vazia'}</div>
+      </div>`;
+  }).join('');
+}
+
+async function checklistSelect(id) {
+  if (_checklistDirty && _checklistActiveId) await checklistSave();
+  try {
+    const r = await fetch(`/api/notes/${id}`);
+    const note = await r.json();
+    _checklistActiveId = note.id;
+    document.getElementById('checklistTitle').value = note.title || '';
+    try { _checklistItems = JSON.parse(note.content || '[]'); } catch { _checklistItems = []; }
+    _checklistDirty = false;
+    checklistRenderItems();
+    checklistRenderList();
+  } catch(e) { console.error(e); }
+}
+
+function checklistRenderItems() {
+  const el = document.getElementById('checklistItems');
+  if (!el) return;
+  if (!_checklistActiveId) {
+    el.innerHTML = '<div class="notepad-list-empty">Selecione ou crie uma checklist</div>';
+    return;
+  }
+  const done = _checklistItems.filter(i => i.done).length;
+  const total = _checklistItems.length;
+  const pct = total > 0 ? Math.round(done / total * 100) : 0;
+  let html = `<div class="checklist-progress"><div class="checklist-progress-bar" style="width:${pct}%"></div><span>${done}/${total} (${pct}%)</span></div>`;
+  html += _checklistItems.map((item, i) => `
+    <div class="checklist-item ${item.done ? 'done' : ''}">
+      <input type="checkbox" ${item.done ? 'checked' : ''} onchange="checklistToggle(${i})">
+      <input type="text" class="checklist-text" value="${escapeHtml(item.text)}" oninput="checklistEditText(${i}, this.value)" placeholder="Item...">
+      <button class="checklist-del" onclick="checklistRemoveItem(${i})" title="Remover">×</button>
+    </div>
+  `).join('');
+  html += `<button class="btn-sm" onclick="checklistAddItem()" style="margin-top:8px">+ Adicionar item</button>`;
+  el.innerHTML = html;
+}
+
+function checklistToggle(idx) {
+  _checklistItems[idx].done = !_checklistItems[idx].done;
+  _checklistDirty = true;
+  checklistRenderItems();
+  checklistSave(); // Auto-save on toggle
+}
+
+function checklistEditText(idx, text) {
+  _checklistItems[idx].text = text;
+  _checklistDirty = true;
+}
+
+function checklistAddItem() {
+  _checklistItems.push({ text: '', done: false });
+  _checklistDirty = true;
+  checklistRenderItems();
+  // Focus last input
+  setTimeout(() => {
+    const inputs = document.querySelectorAll('#checklistItems .checklist-text');
+    if (inputs.length) inputs[inputs.length - 1].focus();
+  }, 50);
+}
+
+function checklistRemoveItem(idx) {
+  _checklistItems.splice(idx, 1);
+  _checklistDirty = true;
+  checklistRenderItems();
+  checklistSave();
+}
+
+async function checklistNew() {
+  if (_checklistDirty && _checklistActiveId) await checklistSave();
+  try {
+    const r = await fetch('/api/notes', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Nova checklist', content: '[]', doc_type: 'checklist' })
+    });
+    const d = await r.json();
+    await checklistLoadList();
+    checklistSelect(d.id);
+  } catch(e) { console.error(e); }
+}
+
+async function checklistSave() {
+  if (!_checklistActiveId) return;
+  const title = document.getElementById('checklistTitle')?.value || 'Sem titulo';
+  try {
+    await fetch(`/api/notes/${_checklistActiveId}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, content: JSON.stringify(_checklistItems) })
+    });
+    _checklistDirty = false;
+    const n = _checklists.find(x => x.id === _checklistActiveId);
+    if (n) { n.title = title; n.content = JSON.stringify(_checklistItems); }
+    checklistRenderList();
+  } catch(e) { console.error(e); }
+}
+
+async function checklistDelete() {
+  if (!_checklistActiveId) return;
+  if (!confirm('Excluir esta checklist?')) return;
+  try {
+    await fetch(`/api/notes/${_checklistActiveId}`, { method: 'DELETE' });
+    _checklistActiveId = null;
+    _checklistItems = [];
+    _checklistDirty = false;
+    checklistRenderItems();
+    await checklistLoadList();
+  } catch(e) { console.error(e); }
 }

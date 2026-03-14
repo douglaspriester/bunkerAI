@@ -959,6 +959,28 @@ Use markdown: headers ##, listas com -, **negrito** para termos criticos, `codig
       </div>
     </div>
 
+    <!-- ═══ Checklist ═══ -->
+    <div class="panel-view hidden" id="checklistView">
+      <div class="notepad-body">
+        <div class="notepad-sidebar">
+          <div class="notepad-sidebar-header">
+            <button class="btn-sm" onclick="checklistNew()">+ Nova</button>
+            <button class="btn-sm btn-danger" onclick="checklistDelete()">Excluir</button>
+          </div>
+          <div class="notepad-list" id="checklistList"></div>
+        </div>
+        <div class="notepad-editor" style="display:flex;flex-direction:column">
+          <div style="padding:8px 12px;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center">
+            <input type="text" id="checklistTitle" class="notepad-title-input" placeholder="Titulo da checklist..." oninput="_checklistDirty=true">
+            <button class="btn-sm" onclick="checklistSave()">Salvar</button>
+          </div>
+          <div class="checklist-items" id="checklistItems" style="flex:1;overflow-y:auto;padding:12px">
+            <div class="notepad-list-empty">Selecione ou crie uma checklist</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ═══ Unit Converter ═══ -->
     <div class="panel-view hidden" id="converterView">
       <div class="conv-body">

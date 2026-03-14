@@ -87,6 +87,7 @@ Roda num PC com placa de video boa, sem internet, usando modelos locais via Olla
 | Calculadora | 🖩 | Calculadora com teclado, ±, %, operacoes | ✅ Funcional |
 | Timer | ⏱️ | Cronometro + contagem regressiva + voltas | ✅ Funcional |
 | Conversor | 🔢 | Temperatura, distancia, peso, volume, velocidade | ✅ Funcional |
+| Checklists | ✅ | Listas de verificacao com progresso, SQLite | ✅ Funcional |
 | Config Sistema | ⚙️ | Modelos, TTS, tema, sobre | ✅ Funcional (drawer) |
 
 ### Arquitetura do Window Manager
