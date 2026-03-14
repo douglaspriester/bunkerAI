@@ -792,6 +792,14 @@ def _init_db():
             mood TEXT DEFAULT 'neutral',
             created_at TEXT DEFAULT (datetime('now','localtime'))
         );
+        CREATE TABLE IF NOT EXISTS notes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT DEFAULT 'Sem titulo',
+            content TEXT DEFAULT '',
+            doc_type TEXT DEFAULT 'text',
+            created_at TEXT DEFAULT (datetime('now','localtime')),
+            updated_at TEXT DEFAULT (datetime('now','localtime'))
+        );
     """)
     conn.close()
 
@@ -1146,6 +1154,79 @@ async def system_status():
         "content": content,
         "server_time": datetime.now().isoformat(),
     }
+
+
+# ─── Notes API (Notepad / Word Simple) ────────────────────────────────────────
+
+@app.get("/api/notes")
+async def list_notes(doc_type: str = None):
+    conn = _db()
+    if doc_type:
+        rows = conn.execute(
+            "SELECT id, title, doc_type, created_at, updated_at FROM notes WHERE doc_type=? ORDER BY updated_at DESC",
+            (doc_type,)
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT id, title, doc_type, created_at, updated_at FROM notes ORDER BY updated_at DESC"
+        ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+@app.get("/api/notes/{note_id}")
+async def get_note(note_id: int):
+    conn = _db()
+    row = conn.execute("SELECT * FROM notes WHERE id=?", (note_id,)).fetchone()
+    conn.close()
+    if not row:
+        return JSONResponse({"error": "not found"}, 404)
+    return dict(row)
+
+
+@app.post("/api/notes")
+async def create_note(request: Request):
+    data = await request.json()
+    title = data.get("title", "Sem titulo")
+    content = data.get("content", "")
+    doc_type = data.get("doc_type", "text")
+    conn = _db()
+    cur = conn.execute(
+        "INSERT INTO notes (title, content, doc_type) VALUES (?, ?, ?)",
+        (title, content, doc_type)
+    )
+    conn.commit()
+    note_id = cur.lastrowid
+    conn.close()
+    return {"id": note_id, "title": title, "doc_type": doc_type}
+
+
+@app.put("/api/notes/{note_id}")
+async def update_note(note_id: int, request: Request):
+    data = await request.json()
+    conn = _db()
+    fields = []
+    values = []
+    for key in ("title", "content", "doc_type"):
+        if key in data:
+            fields.append(f"{key}=?")
+            values.append(data[key])
+    if fields:
+        fields.append("updated_at=datetime('now','localtime')")
+        values.append(note_id)
+        conn.execute(f"UPDATE notes SET {', '.join(fields)} WHERE id=?", values)
+        conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
+@app.delete("/api/notes/{note_id}")
+async def delete_note(note_id: int):
+    conn = _db()
+    conn.execute("DELETE FROM notes WHERE id=?", (note_id,))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
 
 
 # ─── Static ──────────────────────────────────────────────────────────────────

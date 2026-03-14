@@ -1,0 +1,179 @@
+{
+  "id": "dehydration",
+  "title": "Desidratacao",
+  "urgency": "moderate",
+  "description": "Protocolo para identificacao e tratamento de desidratacao. Desidratacao grave pode levar a insuficiencia renal, convulsoes e morte.",
+  "steps": [
+    {
+      "id": "check-consciousness",
+      "type": "decision",
+      "text": "A pessoa esta CONSCIENTE e capaz de beber liquidos?",
+      "detail": "Verifique se a pessoa esta alerta, orientada e consegue engolir sem engasgar.",
+      "yes": "assess-severity",
+      "no": "unconscious-dehydration"
+    },
+    {
+      "id": "unconscious-dehydration",
+      "type": "action",
+      "text": "Pessoa INCONSCIENTE ou incapaz de beber! Ligue 192 (SAMU) IMEDIATAMENTE. Coloque em posicao de recuperacao (de lado).",
+      "warning": "NUNCA tente dar liquidos a pessoa inconsciente — risco de aspiracao pulmonar!",
+      "detail": "Monitore respiracao. Se tiver acesso a soro fisiologico e conhecimento, administre por via subcutanea (hipodermoclise) como medida de emergencia.",
+      "next": "monitor-unconscious"
+    },
+    {
+      "id": "monitor-unconscious",
+      "type": "action",
+      "text": "Proteja do calor. Molhe panos e coloque na testa, pescoco e axilas para resfriar. Aguarde socorro monitorando respiracao.",
+      "next": null
+    },
+    {
+      "id": "assess-severity",
+      "type": "info",
+      "text": "Avalie a GRAVIDADE da desidratacao observando os sinais:",
+      "detail": "LEVE: sede, boca seca, urina amarela escura, leve cansaco. MODERADA: muita sede, pouca urina, olhos fundos, pele com turgor lento (ao pincar, demora a voltar), tontura ao levantar, dor de cabeca. GRAVE: sem urina ha horas, confusao mental, pulso rapido e fraco, pressao baixa, pele muito seca, olhos muito fundos.",
+      "next": "skin-turgor"
+    },
+    {
+      "id": "skin-turgor",
+      "type": "action",
+      "text": "TESTE DE TURGOR: pince a pele nas costas da mao por 2 segundos e solte. Observe quanto tempo leva para voltar ao normal.",
+      "detail": "NORMAL: volta em menos de 2 segundos. DESIDRATACAO MODERADA: 2-4 segundos. GRAVE: mais de 4 segundos ou a pele fica 'em pe'.",
+      "next": "check-cause"
+    },
+    {
+      "id": "check-cause",
+      "type": "decision",
+      "text": "A desidratacao e causada por DIARREIA ou VOMITO?",
+      "detail": "A causa determina o tratamento. Diarreia e vomito causam perda de sais minerais alem de agua.",
+      "yes": "diarrhea-vomiting",
+      "no": "check-heat"
+    },
+    {
+      "id": "check-heat",
+      "type": "decision",
+      "text": "A pessoa estava exposta a CALOR INTENSO ou fez esforco fisico pesado?",
+      "yes": "heat-dehydration",
+      "no": "general-dehydration"
+    },
+    {
+      "id": "heat-dehydration",
+      "type": "action",
+      "text": "Remova do calor! Coloque na sombra ou local fresco. Remova roupas excessivas. Ventile a pessoa.",
+      "detail": "Borrife agua na pele e ventile — a evaporacao resfria o corpo. Se a temperatura corporal estiver acima de 40C, pode ser INSOLACAO (emergencia!).",
+      "next": "heat-check-temp"
+    },
+    {
+      "id": "heat-check-temp",
+      "type": "decision",
+      "text": "A pessoa esta com pele MUITO QUENTE e SECA (sem suor), confusa ou convulsionando?",
+      "detail": "Estes sao sinais de INSOLACAO (golpe de calor) — emergencia medica que pode matar rapidamente.",
+      "yes": "heatstroke",
+      "no": "general-dehydration"
+    },
+    {
+      "id": "heatstroke",
+      "type": "action",
+      "text": "INSOLACAO! Ligue 192 (SAMU). Resfrie AGRESSIVAMENTE: banho de agua fria, gelo nas axilas/virilha/pescoco. E uma EMERGENCIA!",
+      "warning": "Insolacao e potencialmente FATAL. A temperatura corporal pode ultrapassar 41C e causar dano cerebral permanente.",
+      "detail": "Mergulhe em agua fria se possivel. Se nao, aplique panos com agua gelada em todo o corpo. Ventile. Continue ate a temperatura baixar ou o socorro chegar.",
+      "next": null
+    },
+    {
+      "id": "diarrhea-vomiting",
+      "type": "action",
+      "text": "Prepare SORO DE REIDRATACAO ORAL (SRO): 1 litro de agua filtrada/fervida + 1 colher de sopa rasa de ACUCAR + 1 colher de cafe de SAL.",
+      "detail": "Se tiver sache de SRO de farmacia, use conforme instrucoes (1 sache em 1 litro de agua). O SRO caseiro funciona bem em emergencias.",
+      "warning": "NAO coloque mais sal do que o indicado! Excesso de sal pode piorar a desidratacao.",
+      "next": "sro-administration"
+    },
+    {
+      "id": "sro-administration",
+      "type": "action",
+      "text": "De o SRO em PEQUENOS GOLES FREQUENTES: 50-100ml a cada 15-20 minutos. NAO de tudo de uma vez!",
+      "detail": "ADULTOS: 200-400ml apos cada evacuacao liquida ou vomito. CRIANCAS: 50-100ml apos cada evacuacao. Se vomitar, espere 10 minutos e recomece com goles menores.",
+      "next": "vomiting-management"
+    },
+    {
+      "id": "vomiting-management",
+      "type": "decision",
+      "text": "A pessoa esta conseguindo manter o liquido (sem vomitar)?",
+      "yes": "continue-sro",
+      "no": "anti-vomiting"
+    },
+    {
+      "id": "anti-vomiting",
+      "type": "action",
+      "text": "Se vomitando: espere 10 minutos. De 1 colher de sopa de SRO a cada 2-3 minutos (goles MUITO pequenos). Aumente gradualmente.",
+      "detail": "Se disponivel, dimenidrinato (Dramin) 50mg pode ajudar a controlar nauseas. Coloque a pessoa levemente inclinada para a frente. Gelo na nuca pode ajudar.",
+      "next": "vomiting-persists"
+    },
+    {
+      "id": "vomiting-persists",
+      "type": "decision",
+      "text": "O vomito persiste e a pessoa NAO consegue manter nenhum liquido?",
+      "yes": "seek-help-vomiting",
+      "no": "continue-sro"
+    },
+    {
+      "id": "seek-help-vomiting",
+      "type": "action",
+      "text": "Ligue 192 (SAMU). A pessoa precisa de hidratacao INTRAVENOSA. Enquanto aguarda, tente goles minusculos de SRO com frequencia.",
+      "warning": "Vomitos persistentes com incapacidade de reter liquidos e uma emergencia! Desidratacao pode progredir rapidamente.",
+      "next": null
+    },
+    {
+      "id": "continue-sro",
+      "type": "action",
+      "text": "Continue oferecendo SRO regularmente por 4-6 horas. Objetivo: adultos devem beber pelo menos 2-3 litros nas primeiras 4 horas.",
+      "detail": "Alem do SRO: agua de coco e excelente para reidratacao (rica em potassio). Caldos salgados tambem ajudam a repor sodio.",
+      "next": "diet-recovery"
+    },
+    {
+      "id": "general-dehydration",
+      "type": "action",
+      "text": "Inicie REIDRATACAO: de agua em pequenos goles frequentes. Se possivel, alterne com SRO ou agua de coco.",
+      "detail": "Evite agua pura em grandes quantidades de uma vez — pode causar nausea. Prefira goles pequenos a cada 5-10 minutos. Adicione uma pitada de sal e um pouco de acucar na agua.",
+      "next": "rehydration-amount"
+    },
+    {
+      "id": "rehydration-amount",
+      "type": "info",
+      "text": "Quantidades recomendadas para reidratacao:",
+      "detail": "DESIDRATACAO LEVE: 30-50ml por kg de peso nas primeiras 4 horas (ex: pessoa de 70kg = 2-3,5 litros). MODERADA: 50-100ml por kg. Depois, manter 2-3 litros por dia em ambiente normal, 4-6 litros em calor intenso.",
+      "next": "continue-sro"
+    },
+    {
+      "id": "diet-recovery",
+      "type": "action",
+      "text": "Quando tolerar, reintroduza alimentos LEVES: arroz, torrada, banana, batata cozida, frango grelhado. Evite laticinios, frituras e alimentos gordurosos.",
+      "detail": "A dieta BRAT (bananas, arroz, applesauce/maca, torrada) e classica para recuperacao gastrointestinal. Reintroduza gradualmente.",
+      "next": "monitor-recovery"
+    },
+    {
+      "id": "monitor-recovery",
+      "type": "action",
+      "text": "Monitore a URINA como indicador de hidratacao: cor amarelo-claro ou transparente indica boa hidratacao. Amarelo-escuro indica que precisa beber mais.",
+      "detail": "A pessoa deve urinar pelo menos a cada 4-6 horas. Se nao urinar em 6+ horas apesar de estar bebendo, procure atendimento medico.",
+      "next": "danger-signs"
+    },
+    {
+      "id": "danger-signs",
+      "type": "decision",
+      "text": "A pessoa apresenta sinais de PERIGO? (sem urina ha 8+ horas, confusao mental, pulso rapido, nao consegue ficar de pe, convulsoes)",
+      "yes": "emergency-dehydration",
+      "no": "recovery-complete"
+    },
+    {
+      "id": "emergency-dehydration",
+      "type": "action",
+      "text": "DESIDRATACAO GRAVE! Ligue 192 (SAMU). Continue oferecendo SRO se a pessoa estiver consciente. Deite a pessoa e eleve as pernas.",
+      "warning": "Desidratacao grave pode causar insuficiencia renal, convulsoes e parada cardiaca. Busque ajuda URGENTE!",
+      "next": null
+    },
+    {
+      "id": "recovery-complete",
+      "type": "end",
+      "text": "Continue hidratacao por 24-48 horas. Mantenha alimentacao leve. Evite calor intenso e esforco fisico. Se os sintomas retornarem, procure atendimento medico."
+    }
+  ]
+}

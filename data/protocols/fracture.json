@@ -1,0 +1,228 @@
+{
+  "id": "fracture",
+  "title": "Fraturas e Imobilizacao",
+  "urgency": "high",
+  "description": "Protocolo para identificacao e imobilizacao de fraturas. Imobilizacao correta previne lesoes adicionais em nervos e vasos sanguineos.",
+  "steps": [
+    {
+      "id": "check-safety",
+      "type": "decision",
+      "text": "O local e seguro para voce se aproximar?",
+      "detail": "Verifique riscos: transito, estrutura instavel, fios eletricos. Se a vitima caiu de altura, suspeite de lesao na coluna.",
+      "yes": "check-consciousness",
+      "no": "wait-safe"
+    },
+    {
+      "id": "wait-safe",
+      "type": "action",
+      "text": "NAO se aproxime! Ligue 192 (SAMU) e aguarde o local ficar seguro.",
+      "warning": "Sua seguranca vem primeiro.",
+      "next": null
+    },
+    {
+      "id": "check-consciousness",
+      "type": "decision",
+      "text": "A pessoa esta consciente e respirando?",
+      "detail": "Se inconsciente, priorize verificar respiracao e pulso antes de tratar fraturas.",
+      "yes": "assess-mechanism",
+      "no": "call-emergency"
+    },
+    {
+      "id": "call-emergency",
+      "type": "action",
+      "text": "Pessoa INCONSCIENTE! Ligue 192 (SAMU) AGORA. Verifique respiracao e pulso. Se necessario, inicie RCP.",
+      "warning": "Fraturas sao secundarias — via aerea, respiracao e circulacao vem PRIMEIRO!",
+      "detail": "NAO mova a pessoa a menos que haja perigo imediato. Suspeite de lesao na coluna.",
+      "next": null
+    },
+    {
+      "id": "assess-mechanism",
+      "type": "decision",
+      "text": "Houve queda de altura (acima de 2m), acidente de veiculo ou impacto violento na cabeca/tronco?",
+      "detail": "Mecanismos de alta energia indicam possivel lesao na coluna vertebral.",
+      "yes": "suspect-spine",
+      "no": "locate-injury"
+    },
+    {
+      "id": "suspect-spine",
+      "type": "action",
+      "text": "SUSPEITA DE LESAO NA COLUNA! NAO mova a pessoa! Ligue 192 (SAMU). Mantenha a cabeca, pescoco e tronco ALINHADOS e IMOVEIS.",
+      "warning": "Movimentar uma pessoa com lesao na coluna pode causar PARALISIA PERMANENTE!",
+      "detail": "Segure a cabeca com as duas maos, mantendo-a na posicao em que encontrou. Peca para a pessoa NAO se mover. Se houver outra pessoa, ela pode estabilizar o tronco.",
+      "next": "spine-symptoms"
+    },
+    {
+      "id": "spine-symptoms",
+      "type": "info",
+      "text": "Sinais de lesao na coluna: dor no pescoco/costas, formigamento/dormencia nos bracos ou pernas, fraqueza para mover membros, perda de controle da bexiga.",
+      "detail": "Mesmo sem esses sinais, mantenha a imobilizacao se o mecanismo de trauma for grave.",
+      "next": "spine-immobilize"
+    },
+    {
+      "id": "spine-immobilize",
+      "type": "action",
+      "text": "Mantenha imobilizacao manual da cabeca. Coloque objetos (mochilas, toalhas enroladas) nas laterais da cabeca para estabilizar. Aguarde o SAMU.",
+      "detail": "Cubra a pessoa para manter aquecida. Monitore respiracao. Fale com ela para mante-la calma.",
+      "next": "monitor-spine"
+    },
+    {
+      "id": "monitor-spine",
+      "type": "action",
+      "text": "Monitore consciencia e respiracao a cada 2 minutos. Se vomitar, role a pessoa EM BLOCO (cabeca+tronco juntos) para o lado.",
+      "warning": "Rolamento em bloco: minimo 3 pessoas — uma segura a cabeca, outra o tronco, outra as pernas. Girem JUNTOS.",
+      "next": null
+    },
+    {
+      "id": "locate-injury",
+      "type": "action",
+      "text": "Localize a lesao. Pergunte onde doi. Observe: deformidade, inchaco, hematoma, crepitacao (som de osso rangendo), posicao anormal do membro.",
+      "detail": "Compare com o membro do lado oposto. NAO peca para a pessoa mover a parte machucada. Corte a roupa se necessario para visualizar.",
+      "next": "identify-fracture-type"
+    },
+    {
+      "id": "identify-fracture-type",
+      "type": "decision",
+      "text": "Ha osso EXPOSTO (saindo pela pele) ou ferimento aberto sobre a area fraturada?",
+      "yes": "open-fracture",
+      "no": "closed-fracture-location"
+    },
+    {
+      "id": "open-fracture",
+      "type": "action",
+      "text": "FRATURA EXPOSTA! Ligue 192 (SAMU). Cubra o osso exposto com pano LIMPO e UMIDO (soro ou agua limpa). NAO tente empurrar o osso de volta!",
+      "warning": "NUNCA toque no osso exposto! NUNCA tente recolocar o osso! Risco altissimo de infeccao.",
+      "detail": "Controle sangramento com pressao DELICADA ao redor (nao sobre o osso). Cubra com gaze umida e enfaixe frouxamente.",
+      "next": "open-fracture-immobilize"
+    },
+    {
+      "id": "open-fracture-immobilize",
+      "type": "action",
+      "text": "Imobilize na posicao em que esta. NAO tente alinhar o membro. Use talas improvisadas (tabuas, revistas, papelao) nas laterais.",
+      "detail": "A tala deve ultrapassar as articulacoes ACIMA e ABAIXO da fratura. Amarre com tiras de pano, sem apertar demais.",
+      "next": "check-circulation"
+    },
+    {
+      "id": "closed-fracture-location",
+      "type": "decision",
+      "text": "A fratura e no BRACO ou MAO?",
+      "yes": "arm-fracture",
+      "no": "check-leg"
+    },
+    {
+      "id": "check-leg",
+      "type": "decision",
+      "text": "A fratura e na PERNA ou PE?",
+      "yes": "leg-fracture",
+      "no": "other-fracture"
+    },
+    {
+      "id": "arm-fracture",
+      "type": "action",
+      "text": "Imobilize o braco: use uma tala rigida (tabua, revista grossa, papelao) na parte de baixo do braco. Amarre com tiras acima e abaixo da fratura.",
+      "detail": "A tala deve cobrir da articulacao acima ate a articulacao abaixo da fratura. Ex: fratura do antebraco — tala do cotovelo ate a mao.",
+      "next": "arm-sling"
+    },
+    {
+      "id": "arm-sling",
+      "type": "action",
+      "text": "Faca uma TIPOIA: dobre um pano grande em triangulo. Passe por baixo do antebraco e amarre atras do pescoco. O braco deve ficar a 90 graus.",
+      "detail": "Os dedos devem ficar visiveis para monitorar a circulacao. Prenda o cotovelo ao corpo com outra faixa se necessario.",
+      "next": "check-circulation"
+    },
+    {
+      "id": "leg-fracture",
+      "type": "action",
+      "text": "NAO tente levantar a pessoa! Imobilize a perna NO CHAO. Use duas talas rigidas (tabuas, cabos de vassoura) — uma de cada lado da perna.",
+      "detail": "As talas devem ir do quadril ate abaixo do pe. Amarre em 3-4 pontos: coxa, acima do joelho, abaixo do joelho e tornozelo. Coloque pano entre a tala e a pele.",
+      "warning": "NUNCA amarre a tala exatamente sobre o local da fratura!",
+      "next": "leg-padding"
+    },
+    {
+      "id": "leg-padding",
+      "type": "action",
+      "text": "Coloque acolchoamento (toalhas, roupas) entre as talas e a pele, especialmente nas articulacoes. Se nao tiver talas, amarre a perna lesionada na perna boa com pano entre elas.",
+      "detail": "A tecnica de amarrar perna-com-perna e chamada de 'tala anatomica'. Amarre em 3 pontos: coxas, joelhos e tornozelos.",
+      "next": "check-circulation"
+    },
+    {
+      "id": "other-fracture",
+      "type": "info",
+      "text": "Fraturas em costelas, clavicula, pelve ou quadril requerem cuidados especiais.",
+      "detail": "COSTELAS: nao enfaixe o torax (dificulta respiracao). Apoie com travesseiro. CLAVICULA: tipoia + faixa prendendo o braco ao corpo. PELVE/QUADRIL: NAO mova! Ligue 192.",
+      "next": "other-fracture-action"
+    },
+    {
+      "id": "other-fracture-action",
+      "type": "decision",
+      "text": "A fratura e na PELVE ou QUADRIL? (dor intensa no quadril, nao consegue mover a perna, perna virada para fora)",
+      "yes": "pelvis-fracture",
+      "no": "check-circulation"
+    },
+    {
+      "id": "pelvis-fracture",
+      "type": "action",
+      "text": "FRATURA DE PELVE! NAO mova a pessoa! Ligue 192 (SAMU). Risco de hemorragia interna grave.",
+      "warning": "Fratura de pelve pode causar perda de sangue FATAL internamente. Trate como emergencia critica!",
+      "detail": "Amarre os joelhos e tornozelos juntos com pano para estabilizar. Coloque cobertores enrolados nas laterais do quadril. Monitore sinais de choque.",
+      "next": "check-shock-signs"
+    },
+    {
+      "id": "check-circulation",
+      "type": "action",
+      "text": "Verifique a CIRCULACAO abaixo da fratura: aperte a ponta dos dedos/pe — devem ficar brancos e voltar ao rosa em 2 segundos. Pergunte se ha dormencia ou formigamento.",
+      "detail": "Compare a temperatura e cor dos dedos com o membro nao machucado. Dedos frios, roxos ou sem sensibilidade indicam comprometimento vascular.",
+      "next": "circulation-ok"
+    },
+    {
+      "id": "circulation-ok",
+      "type": "decision",
+      "text": "A circulacao esta normal? (cor rosa, sensibilidade presente, dedos aquecidos)",
+      "yes": "pain-management",
+      "no": "circulation-compromised"
+    },
+    {
+      "id": "circulation-compromised",
+      "type": "action",
+      "text": "CIRCULACAO COMPROMETIDA! Afrouxe as amarracoes da tala. Se continuar comprometida, ligue 192 (SAMU) URGENTE.",
+      "warning": "Circulacao comprometida por mais de 6 horas pode levar a perda do membro!",
+      "detail": "Se o membro estiver muito deformado e sem pulso distal, pode ser necessario tencao suave para realinhar — mas so faca isso se socorro demorar MUITAS horas e houver risco de perda do membro.",
+      "next": "pain-management"
+    },
+    {
+      "id": "pain-management",
+      "type": "action",
+      "text": "Controle a DOR: aplique gelo envolvido em pano (NUNCA direto na pele) por 20 min, intervalo de 20 min. Se disponivel, de analgesico via oral (dipirona 500-1000mg ou paracetamol 750mg).",
+      "detail": "NAO de aspirina (aumenta sangramento). NAO de ibuprofeno se suspeitar de lesao renal ou sangramento interno. Em cenario de sobrevivencia, o controle da dor e essencial para prevenir choque.",
+      "warning": "NAO de medicamento se a pessoa estiver sonolenta, confusa ou com dificuldade para engolir.",
+      "next": "elevate-ice"
+    },
+    {
+      "id": "elevate-ice",
+      "type": "action",
+      "text": "Se possivel, ELEVE o membro fraturado acima do nivel do coracao para reduzir inchaco. Mantenha a imobilizacao.",
+      "detail": "Use travesseiros, mochilas ou cobertores para apoiar o membro elevado. Isso reduz dor e inchaco.",
+      "next": "check-shock-signs"
+    },
+    {
+      "id": "check-shock-signs",
+      "type": "decision",
+      "text": "A pessoa apresenta sinais de CHOQUE? (palidez, suor frio, confusao, pulso rapido e fraco, respiracao rapida)",
+      "detail": "Fraturas de femur e pelve podem causar hemorragia interna grave o suficiente para choque.",
+      "yes": "treat-shock",
+      "no": "monitor-final"
+    },
+    {
+      "id": "treat-shock",
+      "type": "action",
+      "text": "Ligue 192 (SAMU). Deite a pessoa e eleve as pernas 20-30 cm (se nao houver fratura na perna/pelve). Cubra com cobertor.",
+      "warning": "NAO eleve as pernas se a fratura for na perna, pelve ou coluna!",
+      "detail": "Mantenha a pessoa aquecida e calma. NAO de liquidos. Monitore respiracao e consciencia a cada minuto.",
+      "next": "monitor-final"
+    },
+    {
+      "id": "monitor-final",
+      "type": "end",
+      "text": "Mantenha a imobilizacao. Monitore circulacao (dedos) a cada 15-30 minutos. Verifique se as amarracoes nao estao apertadas demais. Aguarde socorro ou transporte com cuidado ao hospital."
+    }
+  ]
+}

@@ -1,0 +1,162 @@
+{
+  "id": "snake-bite",
+  "title": "Picada de Cobra",
+  "urgency": "critical",
+  "description": "Protocolo para picada de serpente. O tratamento correto e ANTI-OFIDICO no hospital. No campo, o objetivo e retardar a absorcao do veneno e transportar ao hospital o mais rapido possivel.",
+  "steps": [
+    {
+      "id": "safety-first",
+      "type": "action",
+      "text": "AFASTE-SE da cobra! Nao tente captura-la ou mata-la. Leve a vitima para longe do animal.",
+      "warning": "Cobras podem dar MULTIPLAS picadas! Afaste-se pelo menos 3-4 metros. Cobras mortas ainda podem dar botes reflexos por ate 1 hora!",
+      "detail": "Se possivel, tire uma FOTO da cobra a distancia segura (ajuda na identificacao do soro). Observe cor, tamanho e formato da cabeca.",
+      "next": "call-emergency"
+    },
+    {
+      "id": "call-emergency",
+      "type": "action",
+      "text": "Ligue 192 (SAMU) ou va ao hospital MAIS PROXIMO que tenha SORO ANTIOFIDICO. Informe que e picada de cobra.",
+      "detail": "No Brasil, ligue tambem para o CIT (Centro de Informacao Toxicologica) da sua regiao: 0800-722-6001. Eles orientam qual hospital mais proximo tem soro.",
+      "next": "calm-victim"
+    },
+    {
+      "id": "calm-victim",
+      "type": "action",
+      "text": "ACALME a vitima. Mantenha-a DEITADA e em REPOUSO ABSOLUTO. O membro picado deve ficar ABAIXO do nivel do coracao.",
+      "detail": "Agitacao e movimento aceleram a circulacao e espalham o veneno mais rapido. Fale com calma. Explique que a maioria das picadas tem tratamento eficaz com soro.",
+      "warning": "A vitima NAO deve andar se possivel. Carregue-a ou use maca improvisada.",
+      "next": "remove-constrictors"
+    },
+    {
+      "id": "remove-constrictors",
+      "type": "action",
+      "text": "Remova IMEDIATAMENTE: aneis, relogios, pulseiras, sapatos e roupas apertadas do membro picado.",
+      "detail": "O inchaco pode ser rapido e intenso. Objetos constritores podem cortar a circulacao e causar dano adicional.",
+      "next": "what-not-to-do"
+    },
+    {
+      "id": "what-not-to-do",
+      "type": "info",
+      "text": "O QUE NAO FAZER — NUNCA faca nada disto:",
+      "detail": "NAO faca torniquete/garrote. NAO corte o local da picada. NAO tente chupar o veneno. NAO aplique gelo, folhas, cafe, terra, urina ou qualquer substancia. NAO de bebida alcoolica. NAO de remedios caseiros. NAO queime o local.",
+      "warning": "Essas praticas populares sao PERIGOSAS e podem causar infeccao, necrose e amputacao!",
+      "next": "clean-wound"
+    },
+    {
+      "id": "clean-wound",
+      "type": "action",
+      "text": "Lave o LOCAL da picada APENAS com agua e sabao. NAO esfregue com forca. Cubra com pano limpo.",
+      "detail": "Nao aplique nenhum produto no ferimento. Nao faca curativo apertado. A limpeza simples reduz risco de infeccao.",
+      "next": "identify-snake"
+    },
+    {
+      "id": "identify-snake",
+      "type": "info",
+      "text": "Tente IDENTIFICAR a cobra (sem se arriscar):",
+      "detail": "JARARACA (Bothrops): cabeca triangular, cor marrom/verde com desenhos em V, fosseta loreal (buraco entre olho e narina). Maioria das picadas no Brasil (90%). CASCAVEL (Crotalus): guizo/chocalho na cauda, cor acinzentada. SURUCUCU (Lachesis): maior que 2m, escamas arrepiadas. CORAL VERDADEIRA (Micrurus): aneis vermelhos, pretos e brancos/amarelos que circundam TODO o corpo.",
+      "next": "observe-symptoms"
+    },
+    {
+      "id": "observe-symptoms",
+      "type": "action",
+      "text": "Observe e ANOTE os sintomas e o HORARIO da picada. Esta informacao e crucial para o medico!",
+      "detail": "Anote: hora da picada, local no corpo, sintomas que aparecem e quando, circunferencia do membro (marque com caneta e meca a cada 15-30 min para acompanhar inchaco).",
+      "next": "symptom-assessment"
+    },
+    {
+      "id": "symptom-assessment",
+      "type": "decision",
+      "text": "Ha sinais de envenenamento? (dor intensa e progressiva, inchaco crescente, sangramento no local, nausea, visao turva, formigamento)",
+      "detail": "Nem toda picada injeta veneno ('picada seca' ocorre em 20-30% dos casos). Porem, SEMPRE trate como se houvesse veneno ate provar o contrario.",
+      "yes": "classify-envenomation",
+      "no": "dry-bite-possible"
+    },
+    {
+      "id": "dry-bite-possible",
+      "type": "action",
+      "text": "Possivel picada seca (sem veneno), mas NAO deixe de ir ao hospital! Monitore por no minimo 12-24 horas.",
+      "detail": "Sintomas podem demorar ate 6-8 horas para aparecer, especialmente com coral e cascavel. A ausencia inicial de sintomas NAO garante que nao houve envenenamento.",
+      "next": "transport-hospital"
+    },
+    {
+      "id": "classify-envenomation",
+      "type": "info",
+      "text": "Tipos de envenenamento pelas serpentes brasileiras:",
+      "detail": "BOTRÓPICO (Jararaca): dor, inchaco grande, sangramento (gengiva, urina), equimoses. CROTÁLICO (Cascavel): pouca dor local, visao dupla/turva, palpebras caidas, dor muscular, urina escura (marrom/coca-cola). ELAPÍDICO (Coral): dor leve, formigamento, dificuldade para abrir os olhos, engolir e RESPIRAR — pode ser FATAL por parada respiratoria. LAQUÉTICO (Surucucu): similar ao botrópico + diarreia, bradicardia.",
+      "next": "check-breathing-difficulty"
+    },
+    {
+      "id": "check-breathing-difficulty",
+      "type": "decision",
+      "text": "A pessoa esta com dificuldade para RESPIRAR, engolir ou manter os olhos abertos?",
+      "detail": "Estes sao sinais de envenenamento ELAPIDICO (coral) ou CROTALICO grave — ambos podem causar paralisia respiratoria!",
+      "yes": "respiratory-emergency",
+      "no": "check-bleeding-signs"
+    },
+    {
+      "id": "respiratory-emergency",
+      "type": "action",
+      "text": "EMERGENCIA RESPIRATORIA! Mantenha vias aereas abertas. Se a pessoa parar de respirar, inicie ventilacao boca-a-boca imediatamente.",
+      "warning": "Envenenamento por coral pode causar PARADA RESPIRATORIA em 2-6 horas! Transporte ao hospital e URGENTISSIMO!",
+      "detail": "Mantenha cabeca inclinada para tras, queixo elevado. Se parar de respirar: 1 ventilacao a cada 5 segundos. Se parar o coracao: RCP completa.",
+      "next": "transport-urgent"
+    },
+    {
+      "id": "transport-urgent",
+      "type": "action",
+      "text": "TRANSPORTE IMEDIATO ao hospital mais proximo com soro antiofidico. Se possivel, leve de ambulancia. Mantenha repouso absoluto.",
+      "warning": "O unico tratamento eficaz e o SORO ANTIOFIDICO administrado no hospital. Nao ha substituto!",
+      "next": null
+    },
+    {
+      "id": "check-bleeding-signs",
+      "type": "decision",
+      "text": "Ha sinais de sangramento anormal? (gengiva sangrando, sangue na urina, sangramento pelo local da picada que nao para, hematomas espontaneos)",
+      "yes": "bleeding-envenomation",
+      "no": "check-dark-urine"
+    },
+    {
+      "id": "bleeding-envenomation",
+      "type": "action",
+      "text": "Sangramento indica envenenamento BOTRÓPICO (jararaca). NAO use aspirina ou anti-inflamatorios! Aplique pressao leve em sangramentos visiveis.",
+      "warning": "O veneno botrópico afeta a COAGULACAO. A vitima pode ter hemorragias internas. Hospital URGENTE!",
+      "detail": "Evite qualquer procedimento invasivo (injecoes, cortes). Mantenha repouso. Nao massageie o local.",
+      "next": "transport-hospital"
+    },
+    {
+      "id": "check-dark-urine",
+      "type": "decision",
+      "text": "A urina esta ESCURA (marrom, cor de coca-cola) ou a pessoa refere dor muscular intensa?",
+      "detail": "Urina escura indica rabdomiolise (destruicao muscular) — sinal classico de envenenamento crotalico (cascavel).",
+      "yes": "crotalic-envenomation",
+      "no": "transport-hospital"
+    },
+    {
+      "id": "crotalic-envenomation",
+      "type": "action",
+      "text": "Possivel envenenamento CROTALICO (cascavel). De muita AGUA para a vitima beber (se consciente) — protege os rins!",
+      "warning": "A rabdomiolise pode causar INSUFICIENCIA RENAL. A hidratacao abundante e essencial antes de chegar ao hospital!",
+      "detail": "Objetivo: fazer a pessoa urinar bastante para 'limpar' os rins. De agua, soro de reidratacao ou agua de coco. Pelo menos 1-2 litros na primeira hora se possivel.",
+      "next": "transport-hospital"
+    },
+    {
+      "id": "transport-hospital",
+      "type": "action",
+      "text": "Transporte ao hospital DEITADO, com o membro picado IMOBILIZADO e abaixo do nivel do coracao. Mantenha REPOUSO ABSOLUTO.",
+      "detail": "Marque a hora da picada na pele com caneta. Leve a foto da cobra se tiver. Informe ao medico: hora da picada, descricao da cobra, sintomas e evolucao.",
+      "next": "during-transport"
+    },
+    {
+      "id": "during-transport",
+      "type": "action",
+      "text": "Durante o transporte: monitore RESPIRACAO e nivel de CONSCIENCIA a cada 5 minutos. Mantenha a calma.",
+      "detail": "Se vomitar, vire a cabeca de lado. Se houver inchaco crescente, afrouxe roupas. Se a respiracao enfraquecer, esteja pronto para ventilar.",
+      "next": "arrival-info"
+    },
+    {
+      "id": "arrival-info",
+      "type": "end",
+      "text": "No hospital, informe: hora exata da picada, descricao/foto da cobra, todos os sintomas e sua progressao, o que foi feito em campo. O soro antiofidico deve ser administrado o mais rapido possivel — idealmente nas primeiras 6 horas, mas ainda e eficaz ate 24-48 horas apos a picada."
+    }
+  ]
+}

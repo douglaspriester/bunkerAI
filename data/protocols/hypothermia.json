@@ -1,0 +1,198 @@
+{
+  "id": "hypothermia",
+  "title": "Hipotermia",
+  "urgency": "high",
+  "description": "Protocolo para identificacao e tratamento de hipotermia (temperatura corporal abaixo de 35C). Reaquecimento inadequado pode causar arritmia cardiaca fatal.",
+  "steps": [
+    {
+      "id": "check-safety",
+      "type": "decision",
+      "text": "O local e seguro? Voce pode se aproximar sem risco de tambem sofrer hipotermia?",
+      "detail": "Se a vitima esta na agua, NAO entre a menos que tenha treinamento de resgate aquatico. Jogue corda, boia ou galho.",
+      "yes": "remove-from-cold",
+      "no": "wait-safe"
+    },
+    {
+      "id": "wait-safe",
+      "type": "action",
+      "text": "NAO se exponha ao mesmo risco! Ligue 192 (SAMU) e tente ajudar a distancia (jogue corda, cobertor).",
+      "warning": "Voce nao pode ajudar se tambem virar vitima.",
+      "next": null
+    },
+    {
+      "id": "remove-from-cold",
+      "type": "action",
+      "text": "Remova a pessoa do ambiente frio GENTILMENTE. Leve para abrigo, local protegido do vento e chuva.",
+      "warning": "Movimente a pessoa com DELICADEZA! Movimentos bruscos podem causar arritmia cardiaca fatal em hipotermia grave.",
+      "detail": "Se nao puder mover, proteja do vento com cobertores, lonas ou seu proprio corpo. Isole do chao frio (coloque papelao, roupas, folhas por baixo).",
+      "next": "check-consciousness"
+    },
+    {
+      "id": "check-consciousness",
+      "type": "decision",
+      "text": "A pessoa esta CONSCIENTE? (responde quando voce fala, abre os olhos)",
+      "yes": "assess-severity-conscious",
+      "no": "check-breathing"
+    },
+    {
+      "id": "check-breathing",
+      "type": "action",
+      "text": "Verifique a RESPIRACAO por ATE 60 SEGUNDOS. Em hipotermia, a respiracao pode ser muito lenta e dificil de detectar.",
+      "warning": "NAO desista rapido! Verifique por 1 MINUTO INTEIRO. Respiracao pode ser apenas 2-3 vezes por minuto.",
+      "detail": "Coloque o ouvido perto da boca, olhe o peito, sinta o ar. Verifique pulso no pescoco (carotida) por 60 segundos.",
+      "next": "is-breathing"
+    },
+    {
+      "id": "is-breathing",
+      "type": "decision",
+      "text": "A pessoa esta respirando (mesmo que muito devagar)?",
+      "yes": "severe-hypothermia",
+      "no": "start-cpr"
+    },
+    {
+      "id": "start-cpr",
+      "type": "action",
+      "text": "SEM RESPIRACAO! Ligue 192 (SAMU). Inicie RCP: 30 compressoes + 2 ventilacoes. Continue ate o socorro chegar.",
+      "warning": "Em hipotermia: 'ninguem esta morto ate estar QUENTE e morto'. Continue RCP mesmo que pareca sem esperanca!",
+      "detail": "O frio protege o cerebro. Ha casos de recuperacao total apos HORAS de RCP em vitimas de hipotermia. NAO desista!",
+      "next": "cpr-and-warm"
+    },
+    {
+      "id": "cpr-and-warm",
+      "type": "action",
+      "text": "Enquanto faz RCP, peca para alguem iniciar o reaquecimento: cubra a pessoa, aplique fontes de calor no tronco (axilas, pescoco, virilha).",
+      "detail": "Use garrafas com agua morna (NAO quente), bolsas termicas, cobertores. Foque no TRONCO, nao nas extremidades.",
+      "next": null
+    },
+    {
+      "id": "assess-severity-conscious",
+      "type": "info",
+      "text": "Classifique a gravidade da hipotermia observando os sintomas:",
+      "detail": "LEVE (32-35C): tremores intensos, maos desajeitadas, fala embaralhada, pele fria. MODERADA (28-32C): tremores param, confusao mental, sonolencia, coordenacao ruim. GRAVE (<28C): inconsciencia, rigidez muscular, pulso fraco, pupilas dilatadas.",
+      "next": "is-shivering"
+    },
+    {
+      "id": "is-shivering",
+      "type": "decision",
+      "text": "A pessoa esta TREMENDO?",
+      "detail": "Tremores sao um bom sinal — o corpo ainda esta tentando se aquecer. Quando os tremores PARAM em pessoa ainda fria, e sinal de gravidade!",
+      "yes": "mild-hypothermia",
+      "no": "moderate-severe"
+    },
+    {
+      "id": "mild-hypothermia",
+      "type": "action",
+      "text": "HIPOTERMIA LEVE. Remova roupas molhadas e troque por roupas SECAS. Mova a pessoa para ambiente aquecido.",
+      "detail": "Corte as roupas molhadas se necessario — puxar pela cabeca causa perda extra de calor e movimentos desnecessarios.",
+      "next": "remove-wet-clothes"
+    },
+    {
+      "id": "remove-wet-clothes",
+      "type": "action",
+      "text": "Vista roupas secas. Cubra com MULTIPLAS camadas incluindo a CABECA (gorro, toalha). Isole do chao frio.",
+      "detail": "Ate 40% do calor corporal se perde pela cabeca. Use o que tiver: cobertores, sacos de dormir, plastico bolha, jornal amassado entre camadas de roupa.",
+      "next": "warm-drinks"
+    },
+    {
+      "id": "warm-drinks",
+      "type": "action",
+      "text": "De LIQUIDOS MORNOS E ACUCARADOS: cha com acucar, chocolate quente, agua morna com mel. NUNCA de bebidas ALCOOLICAS!",
+      "warning": "ALCOOL piora a hipotermia! Dilata os vasos da pele e aumenta a perda de calor, apesar da sensacao de quentura.",
+      "detail": "O liquido deve estar MORNO, nao fervendo. A pessoa deve estar CONSCIENTE e capaz de engolir sem engasgar. De pequenos goles.",
+      "next": "body-heat"
+    },
+    {
+      "id": "body-heat",
+      "type": "action",
+      "text": "Aplique fontes de CALOR EXTERNO: garrafas com agua morna, bolsas termicas, ou contato corporal pele-a-pele.",
+      "detail": "Coloque fontes de calor nas AREAS DE GRANDE CIRCULACAO: axilas, pescoco, virilha, abdomen. Envolva as garrafas em pano para nao queimar. Se usar calor corporal, deite-se junto a pessoa dentro de cobertores.",
+      "warning": "NAO use agua quente diretamente! NAO coloque perto de fogueira/aquecedor intenso. Aquecimento rapido das extremidades pode causar arritmia!",
+      "next": "monitor-mild"
+    },
+    {
+      "id": "monitor-mild",
+      "type": "action",
+      "text": "Monitore a pessoa por pelo menos 2-3 horas. Verifique se os tremores diminuem e a pessoa fica mais alerta.",
+      "detail": "Se os sintomas NAO melhorarem em 30-60 minutos, ou se piorarem, trate como hipotermia moderada/grave.",
+      "next": "mild-improving"
+    },
+    {
+      "id": "mild-improving",
+      "type": "decision",
+      "text": "A pessoa esta melhorando? (tremores diminuindo, mais alerta, pele mais quente)",
+      "yes": "recovery-mild",
+      "no": "moderate-severe"
+    },
+    {
+      "id": "recovery-mild",
+      "type": "end",
+      "text": "Continue aquecendo gradualmente. De alimentos caloricos (chocolate, biscoitos). Mantenha em repouso por varias horas. Procure atendimento medico para avaliacao."
+    },
+    {
+      "id": "moderate-severe",
+      "type": "action",
+      "text": "HIPOTERMIA MODERADA/GRAVE! Ligue 192 (SAMU). Trate com EXTREMA DELICADEZA. Deite a pessoa horizontalmente.",
+      "warning": "NAO de massagem! NAO esfregue os membros! NAO aqueca as extremidades! Isso pode causar colapso cardiovascular!",
+      "detail": "O sangue frio nas extremidades, se retornar ao coracao rapidamente, pode causar fibrilacao ventricular (parada cardiaca).",
+      "next": "severe-remove-clothes"
+    },
+    {
+      "id": "severe-remove-clothes",
+      "type": "action",
+      "text": "Remova roupas molhadas CORTANDO-AS (minimize movimentacao). Envolva em cobertores e isolamento. Isole do chao.",
+      "detail": "Se tiver saco de dormir, coloque a pessoa dentro. Adicione garrafas de agua morna (40-42C) APENAS no tronco: axilas, pescoco, virilha, abdomen.",
+      "next": "severe-position"
+    },
+    {
+      "id": "severe-position",
+      "type": "action",
+      "text": "Mantenha a pessoa DEITADA e HORIZONTAL. NAO a coloque sentada ou de pe.",
+      "warning": "Colocar a pessoa em pe pode causar queda de pressao e parada cardiaca imediata!",
+      "detail": "O coracao hipotermico e extremamente sensivel. Qualquer esforco fisico pode desencadear arritmia fatal.",
+      "next": "severe-no-drinks"
+    },
+    {
+      "id": "severe-no-drinks",
+      "type": "info",
+      "text": "Em hipotermia moderada/grave: NAO de liquidos por via oral se a pessoa estiver confusa, sonolenta ou inconsciente.",
+      "detail": "Risco de engasgo e aspiracao pulmonar. Se a pessoa estiver alerta o suficiente para segurar um copo sozinha, pequenos goles de liquido morno sao aceitaveis.",
+      "next": "rewarming-rate"
+    },
+    {
+      "id": "rewarming-rate",
+      "type": "info",
+      "text": "Objetivo: aquecer o TRONCO primeiro e lentamente (0,5-2C por hora). O reaquecimento deve ser GRADUAL.",
+      "detail": "Troque as garrafas de agua morna a cada 20-30 minutos. Monitore a respiracao. O reaquecimento pode levar muitas horas.",
+      "warning": "Reaquecimento rapido demais causa 'afterdrop' — queda adicional de temperatura e colapso cardiovascular!",
+      "next": "monitor-severe"
+    },
+    {
+      "id": "monitor-severe",
+      "type": "action",
+      "text": "Monitore CONTINUAMENTE: respiracao, pulso, nivel de consciencia. Verifique a cada 5 minutos.",
+      "detail": "Se a pessoa parar de respirar ou perder o pulso, inicie RCP e continue indefinidamente ate o socorro chegar.",
+      "next": "transport-decision"
+    },
+    {
+      "id": "transport-decision",
+      "type": "decision",
+      "text": "O socorro (SAMU) vai chegar em tempo razoavel?",
+      "yes": "wait-rescue",
+      "no": "field-transport"
+    },
+    {
+      "id": "wait-rescue",
+      "type": "action",
+      "text": "Mantenha o reaquecimento gradual e monitore. Informe ao SAMU: tempo estimado de exposicao ao frio, nivel de consciencia, se ha tremores ou nao.",
+      "next": null
+    },
+    {
+      "id": "field-transport",
+      "type": "action",
+      "text": "Se precisar transportar: mantenha HORIZONTAL, movimente com DELICADEZA EXTREMA. Isole bem do frio durante o transporte.",
+      "warning": "Transporte somente se absolutamente necessario. Movimentacao brusca pode causar parada cardiaca!",
+      "detail": "Use maca improvisada rigida. Proteja do vento. Mantenha aquecimento durante todo o transporte.",
+      "next": null
+    }
+  ]
+}

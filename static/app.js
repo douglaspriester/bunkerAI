@@ -151,6 +151,818 @@ function copyCode(btn) {
 }
 
 
+// ═══════════════════════════════════════════════════════════════════════════
+// BUNKER OS — DESKTOP WINDOW MANAGER
+// ═══════════════════════════════════════════════════════════════════════════
+
+const OS_APPS = [
+  { id: 'chat',       name: 'AI Chat',        icon: '\u{1F916}', width: 850, height: 620, viewId: 'chatView' },
+  { id: 'guides',     name: 'Guias',          icon: '\u{1F4CB}', width: 700, height: 500, viewId: 'guideView' },
+  { id: 'protocols',  name: 'Protocolos',     icon: '\u{1F6A8}', width: 600, height: 500, viewId: 'protocolView' },
+  { id: 'supplies',   name: 'Suprimentos',    icon: '\u{1F4E6}', width: 780, height: 520, viewId: 'suppliesView' },
+  { id: 'journal',    name: 'Di\u00E1rio',    icon: '\u{1F4D3}', width: 800, height: 560, viewId: 'journalView' },
+  { id: 'books',      name: 'Biblioteca',     icon: '\u{1F4DA}', width: 700, height: 500, viewId: 'booksView' },
+  { id: 'bookReader', name: 'Leitor',         icon: '\u{1F4D6}', width: 750, height: 550, viewId: 'bookReaderView', hidden: true },
+  { id: 'games',      name: 'Jogos',          icon: '\u{1F3AE}', width: 620, height: 520, viewId: 'gamesView' },
+  { id: 'gamePlay',   name: 'Jogo',           icon: '\u{1F3AE}', width: 700, height: 550, viewId: 'gamePlayView', hidden: true },
+  { id: 'map',        name: 'Mapas',          icon: '\u{1F5FA}\uFE0F', width: 850, height: 620, viewId: 'mapView' },
+  { id: 'wiki',       name: 'Wikipedia',      icon: '\u{1F310}', width: 820, height: 620, viewId: 'wikiView' },
+  { id: 'builder',    name: 'App Builder',    icon: '\u{1F528}', width: 780, height: 520, viewId: 'appsView' },
+  { id: 'characters', name: 'Personagens',    icon: '\u{1F3AD}', width: 620, height: 500, viewId: 'charactersView' },
+  { id: 'tts',        name: 'Texto p/ Voz',   icon: '\u{1F50A}', width: 540, height: 480, viewId: 'ttsView' },
+  { id: 'notepad',    name: 'Bloco de Notas', icon: '\u{1F4DD}', width: 700, height: 480, viewId: 'notepadView' },
+  { id: 'word',       name: 'Documento',     icon: '\u{1F4C4}', width: 750, height: 520, viewId: 'wordView' },
+  { id: 'excel',      name: 'Planilha',      icon: '\u{1F4CA}', width: 850, height: 550, viewId: 'excelView' },
+  { id: 'sysmon',     name: 'Monitor',       icon: '\u{1F4BB}', width: 400, height: 380, viewId: 'sysmonView' },
+  { id: 'settings',   name: 'Configura\u00E7\u00F5es', icon: '\u2699\uFE0F', width: 560, height: 520, viewId: null },
+];
+
+let _windows = {};      // { winId: { appId, element, minimized, maximized, zIndex, x, y, w, h, prevRect } }
+let _topZ = 100;
+let _activeWindowId = null;
+let _cascadeOffset = 0;
+let _taskbarClockInterval = null;
+
+// ─── Window Manager: Open App ────────────────────────────────────────────
+function openApp(appId) {
+  // Settings → open config drawer
+  if (appId === 'settings') {
+    toggleConfig();
+    closeStartMenu();
+    return;
+  }
+
+  const app = OS_APPS.find(a => a.id === appId);
+  if (!app) return;
+
+  // If already open, focus it
+  const existing = Object.values(_windows).find(w => w.appId === appId);
+  if (existing) {
+    if (existing.minimized) unminimizeWindow(existing.winId);
+    focusWindow(existing.winId);
+    closeStartMenu();
+    return;
+  }
+
+  const winId = 'win_' + appId + '_' + Date.now().toString(36);
+
+  // Calculate cascaded position
+  const maxW = window.innerWidth;
+  const maxH = window.innerHeight - 48; // taskbar height
+  const w = Math.min(app.width, maxW - 40);
+  const h = Math.min(app.height, maxH - 40);
+  const baseX = Math.max(20, (maxW - w) / 2 - 80);
+  const baseY = Math.max(10, (maxH - h) / 2 - 80);
+  const x = baseX + (_cascadeOffset % 8) * 30;
+  const y = baseY + (_cascadeOffset % 8) * 30;
+  _cascadeOffset++;
+
+  // Create window element
+  const winEl = document.createElement('div');
+  winEl.className = 'os-window';
+  winEl.id = winId;
+  winEl.style.left = x + 'px';
+  winEl.style.top = y + 'px';
+  winEl.style.width = w + 'px';
+  winEl.style.height = h + 'px';
+  winEl.style.zIndex = ++_topZ;
+
+  winEl.innerHTML = `
+    <div class="os-window-titlebar" onmousedown="startDrag('${winId}', event)" ondblclick="maximizeWindow('${winId}')">
+      <span class="os-window-icon">${app.icon}</span>
+      <span class="os-window-title">${app.name}</span>
+      <div class="os-window-controls">
+        <button class="os-win-btn os-win-min" onclick="minimizeWindow('${winId}')" title="Minimizar">&minus;</button>
+        <button class="os-win-btn os-win-max" onclick="maximizeWindow('${winId}')" title="Maximizar">&#9744;</button>
+        <button class="os-win-btn os-win-close" onclick="closeWindow('${winId}')" title="Fechar">&times;</button>
+      </div>
+    </div>
+    <div class="os-window-body" id="${winId}_body"></div>
+    <div class="os-window-resize" onmousedown="startResize('${winId}', event)"></div>
+  `;
+
+  // Focus window on any click inside it
+  winEl.addEventListener('mousedown', (e) => {
+    if (!e.target.closest('.os-win-btn')) focusWindow(winId);
+  });
+
+  document.getElementById('windowsContainer').appendChild(winEl);
+
+  // Move the view content into the window body
+  const body = document.getElementById(winId + '_body');
+  if (app.viewId) {
+    const viewEl = document.getElementById(app.viewId);
+    if (viewEl) {
+      viewEl.classList.remove('hidden');
+      body.appendChild(viewEl);
+    }
+  }
+
+  // Register window state
+  _windows[winId] = {
+    winId, appId, element: winEl, minimized: false, maximized: false,
+    zIndex: _topZ, x, y, w, h, prevRect: null
+  };
+  _activeWindowId = winId;
+
+  // Trigger any app-specific init
+  _triggerAppOpen(appId);
+
+  // Update taskbar
+  renderTaskbar();
+  focusWindow(winId);
+  closeStartMenu();
+
+  // Animate in
+  winEl.classList.add('os-window-opening');
+  setTimeout(() => winEl.classList.remove('os-window-opening'), 300);
+}
+
+function _triggerAppOpen(appId) {
+  // Run the original panel openers' side-effects (data loading etc.)
+  switch (appId) {
+    case 'supplies': loadSupplies(); break;
+    case 'books': loadBooks(); break;
+    case 'games': renderGamesGrid(); break;
+    case 'wiki': _wikiInit(); break;
+    case 'journal': _journalInit(); break;
+    case 'tts': _ttsInit(); break;
+    case 'builder': _builderInit(); break;
+    case 'characters': renderCharactersList(); break;
+    case 'map': _mapInit(); break;
+    case 'chat': restoreChat(); break;
+    case 'notepad': notepadInit(); break;
+    case 'word': wordInit(); break;
+    case 'excel': excelInit(); break;
+    case 'sysmon': sysmonInit(); break;
+  }
+}
+
+function _wikiInit() {
+  // Same logic as openWikiPanel but without showView
+  const frame = document.getElementById('wikiFrame');
+  const statusEl = document.getElementById('wikiStatus');
+  const offlineMsg = document.getElementById('wikiOfflineMsg');
+  const dot = statusEl?.querySelector('.sys-dot');
+  const statusTxt = statusEl?.querySelector('span:last-child');
+  if (statusTxt) statusTxt.textContent = 'Verificando...';
+  fetch('/api/kiwix/status').then(r => r.json()).then(d => {
+    if (d.running) {
+      if (frame) frame.src = 'http://localhost:8889';
+      if (offlineMsg) offlineMsg.classList.add('hidden');
+      if (dot) { dot.classList.remove('sys-warn'); dot.classList.add('sys-ok'); }
+      if (statusTxt) statusTxt.textContent = 'Online';
+    } else {
+      if (frame) frame.src = 'about:blank';
+      if (offlineMsg) offlineMsg.classList.remove('hidden');
+      if (dot) { dot.classList.remove('sys-ok'); dot.classList.add('sys-warn'); }
+      if (statusTxt) statusTxt.textContent = 'Indispon\u00EDvel';
+    }
+  }).catch(() => {
+    if (offlineMsg) offlineMsg.classList.remove('hidden');
+    if (dot) { dot.classList.remove('sys-ok'); dot.classList.add('sys-warn'); }
+    if (statusTxt) statusTxt.textContent = 'Erro';
+  });
+}
+
+function _journalInit() {
+  _journalCurrentDate = new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  _calYear = now.getFullYear();
+  _calMonth = now.getMonth();
+  loadJournal();
+  _startClock();
+}
+
+function _ttsInit() {
+  const voice = document.getElementById('ttsVoice')?.value;
+  if (voice) { const el = document.getElementById('ttsPanelVoice'); if (el) el.value = voice; }
+  const sel = document.getElementById('ttsPanelEngine');
+  if (sel && sel.value === 'auto' && state.ttsEngine !== 'edge-tts') {
+    sel.value = state.ttsEngine;
+  }
+  onTTSEngineChange();
+  loadPiperModels();
+}
+
+function _builderInit() {
+  const grid = document.getElementById('appsGrid');
+  if (grid) grid.innerHTML = '<div class="panel-empty">Carregando...</div>';
+  fetch('/api/build/list').then(r => r.json()).then(data => {
+    renderAppsGrid(data.apps || []);
+    renderSidebarApps(data.apps || []);
+  }).catch(() => {
+    if (grid) grid.innerHTML = '<div class="panel-empty">Erro ao carregar apps.</div>';
+  });
+}
+
+function _mapInit() {
+  if (!mapState.initialized) {
+    initMap();
+  } else {
+    setTimeout(() => mapState.leafletMap?.invalidateSize(), 100);
+  }
+}
+
+// ─── Window Manager: Close ────────────────────────────────────────────────
+function closeWindow(winId) {
+  const win = _windows[winId];
+  if (!win) return;
+
+  const app = OS_APPS.find(a => a.id === win.appId);
+
+  // Move view content back into #mainArea before removing window
+  if (app?.viewId) {
+    const viewEl = document.getElementById(app.viewId);
+    if (viewEl) {
+      viewEl.classList.add('hidden');
+      document.getElementById('mainArea').appendChild(viewEl);
+    }
+  }
+
+  // Auto-save dirty editors before closing
+  if (win.appId === 'notepad' && _notepadDirty && _notepadActiveId) { notepadSave(); osToast('📝 Nota salva automaticamente'); }
+  if (win.appId === 'word' && _wordDirty && _wordActiveId) { wordSave(); osToast('📄 Documento salvo automaticamente'); }
+  if (win.appId === 'excel' && _excelDirty && _excelActiveId) { excelSave(); osToast('📊 Planilha salva automaticamente'); }
+
+  // Clean up app-specific stuff
+  if (win.appId === 'journal' && _clockInterval) {
+    clearInterval(_clockInterval);
+    _clockInterval = null;
+  }
+  if (win.appId === 'wiki') {
+    const frame = document.getElementById('wikiFrame');
+    if (frame) frame.src = 'about:blank';
+  }
+  if (win.appId === 'sysmon' && _sysmonInterval) {
+    clearInterval(_sysmonInterval);
+    _sysmonInterval = null;
+  }
+  if (win.appId === 'gamePlay') {
+    const frame = document.getElementById('gameFrame');
+    if (frame) frame.src = 'about:blank';
+  }
+
+  win.element.remove();
+  delete _windows[winId];
+
+  if (_activeWindowId === winId) {
+    // Focus the topmost remaining window
+    const remaining = Object.values(_windows).filter(w => !w.minimized);
+    if (remaining.length) {
+      remaining.sort((a, b) => b.zIndex - a.zIndex);
+      focusWindow(remaining[0].winId);
+    } else {
+      _activeWindowId = null;
+    }
+  }
+
+  renderTaskbar();
+}
+
+// ─── Window Manager: Minimize ─────────────────────────────────────────────
+function minimizeWindow(winId) {
+  const win = _windows[winId];
+  if (!win) return;
+  win.minimized = true;
+  win.element.classList.add('os-window-minimized');
+
+  if (_activeWindowId === winId) {
+    const remaining = Object.values(_windows).filter(w => !w.minimized && w.winId !== winId);
+    if (remaining.length) {
+      remaining.sort((a, b) => b.zIndex - a.zIndex);
+      focusWindow(remaining[0].winId);
+    } else {
+      _activeWindowId = null;
+      updateAllWindowFocus();
+    }
+  }
+
+  renderTaskbar();
+}
+
+function unminimizeWindow(winId) {
+  const win = _windows[winId];
+  if (!win) return;
+  win.minimized = false;
+  win.element.classList.remove('os-window-minimized');
+  focusWindow(winId);
+  renderTaskbar();
+}
+
+// ─── Window Manager: Maximize ─────────────────────────────────────────────
+function maximizeWindow(winId) {
+  const win = _windows[winId];
+  if (!win) return;
+
+  if (win.maximized) {
+    // Restore
+    win.maximized = false;
+    win.element.classList.remove('os-window-maximized');
+    if (win.prevRect) {
+      win.element.style.left = win.prevRect.x + 'px';
+      win.element.style.top = win.prevRect.y + 'px';
+      win.element.style.width = win.prevRect.w + 'px';
+      win.element.style.height = win.prevRect.h + 'px';
+      win.x = win.prevRect.x; win.y = win.prevRect.y;
+      win.w = win.prevRect.w; win.h = win.prevRect.h;
+    }
+  } else {
+    // Save current rect
+    win.prevRect = { x: win.x, y: win.y, w: win.w, h: win.h };
+    win.maximized = true;
+    win.element.classList.add('os-window-maximized');
+    win.element.style.left = '0px';
+    win.element.style.top = '0px';
+    win.element.style.width = '100%';
+    win.element.style.height = 'calc(100vh - 48px)';
+  }
+
+  // Invalidate map if map window
+  if (win.appId === 'map' && mapState.leafletMap) {
+    setTimeout(() => mapState.leafletMap.invalidateSize(), 100);
+  }
+  focusWindow(winId);
+}
+
+// ─── Window Manager: Focus ────────────────────────────────────────────────
+function focusWindow(winId) {
+  const win = _windows[winId];
+  if (!win) return;
+  _activeWindowId = winId;
+  win.zIndex = ++_topZ;
+  win.element.style.zIndex = _topZ;
+  updateAllWindowFocus();
+  renderTaskbar();
+}
+
+function updateAllWindowFocus() {
+  Object.values(_windows).forEach(w => {
+    w.element.classList.toggle('os-window-focused', w.winId === _activeWindowId);
+  });
+}
+
+// ─── Window Manager: Drag ─────────────────────────────────────────────────
+function startDrag(winId, e) {
+  if (e.target.closest('.os-win-btn')) return;
+  const win = _windows[winId];
+  if (!win || win.maximized) return;
+
+  focusWindow(winId);
+  e.preventDefault();
+
+  const startX = e.clientX;
+  const startY = e.clientY;
+  const origX = win.x;
+  const origY = win.y;
+
+  function onMove(ev) {
+    const dx = ev.clientX - startX;
+    const dy = ev.clientY - startY;
+    win.x = origX + dx;
+    win.y = Math.max(0, origY + dy);
+    win.element.style.left = win.x + 'px';
+    win.element.style.top = win.y + 'px';
+    // Snap preview indicators
+    win.element.classList.toggle('snap-left', ev.clientX <= 6);
+    win.element.classList.toggle('snap-right', ev.clientX >= window.innerWidth - 6);
+  }
+  function onUp(ev) {
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    win.element.classList.remove('snap-left', 'snap-right');
+    const tbH = 48;
+    // Snap to left half
+    if (ev.clientX <= 6) {
+      win.prevRect = { x: origX, y: origY, w: origW, h: origH };
+      win.x = 0; win.y = 0;
+      win.w = Math.floor(window.innerWidth / 2);
+      win.h = window.innerHeight - tbH;
+      Object.assign(win.element.style, { left:'0', top:'0', width:win.w+'px', height:win.h+'px' });
+    }
+    // Snap to maximize (drag to top)
+    else if (ev.clientY <= 2 && !win.maximized) {
+      win.prevRect = { x: origX, y: origY, w: origW, h: origH };
+      maximizeWindow(winId);
+    }
+    // Snap to right half
+    else if (ev.clientX >= window.innerWidth - 6) {
+      win.prevRect = { x: origX, y: origY, w: origW, h: origH };
+      win.w = Math.floor(window.innerWidth / 2);
+      win.x = window.innerWidth - win.w;
+      win.y = 0;
+      win.h = window.innerHeight - tbH;
+      Object.assign(win.element.style, { left:win.x+'px', top:'0', width:win.w+'px', height:win.h+'px' });
+    }
+    if (win.appId === 'map' && mapState.leafletMap) setTimeout(() => mapState.leafletMap.invalidateSize(), 50);
+  }
+  const origW = win.w, origH = win.h;
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+// ─── Window Manager: Resize ──────────────────────────────────────────────
+function startResize(winId, e) {
+  const win = _windows[winId];
+  if (!win || win.maximized) return;
+
+  focusWindow(winId);
+  e.preventDefault();
+  e.stopPropagation();
+
+  const startX = e.clientX;
+  const startY = e.clientY;
+  const origW = win.w;
+  const origH = win.h;
+
+  function onMove(ev) {
+    const dw = ev.clientX - startX;
+    const dh = ev.clientY - startY;
+    win.w = Math.max(320, origW + dw);
+    win.h = Math.max(200, origH + dh);
+    win.element.style.width = win.w + 'px';
+    win.element.style.height = win.h + 'px';
+  }
+  function onUp() {
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    // Invalidate map if resized
+    if (win.appId === 'map' && mapState.leafletMap) {
+      setTimeout(() => mapState.leafletMap.invalidateSize(), 50);
+    }
+  }
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+// ─── Taskbar Rendering ────────────────────────────────────────────────────
+function renderTaskbar() {
+  const container = document.getElementById('taskbarApps');
+  if (!container) return;
+
+  container.innerHTML = '';
+  const openWindows = Object.values(_windows);
+  for (const win of openWindows) {
+    const app = OS_APPS.find(a => a.id === win.appId);
+    // For custom windows (saved apps), create a virtual app entry
+    const appInfo = app || { icon: '🖥️', name: win.element?.querySelector('.os-window-title')?.textContent || 'App' };
+    const btn = document.createElement('button');
+    btn.className = 'taskbar-app-btn' +
+      (win.winId === _activeWindowId && !win.minimized ? ' taskbar-app-active' : '') +
+      (win.minimized ? ' taskbar-app-minimized' : '');
+    btn.innerHTML = `<span class="taskbar-app-icon">${appInfo.icon}</span><span class="taskbar-app-name">${appInfo.name}</span>`;
+    btn.onclick = () => {
+      if (win.minimized) {
+        unminimizeWindow(win.winId);
+      } else if (win.winId === _activeWindowId) {
+        minimizeWindow(win.winId);
+      } else {
+        focusWindow(win.winId);
+      }
+    };
+    container.appendChild(btn);
+  }
+}
+
+// ─── Desktop Icons ────────────────────────────────────────────────────────
+function renderDesktopIcons() {
+  const container = document.getElementById('desktopIcons');
+  if (!container) return;
+  container.innerHTML = '';
+  for (const app of OS_APPS) {
+    if (app.hidden) continue;
+    const icon = document.createElement('div');
+    icon.className = 'desktop-icon';
+    icon.dataset.appId = app.id;
+    icon.innerHTML = `
+      <div class="desktop-icon-img">${app.icon}</div>
+      <div class="desktop-icon-label">${app.name}</div>
+    `;
+    icon.ondblclick = () => {
+      icon.classList.add('opening');
+      setTimeout(() => icon.classList.remove('opening'), 600);
+      openApp(app.id);
+    };
+    icon.onclick = (e) => {
+      document.querySelectorAll('.desktop-icon.selected').forEach(el => el.classList.remove('selected'));
+      icon.classList.add('selected');
+    };
+    container.appendChild(icon);
+  }
+}
+
+// ─── Start Menu ──────────────────────────────────────────────────────────
+function toggleStartMenu() {
+  const menu = document.getElementById('startMenu');
+  if (!menu) return;
+  menu.classList.toggle('hidden');
+  if (!menu.classList.contains('hidden')) {
+    renderStartMenu();
+  }
+}
+
+function closeStartMenu() {
+  const menu = document.getElementById('startMenu');
+  if (menu) menu.classList.add('hidden');
+}
+
+function renderStartMenu() {
+  const container = document.getElementById('startMenuApps');
+  if (!container) return;
+  container.innerHTML = '';
+  // Search box
+  const searchBox = document.createElement('div');
+  searchBox.className = 'start-menu-search';
+  searchBox.innerHTML = '<input type="text" placeholder="Buscar app..." id="startMenuSearch" oninput="filterStartMenu(this.value)" onkeydown="if(event.key===\'Enter\'){openFirstVisibleApp();event.preventDefault()}">';
+  container.appendChild(searchBox);
+  for (const app of OS_APPS) {
+    if (app.hidden) continue;
+    const item = document.createElement('div');
+    item.className = 'start-menu-item';
+    item.dataset.name = app.name.toLowerCase();
+    item.innerHTML = `<span class="start-menu-item-icon">${app.icon}</span><span>${app.name}</span>`;
+    item.onclick = () => openApp(app.id);
+    container.appendChild(item);
+  }
+  // Separator + Power options
+  const sep = document.createElement('div');
+  sep.className = 'start-menu-sep';
+  container.appendChild(sep);
+  const restart = document.createElement('div');
+  restart.className = 'start-menu-item start-menu-power';
+  restart.innerHTML = '<span class="start-menu-item-icon">🔄</span><span>Reiniciar</span>';
+  restart.onclick = () => location.reload();
+  container.appendChild(restart);
+  const shutdown = document.createElement('div');
+  shutdown.className = 'start-menu-item start-menu-power';
+  shutdown.innerHTML = '<span class="start-menu-item-icon">⏻</span><span>Desligar</span>';
+  shutdown.onclick = () => { closeStartMenu(); runShutdownSequence(); };
+  container.appendChild(shutdown);
+  // Auto-focus search box
+  setTimeout(() => { const sb = document.getElementById('startMenuSearch'); if (sb) sb.focus(); }, 50);
+}
+
+function filterStartMenu(query) {
+  const items = document.querySelectorAll('#startMenuApps .start-menu-item');
+  const q = query.toLowerCase().trim();
+  items.forEach(item => {
+    const name = item.dataset.name || '';
+    item.style.display = (!q || name.includes(q)) ? '' : 'none';
+  });
+}
+
+function openFirstVisibleApp() {
+  const items = document.querySelectorAll('#startMenuApps .start-menu-item');
+  for (const item of items) {
+    if (item.style.display !== 'none' && item.dataset.name) {
+      item.click();
+      return;
+    }
+  }
+}
+
+// ─── Shutdown Animation ──────────────────────────────────────────────────
+function runShutdownSequence() {
+  closeAllWindows();
+  const overlay = document.createElement('div');
+  overlay.className = 'shutdown-overlay';
+  overlay.innerHTML = `
+    <div class="shutdown-msg">Desligando...</div>
+    <div class="shutdown-sub">Salvando dados e finalizando processos.</div>
+  `;
+  document.body.appendChild(overlay);
+  // Fade to black
+  requestAnimationFrame(() => overlay.classList.add('active'));
+  setTimeout(() => {
+    overlay.innerHTML = '<div class="shutdown-msg">Bunker OS desligado.</div><div class="shutdown-sub" style="margin-top:12px;font-size:13px;opacity:.5">Clique para reiniciar</div>';
+    overlay.onclick = () => location.reload();
+  }, 2500);
+}
+
+// ─── Taskbar Clock ────────────────────────────────────────────────────────
+function updateTaskbarClock() {
+  const el = document.getElementById('taskbarClock');
+  if (!el) return;
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  const ss = String(now.getSeconds()).padStart(2, '0');
+  el.textContent = hh + ':' + mm + ':' + ss;
+  // Update title with date
+  const day = String(now.getDate()).padStart(2, '0');
+  const mon = String(now.getMonth() + 1).padStart(2, '0');
+  el.title = `${day}/${mon}/${now.getFullYear()} ${hh}:${mm}:${ss}`;
+}
+
+function startTaskbarClock() {
+  updateTaskbarClock();
+  _taskbarClockInterval = setInterval(updateTaskbarClock, 1000);
+}
+
+// ─── Click outside start menu to close ────────────────────────────────────
+document.addEventListener('mousedown', (e) => {
+  const menu = document.getElementById('startMenu');
+  if (menu && !menu.classList.contains('hidden')) {
+    if (!e.target.closest('.start-menu') && !e.target.closest('.taskbar-start')) {
+      closeStartMenu();
+    }
+  }
+});
+
+// ─── Click on desktop to deselect icons ───────────────────────────────────
+document.addEventListener('click', (e) => {
+  if (e.target.closest('.desktop-icons') && !e.target.closest('.desktop-icon')) {
+    document.querySelectorAll('.desktop-icon.selected').forEach(el => el.classList.remove('selected'));
+  }
+});
+
+// ─── Desktop Context Menu ────────────────────────────────────────────────
+document.addEventListener('contextmenu', (e) => {
+  // Only on desktop background or icons
+  if (!e.target.closest('.os-desktop') || e.target.closest('.os-window') || e.target.closest('.taskbar') || e.target.closest('.start-menu')) return;
+  e.preventDefault();
+  closeContextMenu();
+  const icon = e.target.closest('.desktop-icon');
+  const menu = document.createElement('div');
+  menu.className = 'os-context-menu';
+  menu.style.left = e.clientX + 'px';
+  menu.style.top = e.clientY + 'px';
+
+  if (icon) {
+    const appId = icon.dataset.appId;
+    const app = OS_APPS.find(a => a.id === appId);
+    if (app) {
+      menu.innerHTML = `
+        <div class="ctx-header">${app.icon} ${app.name}</div>
+        <div class="ctx-item" onclick="openApp('${appId}'); closeContextMenu()">Abrir</div>
+        <div class="ctx-sep"></div>
+        <div class="ctx-item" onclick="closeContextMenu()">Cancelar</div>`;
+    }
+  } else {
+    menu.innerHTML = `
+      <div class="ctx-item" onclick="openApp('chat'); closeContextMenu()">🤖 Abrir Chat</div>
+      <div class="ctx-item" onclick="openApp('notepad'); closeContextMenu()">📝 Novo Bloco de Notas</div>
+      <div class="ctx-item" onclick="openApp('settings'); closeContextMenu()">⚙️ Configurações</div>
+      <div class="ctx-sep"></div>
+      <div class="ctx-item" onclick="tileWindows(); closeContextMenu()">📐 Organizar janelas</div>
+      <div class="ctx-item" onclick="closeAllWindows(); closeContextMenu()">Fechar todas as janelas</div>
+      <div class="ctx-sep"></div>
+      <div class="ctx-item" onclick="cycleWallpaper(); closeContextMenu()">🎨 Trocar wallpaper</div>
+      <div class="ctx-item" onclick="location.reload()">🔄 Reiniciar Bunker OS</div>`;
+  }
+  document.body.appendChild(menu);
+  // Adjust position if overflows
+  const rect = menu.getBoundingClientRect();
+  if (rect.right > window.innerWidth) menu.style.left = (window.innerWidth - rect.width - 5) + 'px';
+  if (rect.bottom > window.innerHeight) menu.style.top = (window.innerHeight - rect.height - 5) + 'px';
+});
+
+document.addEventListener('mousedown', (e) => {
+  if (!e.target.closest('.os-context-menu')) closeContextMenu();
+});
+
+function closeContextMenu() {
+  document.querySelectorAll('.os-context-menu').forEach(m => m.remove());
+}
+
+function closeAllWindows() {
+  Object.keys(_windows).forEach(winId => closeWindow(winId));
+}
+
+function tileWindows() {
+  const wins = Object.values(_windows).filter(w => !w.minimized);
+  if (!wins.length) return;
+  const maxW = window.innerWidth;
+  const maxH = window.innerHeight - 48;
+  const count = wins.length;
+  // Calculate grid layout
+  const cols = Math.ceil(Math.sqrt(count));
+  const rows = Math.ceil(count / cols);
+  const tileW = Math.floor(maxW / cols);
+  const tileH = Math.floor(maxH / rows);
+  wins.forEach((win, i) => {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    win.x = col * tileW;
+    win.y = row * tileH;
+    win.w = tileW;
+    win.h = tileH;
+    win.maximized = false;
+    win.element.classList.remove('os-window-maximized');
+    win.element.style.left = win.x + 'px';
+    win.element.style.top = win.y + 'px';
+    win.element.style.width = win.w + 'px';
+    win.element.style.height = win.h + 'px';
+    // Invalidate map
+    if (win.appId === 'map' && mapState.leafletMap) {
+      setTimeout(() => mapState.leafletMap.invalidateSize(), 100);
+    }
+  });
+}
+
+// ─── Wallpaper ───────────────────────────────────────────────────────────
+const WALLPAPERS = [
+  'default',       // dark gradient (original)
+  'starfield',     // animated stars
+  'grid',          // tech grid
+  'aurora',        // aurora borealis gradient
+  'matrix',        // matrix-style
+];
+let _wallpaperIdx = parseInt(storage.get('bunker_wallpaper') || '0') || 0;
+
+function cycleWallpaper() {
+  _wallpaperIdx = (_wallpaperIdx + 1) % WALLPAPERS.length;
+  storage.set('bunker_wallpaper', String(_wallpaperIdx));
+  applyWallpaper();
+}
+
+function applyWallpaper() {
+  const desktop = document.getElementById('desktop');
+  if (!desktop) return;
+  WALLPAPERS.forEach(w => desktop.classList.remove('wp-' + w));
+  desktop.classList.add('wp-' + WALLPAPERS[_wallpaperIdx]);
+  const names = { default: 'Escuro', starfield: 'Estrelas', grid: 'Grade', aurora: 'Aurora', matrix: 'Matrix' };
+  osToast('🎨 Wallpaper: ' + (names[WALLPAPERS[_wallpaperIdx]] || WALLPAPERS[_wallpaperIdx]));
+}
+
+// ─── OS Toast Notifications ──────────────────────────────────────────────
+function osToast(msg, duration = 2500) {
+  let container = document.getElementById('osToasts');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'osToasts';
+    container.className = 'os-toasts';
+    document.body.appendChild(container);
+  }
+  const toast = document.createElement('div');
+  toast.className = 'os-toast';
+  toast.textContent = msg;
+  container.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.add('show'));
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 300);
+  }, duration);
+}
+
+// ─── OS Keyboard Shortcuts ───────────────────────────────────────────────
+document.addEventListener('keydown', (e) => {
+  // Ctrl+W — close active window
+  if (e.ctrlKey && e.key === 'w' && _activeWindowId) {
+    e.preventDefault();
+    closeWindow(_activeWindowId);
+  }
+  // Ctrl+M — minimize active window
+  if (e.ctrlKey && e.key === 'm' && _activeWindowId) {
+    e.preventDefault();
+    minimizeWindow(_activeWindowId);
+  }
+  // Ctrl+Shift+N — open notepad
+  if (e.ctrlKey && e.shiftKey && e.key === 'N') {
+    e.preventDefault();
+    openApp('notepad');
+  }
+  // Alt+Tab — cycle windows
+  if (e.altKey && e.key === 'Tab') {
+    e.preventDefault();
+    const wins = Object.values(_windows).filter(w => !w.minimized);
+    if (wins.length > 1) {
+      wins.sort((a, b) => b.zIndex - a.zIndex);
+      // Focus the second window (next in stack)
+      focusWindow(wins[wins.length - 1].winId);
+    } else if (wins.length === 0) {
+      // Unminimize the most recently minimized window
+      const minimized = Object.values(_windows).filter(w => w.minimized);
+      if (minimized.length) unminimizeWindow(minimized[minimized.length - 1].winId);
+    }
+  }
+  // Escape — close start menu if open
+  if (e.key === 'Escape') {
+    const menu = document.getElementById('startMenu');
+    if (menu && !menu.classList.contains('hidden')) {
+      closeStartMenu();
+      e.preventDefault();
+    }
+    closeContextMenu();
+  }
+});
+
+// ─── Close parent window from a "back" button ────────────────────────────
+function closeParentWindow(viewId) {
+  const appId = _viewToApp ? _viewToApp[viewId] : null;
+  if (appId) {
+    const win = Object.values(_windows).find(w => w.appId === appId);
+    if (win) { closeWindow(win.winId); return; }
+  }
+  // fallback
+  openApp('chat');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// END BUNKER OS WINDOW MANAGER
+// ═══════════════════════════════════════════════════════════════════════════
+
+
 // ─── Init ───────────────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
   loadPersistedData();
@@ -168,7 +980,68 @@ document.addEventListener("DOMContentLoaded", () => {
   loadProtocolsIndex();
   loadGamesIndex();
   initSearch();
+
+  // ── Bunker OS Boot Sequence ──
+  runBootSequence();
 });
+
+// ─── Boot Sequence ───────────────────────────────────────────────────────────
+function runBootSequence() {
+  const bootLog = document.getElementById('bootLog');
+  const bootFill = document.getElementById('bootBarFill');
+  const bootScreen = document.getElementById('bootScreen');
+  const desktop = document.getElementById('desktop');
+
+  if (!bootScreen || !desktop) {
+    // No boot screen, go straight to desktop
+    applyWallpaper();
+    renderDesktopIcons();
+    startTaskbarClock();
+    setTimeout(() => openApp('chat'), 150);
+    return;
+  }
+
+  const lines = [
+    '[BIOS] Bunker OS v3.0 — POST OK',
+    '[CPU]  Processador detectado',
+    '[RAM]  Memória verificada',
+    '[DISK] Armazenamento montado',
+    '[NET]  Interface de rede: localhost',
+    '[OLMA] Conectando ao Ollama...',
+    '[LLM]  Modelos de IA carregados',
+    '[TTS]  Engine de voz inicializada',
+    '[GUI]  Window Manager iniciado',
+    '[DESK] Desktop pronto',
+    '',
+    '> DON\'T PANIC. Sistema operacional pronto.',
+  ];
+
+  let i = 0;
+  const interval = setInterval(() => {
+    if (i < lines.length) {
+      const div = document.createElement('div');
+      div.textContent = lines[i];
+      if (lines[i].includes('DON\'T PANIC')) div.style.color = 'var(--accent)';
+      bootLog.appendChild(div);
+      // Keep only last 5 visible
+      while (bootLog.children.length > 6) bootLog.removeChild(bootLog.firstChild);
+      bootFill.style.width = Math.round(((i + 1) / lines.length) * 100) + '%';
+      i++;
+    } else {
+      clearInterval(interval);
+      // Transition to desktop
+      setTimeout(() => {
+        bootScreen.classList.add('fade-out');
+        desktop.style.display = '';
+        applyWallpaper();
+        renderDesktopIcons();
+        startTaskbarClock();
+        setTimeout(() => openApp('chat'), 300);
+        setTimeout(() => bootScreen.remove(), 1000);
+      }, 400);
+    }
+  }, 180);
+}
 
 // ─── Persistence (with fallback) ────────────────────────────────────────────
 const _ls = () => { try { return window['local' + 'Storage']; } catch { return null; } };
@@ -437,7 +1310,9 @@ async function openGuide(guideId) {
 function closeGuide() {
   state.activeGuide = null;
   document.querySelectorAll(".nav-guide").forEach(el => el.classList.remove("active"));
-  showChatView();
+  const win = Object.values(_windows).find(w => w.appId === 'guides');
+  if (win) closeWindow(win.winId);
+  else showChatView();
 }
 
 function toggleFavGuide() {
@@ -465,23 +1340,33 @@ function updateGuideFavBtn() {
   }
 }
 
-// ─── View Switching ─────────────────────────────────────────────────────────
-const ALL_VIEWS = ["chatView", "guideView", "mapView", "appsView", "charactersView", "ttsView", "protocolView", "suppliesView", "booksView", "gamesView", "gamePlayView", "wikiView", "journalView"];
+// ─── View Switching (now routes through window manager) ──────────────────
+const ALL_VIEWS = ["chatView", "guideView", "mapView", "appsView", "charactersView", "ttsView", "protocolView", "suppliesView", "booksView", "bookReaderView", "gamesView", "gamePlayView", "wikiView", "journalView", "notepadView", "wordView", "excelView", "sysmonView"];
+
+// Maps viewId -> appId for reverse lookup
+const _viewToApp = {};
+OS_APPS.forEach(a => { if (a.viewId) _viewToApp[a.viewId] = a.id; });
 
 function showView(id) {
+  // Route through window manager if possible
+  const appId = _viewToApp[id];
+  if (appId) {
+    openApp(appId);
+    return;
+  }
+  // Fallback: direct toggle (should rarely be needed)
   ALL_VIEWS.forEach(v => {
     const el = document.getElementById(v);
     if (el) el.classList.toggle("hidden", v !== id);
   });
-  // Stop journal clock when leaving journal view
   if (id !== 'journalView' && _clockInterval) {
     clearInterval(_clockInterval);
     _clockInterval = null;
   }
 }
 
-function showChatView() { showView("chatView"); }
-function showGuideView() { showView("guideView"); }
+function showChatView() { openApp('chat'); }
+function showGuideView() { openApp('guides'); }
 
 // ─── Config Drawer ──────────────────────────────────────────────────────────
 function toggleConfig() {
@@ -510,8 +1395,11 @@ async function checkHealth() {
     const r = await fetch("/api/health");
     const d = await r.json();
     if (d.status === "online") {
-      dot.className = "status-dot online";
-      txt.textContent = `Online · ${d.models.length} modelos`;
+      if (dot) dot.className = "status-dot online";
+      if (txt) txt.textContent = `Online · ${d.models.length} modelos`;
+      // Update taskbar status dot
+      const tbDot = document.getElementById('taskbarStatusDot');
+      if (tbDot) { tbDot.classList.remove('sys-warn'); tbDot.classList.add('sys-ok'); }
       state.models = d.models;
       state.visionModels = d.vision_models;
       populateModels();
@@ -530,12 +1418,16 @@ async function checkHealth() {
         maybeShowSetupModal(d);
       }
     } else {
-      dot.className = "status-dot offline";
-      txt.textContent = "Ollama offline";
+      if (dot) dot.className = "status-dot offline";
+      if (txt) txt.textContent = "Ollama offline";
+      const tbDot = document.getElementById('taskbarStatusDot');
+      if (tbDot) { tbDot.classList.remove('sys-ok'); tbDot.classList.add('sys-warn'); }
     }
   } catch {
-    dot.className = "status-dot offline";
-    txt.textContent = "Servidor offline";
+    if (dot) dot.className = "status-dot offline";
+    if (txt) txt.textContent = "Servidor offline";
+    const tbDot = document.getElementById('taskbarStatusDot');
+    if (tbDot) { tbDot.classList.remove('sys-ok'); tbDot.classList.add('sys-warn'); }
   }
 
   // Check offline maps
@@ -813,7 +1705,7 @@ function populateModels() {
 }
 
 // ─── Navigation ─────────────────────────────────────────────────────────────
-function toggleSidebar() { document.getElementById("sidebar").classList.toggle("open"); }
+function toggleSidebar() { openApp('settings'); }
 
 // ─── Input Helpers ──────────────────────────────────────────────────────────
 function autoResize() {
@@ -1536,18 +2428,7 @@ function closeBuilder() {
 
 // ─── Apps Panel ─────────────────────────────────────────────────────────────
 async function openAppsPanel() {
-  showView("appsView");
-  document.getElementById("sidebar").classList.remove("open");
-  const grid = document.getElementById("appsGrid");
-  grid.innerHTML = '<div class="panel-empty">Carregando...</div>';
-  try {
-    const r = await fetch("/api/build/list");
-    const data = await r.json();
-    renderAppsGrid(data.apps || []);
-    renderSidebarApps(data.apps || []);
-  } catch {
-    grid.innerHTML = '<div class="panel-empty">Erro ao carregar apps.</div>';
-  }
+  openApp('builder');
 }
 
 function renderAppsGrid(apps) {
@@ -1592,7 +2473,42 @@ function renderSidebarApps(apps) {
 }
 
 function openSavedApp(name) {
-  window.open(`/api/build/preview/${encodeURIComponent(name)}`, "_blank");
+  // Open saved app in an OS window with iframe
+  const winId = 'win_app_' + Date.now().toString(36);
+  const maxW = window.innerWidth;
+  const maxH = window.innerHeight - 48;
+  const w = Math.min(800, maxW - 40);
+  const h = Math.min(600, maxH - 40);
+  const x = Math.max(20, (maxW - w) / 2) + (_cascadeOffset % 5) * 25;
+  const y = Math.max(10, (maxH - h) / 2) + (_cascadeOffset % 5) * 25;
+  _cascadeOffset++;
+
+  const winEl = document.createElement('div');
+  winEl.className = 'os-window';
+  winEl.id = winId;
+  winEl.style.cssText = `left:${x}px;top:${y}px;width:${w}px;height:${h}px;z-index:${++_topZ}`;
+  winEl.innerHTML = `
+    <div class="os-window-titlebar" onmousedown="startDrag('${winId}', event)" ondblclick="maximizeWindow('${winId}')">
+      <span class="os-window-icon">🖥️</span>
+      <span class="os-window-title">${escapeHtml(name)}</span>
+      <div class="os-window-controls">
+        <button class="os-win-btn os-win-min" onclick="minimizeWindow('${winId}')">&minus;</button>
+        <button class="os-win-btn os-win-max" onclick="maximizeWindow('${winId}')">&#9744;</button>
+        <button class="os-win-btn os-win-close" onclick="closeWindow('${winId}')">&times;</button>
+      </div>
+    </div>
+    <div class="os-window-body" style="padding:0">
+      <iframe src="/api/build/preview/${encodeURIComponent(name)}" style="width:100%;height:100%;border:none;background:#fff;border-radius:0 0 var(--radius-lg) var(--radius-lg)"></iframe>
+    </div>
+    <div class="os-window-resize" onmousedown="startResize('${winId}', event)"></div>
+  `;
+  winEl.addEventListener('mousedown', (e) => { if (!e.target.closest('.os-win-btn')) focusWindow(winId); });
+  document.getElementById('windowsContainer').appendChild(winEl);
+  _windows[winId] = { winId, appId: '_saved_app', element: winEl, minimized: false, maximized: false, zIndex: _topZ, x, y, w, h, prevRect: null };
+  renderTaskbar();
+  focusWindow(winId);
+  winEl.classList.add('os-window-opening');
+  setTimeout(() => winEl.classList.remove('os-window-opening'), 300);
 }
 
 async function deleteSavedApp(name) {
@@ -1618,9 +2534,7 @@ function saveCharacters() {
 }
 
 function openCharactersPanel() {
-  showView("charactersView");
-  document.getElementById("sidebar").classList.remove("open");
-  renderCharactersList();
+  openApp('characters');
 }
 
 function renderCharactersList() {
@@ -1717,6 +2631,21 @@ function activateCharacter(id) {
     if (c?.voice) document.getElementById("ttsVoice").value = c.voice;
   }
   renderCharactersList();
+  // Update chat window title to show active character
+  _updateChatWindowTitle();
+}
+
+function _updateChatWindowTitle() {
+  const win = Object.values(_windows).find(w => w.appId === 'chat');
+  if (!win) return;
+  const titleSpan = win.element.querySelector('.os-window-title');
+  if (!titleSpan) return;
+  if (state.activeCharacterId && state.characters[state.activeCharacterId]) {
+    const c = state.characters[state.activeCharacterId];
+    titleSpan.textContent = `AI Chat — ${c.name}`;
+  } else {
+    titleSpan.textContent = 'AI Chat';
+  }
 }
 
 function deleteCharacter(id) {
@@ -1729,28 +2658,11 @@ function deleteCharacter(id) {
 
 // ─── TTS Panel ───────────────────────────────────────────────────────────────
 function openTTSPanel() {
-  showView("ttsView");
-  document.getElementById("sidebar").classList.remove("open");
-
-  // Sync voice from config drawer
-  const voice = document.getElementById("ttsVoice").value;
-  document.getElementById("ttsPanelVoice").value = voice;
-
-  // Pre-select engine dropdown to match backend's best available engine
-  const sel = document.getElementById("ttsPanelEngine");
-  if (sel && sel.value === "auto" && state.ttsEngine !== "edge-tts") {
-    sel.value = state.ttsEngine; // pre-select pyttsx3 or piper if available
-  }
-
-  // Sync row visibility + banner for selected engine
-  onTTSEngineChange();
-
-  // Load Piper models
-  _loadPiperModelCards();
-
-  // Fetch system voices (always attempt, handles errors gracefully)
-  _fetchSysVoices();
+  openApp('tts');
 }
+
+// Kept for _ttsInit to call
+function loadPiperModels() { _loadPiperModelCards(); _fetchSysVoices(); }
 
 async function _fetchSysVoices() {
   const sel = document.getElementById("ttsPanelSysVoice");
@@ -2026,23 +2938,13 @@ const mapState = {
 };
 
 function openMap() {
-  showView("mapView");
-  document.getElementById("sidebar").classList.remove("open");
-
-  document.querySelectorAll(".nav-guide").forEach(el => el.classList.remove("active"));
-  const mapItem = document.querySelector('[data-guide="map"]');
-  if (mapItem) mapItem.classList.add("active");
-
-  if (!mapState.initialized) {
-    initMap();
-  } else {
-    mapState.leafletMap.invalidateSize();
-  }
+  openApp('map');
 }
 
 function closeMap() {
-  document.querySelectorAll(".nav-guide").forEach(el => el.classList.remove("active"));
-  showChatView();
+  // In window mode, close the map window
+  const win = Object.values(_windows).find(w => w.appId === 'map');
+  if (win) closeWindow(win.winId);
 }
 
 async function initMap() {
@@ -2447,7 +3349,9 @@ function renderProtocolStep(protocol, stepId) {
 function closeProtocol() {
   state.activeProtocol = null;
   state.currentProtocol = null;
-  showChatView();
+  const win = Object.values(_windows).find(w => w.appId === 'protocols');
+  if (win) closeWindow(win.winId);
+  else showChatView();
 }
 
 // ─── Games (loaded from API) ────────────────────────────────────────────────
@@ -2460,9 +3364,7 @@ async function loadGamesIndex() {
 }
 
 function openGamesPanel() {
-  showView('gamesView');
-  document.getElementById('sidebar').classList.remove('open');
-  renderGamesGrid();
+  openApp('games');
 }
 
 function renderGamesGrid() {
@@ -2482,18 +3384,28 @@ function renderGamesGrid() {
 }
 
 function openGame(name) {
-  showView('gamePlayView');
+  openApp('gamePlay');
   const frame = document.getElementById('gameFrame');
   const titleEl = document.getElementById('gameTitle');
   const game = gamesIndex.find(g => (g.id || g.name) === name);
   if (titleEl) titleEl.textContent = game?.title || name;
   if (frame) frame.src = `/api/games/${encodeURIComponent(name)}`;
+  // Update window title
+  const win = Object.values(_windows).find(w => w.appId === 'gamePlay');
+  if (win) {
+    const titleSpan = win.element.querySelector('.os-window-title');
+    if (titleSpan) titleSpan.textContent = game?.title || name;
+  }
 }
 
 function closeGame() {
   const frame = document.getElementById('gameFrame');
   if (frame) frame.src = 'about:blank';
-  showView('gamesView');
+  const win = Object.values(_windows).find(w => w.appId === 'gamePlay');
+  if (win) closeWindow(win.winId);
+  // Focus games window if open
+  const gamesWin = Object.values(_windows).find(w => w.appId === 'games');
+  if (gamesWin) focusWindow(gamesWin.winId);
 }
 
 // Listen for game close postMessage
@@ -2503,9 +3415,7 @@ window.addEventListener('message', (e) => {
 
 // ─── Supplies (loaded from API) ─────────────────────────────────────────────
 async function openSuppliesPanel() {
-  showView('suppliesView');
-  document.getElementById('sidebar').classList.remove('open');
-  await loadSupplies();
+  openApp('supplies');
 }
 
 let _suppliesAll = [];
@@ -2689,9 +3599,7 @@ async function deleteSupply(id) {
 
 // ─── Books (loaded from API) ────────────────────────────────────────────────
 async function openBooksPanel() {
-  showView('booksView');
-  document.getElementById('sidebar').classList.remove('open');
-  await loadBooks();
+  openApp('books');
 }
 
 async function loadBooks(q = '') {
@@ -2727,42 +3635,101 @@ function renderBooks(books) {
     </div>`).join('');
 }
 
-function openBook(id) {
-  // TODO: Phase 5 - epub.js reader
-  window.open(`/api/books/${id}/file`, '_blank');
+// ─── Book Reader (epub.js) ───────────────────────────────────────────────────
+let _currentBook = null;       // ePub instance
+let _currentRendition = null;  // epub.js Rendition
+let _currentBookId = null;     // DB id for saving progress
+
+async function openBook(id) {
+  _currentBookId = id;
+  openApp('bookReader');
+  const area = document.getElementById('bookReaderArea');
+  const titleEl = document.getElementById('bookReaderTitle');
+  const pctEl = document.getElementById('bookReaderProgress');
+  if (area) area.innerHTML = '<div class="guide-loading">Carregando livro...</div>';
+  if (pctEl) pctEl.textContent = '0%';
+
+  try {
+    // Destroy previous instance
+    if (_currentRendition) { try { _currentRendition.destroy(); } catch(e) {} }
+    if (_currentBook) { try { _currentBook.destroy(); } catch(e) {} }
+
+    const bookUrl = `/api/books/${id}/file`;
+    _currentBook = ePub(bookUrl);
+    await _currentBook.ready;
+
+    if (titleEl && _currentBook.packaging && _currentBook.packaging.metadata) {
+      titleEl.textContent = _currentBook.packaging.metadata.title || 'Livro';
+    }
+
+    if (area) area.innerHTML = '';
+    _currentRendition = _currentBook.renderTo('bookReaderArea', {
+      width: '100%',
+      height: '100%',
+      spread: 'none'
+    });
+
+    // Apply dark theme to epub content
+    _currentRendition.themes.default({
+      body: { color: '#c0dff0 !important', background: '#020609 !important', 'font-family': 'Georgia, serif', 'line-height': '1.7', padding: '20px !important' },
+      'p, div, span, li, td, th, h1, h2, h3, h4, h5, h6': { color: '#c0dff0 !important' },
+      'a': { color: '#00d4ff !important' },
+      'img': { 'max-width': '100% !important' }
+    });
+
+    // Track location changes for progress
+    _currentRendition.on('relocated', (location) => {
+      if (location && location.start) {
+        const pct = Math.round((location.start.percentage || 0) * 100);
+        if (pctEl) pctEl.textContent = pct + '%';
+        // Save progress to server
+        fetch(`/api/books/${_currentBookId}/progress`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ read_pct: pct })
+        }).catch(() => {});
+      }
+    });
+
+    await _currentRendition.display();
+
+  } catch (e) {
+    console.error('Epub reader error:', e);
+    if (area) area.innerHTML = `<div class="guide-error">Erro ao abrir livro: ${e.message}<br><br><button class="btn-sm" onclick="window.open('/api/books/${id}/file','_blank')">Abrir em nova aba</button></div>`;
+  }
 }
+
+function closeBookReader() {
+  if (_currentRendition) { try { _currentRendition.destroy(); } catch(e) {} _currentRendition = null; }
+  if (_currentBook) { try { _currentBook.destroy(); } catch(e) {} _currentBook = null; }
+  _currentBookId = null;
+  const win = Object.values(_windows).find(w => w.appId === 'bookReader');
+  if (win) closeWindow(win.winId);
+  const booksWin = Object.values(_windows).find(w => w.appId === 'books');
+  if (booksWin) focusWindow(booksWin.winId);
+}
+
+function bookPrevPage() {
+  if (_currentRendition) _currentRendition.prev();
+}
+
+function bookNextPage() {
+  if (_currentRendition) _currentRendition.next();
+}
+
+// Keyboard navigation for book reader
+document.addEventListener('keydown', (e) => {
+  if (!_currentRendition) return;
+  const view = document.getElementById('bookReaderView');
+  if (!view || view.classList.contains('hidden')) return;
+  if (e.key === 'ArrowLeft' || e.key === 'PageUp') { bookPrevPage(); e.preventDefault(); }
+  if (e.key === 'ArrowRight' || e.key === 'PageDown') { bookNextPage(); e.preventDefault(); }
+  if (e.key === 'Escape') { closeBookReader(); e.preventDefault(); }
+});
 
 // ─── Wiki / Kiwix ────────────────────────────────────────────────────────────
 async function openWikiPanel() {
-  showView('wikiView');
-  document.getElementById('sidebar').classList.remove('open');
-  const frame = document.getElementById('wikiFrame');
-  const statusEl = document.getElementById('wikiStatus');
-  const offlineMsg = document.getElementById('wikiOfflineMsg');
-  const dot = statusEl?.querySelector('.sys-dot');
-  const statusTxt = statusEl?.querySelector('span:last-child');
-
-  if (statusTxt) statusTxt.textContent = 'Verificando...';
-
-  try {
-    const r = await fetch('/api/kiwix/status');
-    const d = await r.json();
-    if (d.running) {
-      if (frame) frame.src = 'http://localhost:8889';
-      if (offlineMsg) offlineMsg.classList.add('hidden');
-      if (dot) { dot.classList.remove('sys-warn'); dot.classList.add('sys-ok'); }
-      if (statusTxt) statusTxt.textContent = 'Online';
-    } else {
-      if (frame) { frame.src = 'about:blank'; }
-      if (offlineMsg) offlineMsg.classList.remove('hidden');
-      if (dot) { dot.classList.remove('sys-ok'); dot.classList.add('sys-warn'); }
-      if (statusTxt) statusTxt.textContent = 'Indispon\u00EDvel';
-    }
-  } catch {
-    if (offlineMsg) offlineMsg.classList.remove('hidden');
-    if (dot) { dot.classList.remove('sys-ok'); dot.classList.add('sys-warn'); }
-    if (statusTxt) statusTxt.textContent = 'Erro';
-  }
+  openApp('wiki');
 }
 
 // ─── Journal ────────────────────────────────────────────────────────────────
@@ -2774,14 +3741,7 @@ let _calYear = null;
 let _calMonth = null;
 
 async function openJournalPanel() {
-  showView('journalView');
-  document.getElementById('sidebar').classList.remove('open');
-  _journalCurrentDate = new Date().toISOString().slice(0, 10); // reset to today on open
-  const now = new Date();
-  _calYear  = now.getFullYear();
-  _calMonth = now.getMonth();
-  await loadJournal();
-  _startClock();
+  openApp('journal');
 }
 
 async function loadJournal() {
@@ -3195,3 +4155,583 @@ function loadScript(src) {
     document.head.appendChild(s);
   });
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SYSTEM MONITOR — Live server stats
+// ═══════════════════════════════════════════════════════════════════════════
+let _sysmonInterval = null;
+
+function sysmonInit() {
+  sysmonRefresh();
+  if (_sysmonInterval) clearInterval(_sysmonInterval);
+  _sysmonInterval = setInterval(sysmonRefresh, 5000);
+}
+
+async function sysmonRefresh() {
+  const el = document.getElementById('sysmonContent');
+  if (!el) return;
+  // If sysmon window is not open, stop
+  const win = Object.values(_windows).find(w => w.appId === 'sysmon');
+  if (!win) { clearInterval(_sysmonInterval); _sysmonInterval = null; return; }
+
+  try {
+    const r = await fetch('/api/status');
+    const d = await r.json();
+    const uptimeH = Math.floor(d.uptime_sec / 3600);
+    const uptimeM = Math.floor((d.uptime_sec % 3600) / 60);
+
+    el.innerHTML = `
+      <div class="sysmon-grid">
+        <div class="sysmon-card">
+          <div class="sysmon-label">🖥️ Servidor</div>
+          <div class="sysmon-val">${d.ip || 'localhost'}:${d.port}</div>
+          <div class="sysmon-sub">Uptime: ${uptimeH}h ${uptimeM}m</div>
+        </div>
+        <div class="sysmon-card">
+          <div class="sysmon-label">⚡ CPU</div>
+          <div class="sysmon-bar"><div class="sysmon-bar-fill ${d.cpu_pct > 80 ? 'danger' : d.cpu_pct > 50 ? 'warn' : 'ok'}" style="width:${d.cpu_pct}%"></div></div>
+          <div class="sysmon-sub">${d.cpu_pct}%</div>
+        </div>
+        <div class="sysmon-card">
+          <div class="sysmon-label">🧠 RAM</div>
+          <div class="sysmon-bar"><div class="sysmon-bar-fill ${d.ram_pct > 85 ? 'danger' : d.ram_pct > 60 ? 'warn' : 'ok'}" style="width:${d.ram_pct}%"></div></div>
+          <div class="sysmon-sub">${d.ram_used_mb} / ${d.ram_total_mb} MB (${d.ram_pct}%)</div>
+        </div>
+        <div class="sysmon-card">
+          <div class="sysmon-label">💾 Disco</div>
+          <div class="sysmon-bar"><div class="sysmon-bar-fill ${d.disk_pct > 90 ? 'danger' : d.disk_pct > 70 ? 'warn' : 'ok'}" style="width:${d.disk_pct}%"></div></div>
+          <div class="sysmon-sub">${d.disk_free_gb} GB livre de ${d.disk_total_gb} GB (${d.disk_pct}%)</div>
+        </div>
+        <div class="sysmon-card sysmon-wide">
+          <div class="sysmon-label">📊 Conteúdo</div>
+          <div class="sysmon-content-grid">
+            <span>📋 ${d.content?.guides || '?'} guias</span>
+            <span>🚨 ${d.content?.protocols || '?'} protocolos</span>
+            <span>📚 ${d.content?.books || '?'} livros</span>
+            <span>🎮 ${d.content?.games || '?'} jogos</span>
+            <span>📦 ${d.content?.supplies || '?'} itens</span>
+            <span>📓 ${d.content?.journal_entries || '?'} entradas</span>
+          </div>
+        </div>
+      </div>
+      <div class="sysmon-footer">Atualização automática a cada 5s — ${d.server_time?.slice(11, 19) || ''}</div>`;
+  } catch (e) {
+    el.innerHTML = `<div class="guide-error">Erro ao carregar status: ${e.message}</div>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// NOTEPAD APP — Plain text notes, multiple notes, SQLite storage
+// ═══════════════════════════════════════════════════════════════════════════
+let _notepadNotes = [];
+let _notepadActiveId = null;
+let _notepadDirty = false;
+
+async function notepadInit() {
+  await notepadLoadList();
+}
+
+async function notepadLoadList() {
+  try {
+    const r = await fetch('/api/notes?doc_type=text');
+    _notepadNotes = await r.json();
+  } catch { _notepadNotes = []; }
+  notepadRenderList();
+}
+
+function notepadRenderList() {
+  const el = document.getElementById('notepadList');
+  if (!el) return;
+  if (_notepadNotes.length === 0) {
+    el.innerHTML = '<div class="notepad-list-empty">Nenhuma nota.<br>Clique + Nova Nota.</div>';
+    return;
+  }
+  el.innerHTML = _notepadNotes.map(n => `
+    <div class="notepad-list-item ${n.id === _notepadActiveId ? 'active' : ''}" onclick="notepadSelect(${n.id})">
+      <div class="notepad-list-title">${escapeHtml(n.title || 'Sem titulo')}</div>
+      <div class="notepad-list-date">${n.updated_at || ''}</div>
+    </div>
+  `).join('');
+}
+
+async function notepadSelect(id) {
+  if (_notepadDirty && _notepadActiveId) await notepadSave();
+  try {
+    const r = await fetch(`/api/notes/${id}`);
+    const note = await r.json();
+    _notepadActiveId = note.id;
+    document.getElementById('notepadTitle').value = note.title || '';
+    document.getElementById('notepadTextarea').value = note.content || '';
+    document.getElementById('notepadStatus').textContent = `Nota #${note.id} — ${note.updated_at || ''}`;
+    document.getElementById('notepadSaveBtn').style.display = '';
+    document.getElementById('notepadDeleteBtn').style.display = '';
+    _notepadDirty = false;
+    notepadRenderList();
+  } catch(e) {
+    document.getElementById('notepadStatus').textContent = 'Erro ao carregar nota';
+  }
+}
+
+async function notepadNew() {
+  if (_notepadDirty && _notepadActiveId) await notepadSave();
+  try {
+    const r = await fetch('/api/notes', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Nova nota', content: '', doc_type: 'text' })
+    });
+    const d = await r.json();
+    await notepadLoadList();
+    notepadSelect(d.id);
+  } catch(e) {
+    document.getElementById('notepadStatus').textContent = 'Erro ao criar nota';
+  }
+}
+
+async function notepadSave() {
+  if (!_notepadActiveId) return;
+  const title = document.getElementById('notepadTitle').value;
+  const content = document.getElementById('notepadTextarea').value;
+  try {
+    await fetch(`/api/notes/${_notepadActiveId}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, content })
+    });
+    _notepadDirty = false;
+    document.getElementById('notepadStatus').textContent = 'Salvo!';
+    // Update list title
+    const n = _notepadNotes.find(x => x.id === _notepadActiveId);
+    if (n) n.title = title;
+    notepadRenderList();
+  } catch(e) {
+    document.getElementById('notepadStatus').textContent = 'Erro ao salvar';
+  }
+}
+
+async function notepadDelete() {
+  if (!_notepadActiveId) return;
+  if (!confirm('Excluir esta nota?')) return;
+  try {
+    await fetch(`/api/notes/${_notepadActiveId}`, { method: 'DELETE' });
+    _notepadActiveId = null;
+    _notepadDirty = false;
+    document.getElementById('notepadTitle').value = '';
+    document.getElementById('notepadTextarea').value = '';
+    document.getElementById('notepadStatus').textContent = 'Nota excluida';
+    document.getElementById('notepadSaveBtn').style.display = 'none';
+    document.getElementById('notepadDeleteBtn').style.display = 'none';
+    await notepadLoadList();
+  } catch(e) {
+    document.getElementById('notepadStatus').textContent = 'Erro ao excluir';
+  }
+}
+
+function notepadMarkDirty() { _notepadDirty = true; }
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// WORD SIMPLE — Rich text editor using contenteditable + execCommand
+// ═══════════════════════════════════════════════════════════════════════════
+let _wordNotes = [];
+let _wordActiveId = null;
+let _wordDirty = false;
+
+async function wordInit() {
+  await wordLoadList();
+}
+
+async function wordLoadList() {
+  try {
+    const r = await fetch('/api/notes?doc_type=html');
+    _wordNotes = await r.json();
+  } catch { _wordNotes = []; }
+  wordRenderList();
+}
+
+function wordRenderList() {
+  const el = document.getElementById('wordList');
+  if (!el) return;
+  if (_wordNotes.length === 0) {
+    el.innerHTML = '<div class="notepad-list-empty">Nenhum documento.<br>Clique + Novo Doc.</div>';
+    return;
+  }
+  el.innerHTML = _wordNotes.map(n => `
+    <div class="notepad-list-item ${n.id === _wordActiveId ? 'active' : ''}" onclick="wordSelect(${n.id})">
+      <div class="notepad-list-title">${escapeHtml(n.title || 'Sem titulo')}</div>
+      <div class="notepad-list-date">${n.updated_at || ''}</div>
+    </div>
+  `).join('');
+}
+
+async function wordSelect(id) {
+  if (_wordDirty && _wordActiveId) await wordSave();
+  try {
+    const r = await fetch(`/api/notes/${id}`);
+    const note = await r.json();
+    _wordActiveId = note.id;
+    document.getElementById('wordTitle').value = note.title || '';
+    document.getElementById('wordContent').innerHTML = note.content || '';
+    document.getElementById('wordStatus').textContent = `Doc #${note.id} — ${note.updated_at || ''}`;
+    document.getElementById('wordSaveBtn').style.display = '';
+    document.getElementById('wordDeleteBtn').style.display = '';
+    _wordDirty = false;
+    wordRenderList();
+  } catch(e) {
+    document.getElementById('wordStatus').textContent = 'Erro ao carregar documento';
+  }
+}
+
+async function wordNew() {
+  if (_wordDirty && _wordActiveId) await wordSave();
+  try {
+    const r = await fetch('/api/notes', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Novo documento', content: '<p></p>', doc_type: 'html' })
+    });
+    const d = await r.json();
+    await wordLoadList();
+    wordSelect(d.id);
+  } catch(e) {
+    document.getElementById('wordStatus').textContent = 'Erro ao criar documento';
+  }
+}
+
+function wordExec(cmd, val) {
+  document.execCommand(cmd, false, val || null);
+  document.getElementById('wordContent').focus();
+}
+
+function wordExecBlock(tag) {
+  if (!tag) return;
+  document.execCommand('formatBlock', false, tag);
+  document.getElementById('wordContent').focus();
+}
+
+async function wordSave() {
+  if (!_wordActiveId) return;
+  const title = document.getElementById('wordTitle').value;
+  const content = document.getElementById('wordContent').innerHTML;
+  try {
+    await fetch(`/api/notes/${_wordActiveId}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, content })
+    });
+    _wordDirty = false;
+    document.getElementById('wordStatus').textContent = 'Salvo!';
+    const n = _wordNotes.find(x => x.id === _wordActiveId);
+    if (n) n.title = title;
+    wordRenderList();
+  } catch(e) {
+    document.getElementById('wordStatus').textContent = 'Erro ao salvar';
+  }
+}
+
+async function wordDelete() {
+  if (!_wordActiveId) return;
+  if (!confirm('Excluir este documento?')) return;
+  try {
+    await fetch(`/api/notes/${_wordActiveId}`, { method: 'DELETE' });
+    _wordActiveId = null;
+    _wordDirty = false;
+    document.getElementById('wordTitle').value = '';
+    document.getElementById('wordContent').innerHTML = '';
+    document.getElementById('wordStatus').textContent = 'Documento excluido';
+    document.getElementById('wordSaveBtn').style.display = 'none';
+    document.getElementById('wordDeleteBtn').style.display = 'none';
+    await wordLoadList();
+  } catch(e) {
+    document.getElementById('wordStatus').textContent = 'Erro ao excluir';
+  }
+}
+
+function wordMarkDirty() { _wordDirty = true; }
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// EXCEL SIMPLE — Spreadsheet grid with basic formulas
+// ═══════════════════════════════════════════════════════════════════════════
+const EXCEL_COLS = 10; // A-J
+const EXCEL_ROWS = 30;
+let _excelNotes = [];
+let _excelActiveId = null;
+let _excelDirty = false;
+let _excelData = {};     // { "A1": "value", "B2": "=SUM(A1:A5)", ... }
+let _excelSelectedCell = null;
+
+async function excelInit() {
+  await excelLoadList();
+  excelBuildGrid();
+}
+
+function excelBuildGrid() {
+  const table = document.getElementById('excelGrid');
+  if (!table) return;
+  let html = '<thead><tr><th class="excel-corner"></th>';
+  for (let c = 0; c < EXCEL_COLS; c++) {
+    html += `<th class="excel-col-header">${String.fromCharCode(65 + c)}</th>`;
+  }
+  html += '</tr></thead><tbody>';
+  for (let r = 1; r <= EXCEL_ROWS; r++) {
+    html += `<tr><td class="excel-row-header">${r}</td>`;
+    for (let c = 0; c < EXCEL_COLS; c++) {
+      const ref = String.fromCharCode(65 + c) + r;
+      html += `<td class="excel-cell" data-ref="${ref}" onclick="excelSelectCell('${ref}')" ondblclick="excelEditCell('${ref}')"></td>`;
+    }
+    html += '</tr>';
+  }
+  html += '</tbody>';
+  table.innerHTML = html;
+}
+
+function excelSelectCell(ref) {
+  // Deselect previous
+  document.querySelectorAll('.excel-cell.selected').forEach(c => c.classList.remove('selected'));
+  const cell = document.querySelector(`.excel-cell[data-ref="${ref}"]`);
+  if (cell) cell.classList.add('selected');
+  _excelSelectedCell = ref;
+  document.getElementById('excelCellRef').textContent = ref;
+  const raw = _excelData[ref] || '';
+  document.getElementById('excelFormulaInput').value = raw;
+}
+
+function excelEditCell(ref) {
+  const input = document.getElementById('excelFormulaInput');
+  input.focus();
+  input.select();
+}
+
+function excelFormulaKey(e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const ref = _excelSelectedCell;
+    if (!ref) return;
+    const val = document.getElementById('excelFormulaInput').value;
+    _excelData[ref] = val;
+    _excelDirty = true;
+    excelRecalc();
+    // Move to next row
+    const col = ref.charAt(0);
+    const row = parseInt(ref.slice(1));
+    if (row < EXCEL_ROWS) excelSelectCell(col + (row + 1));
+  }
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const ref = _excelSelectedCell;
+    if (!ref) return;
+    const val = document.getElementById('excelFormulaInput').value;
+    _excelData[ref] = val;
+    _excelDirty = true;
+    excelRecalc();
+    // Move to next column
+    const col = ref.charCodeAt(0);
+    const row = ref.slice(1);
+    if (col < 65 + EXCEL_COLS - 1) excelSelectCell(String.fromCharCode(col + 1) + row);
+  }
+  if (e.key === 'Escape') {
+    document.getElementById('excelFormulaInput').value = _excelData[_excelSelectedCell] || '';
+  }
+}
+
+function excelRecalc() {
+  // Evaluate all cells
+  for (let r = 1; r <= EXCEL_ROWS; r++) {
+    for (let c = 0; c < EXCEL_COLS; c++) {
+      const ref = String.fromCharCode(65 + c) + r;
+      const cell = document.querySelector(`.excel-cell[data-ref="${ref}"]`);
+      if (!cell) continue;
+      const raw = _excelData[ref];
+      if (!raw) { cell.textContent = ''; continue; }
+      if (typeof raw === 'string' && raw.startsWith('=')) {
+        try {
+          cell.textContent = excelEvalFormula(raw.slice(1));
+          cell.classList.remove('excel-cell-error');
+        } catch {
+          cell.textContent = '#ERR';
+          cell.classList.add('excel-cell-error');
+        }
+      } else {
+        cell.textContent = raw;
+        cell.classList.remove('excel-cell-error');
+      }
+    }
+  }
+}
+
+function excelCellValue(ref) {
+  const raw = _excelData[ref.toUpperCase()];
+  if (!raw) return 0;
+  if (typeof raw === 'string' && raw.startsWith('=')) {
+    return excelEvalFormula(raw.slice(1));
+  }
+  const n = parseFloat(raw);
+  return isNaN(n) ? 0 : n;
+}
+
+function excelExpandRange(rangeStr) {
+  // "A1:B3" → ["A1","A2","A3","B1","B2","B3"]
+  const parts = rangeStr.toUpperCase().split(':');
+  if (parts.length !== 2) return [rangeStr.toUpperCase()];
+  const c1 = parts[0].charCodeAt(0), r1 = parseInt(parts[0].slice(1));
+  const c2 = parts[1].charCodeAt(0), r2 = parseInt(parts[1].slice(1));
+  const refs = [];
+  for (let c = Math.min(c1,c2); c <= Math.max(c1,c2); c++) {
+    for (let r = Math.min(r1,r2); r <= Math.max(r1,r2); r++) {
+      refs.push(String.fromCharCode(c) + r);
+    }
+  }
+  return refs;
+}
+
+function excelEvalFormula(expr) {
+  const upper = expr.toUpperCase().trim();
+  // SUM(range)
+  let m = upper.match(/^SUM\((.+)\)$/);
+  if (m) {
+    const refs = excelExpandRange(m[1]);
+    return refs.reduce((s, r) => s + excelCellValue(r), 0);
+  }
+  // AVG / AVERAGE(range)
+  m = upper.match(/^(?:AVG|AVERAGE)\((.+)\)$/);
+  if (m) {
+    const refs = excelExpandRange(m[1]);
+    const sum = refs.reduce((s, r) => s + excelCellValue(r), 0);
+    return refs.length ? sum / refs.length : 0;
+  }
+  // COUNT(range)
+  m = upper.match(/^COUNT\((.+)\)$/);
+  if (m) {
+    const refs = excelExpandRange(m[1]);
+    return refs.filter(r => _excelData[r] && _excelData[r] !== '').length;
+  }
+  // MIN(range)
+  m = upper.match(/^MIN\((.+)\)$/);
+  if (m) {
+    const refs = excelExpandRange(m[1]);
+    const vals = refs.map(r => excelCellValue(r));
+    return vals.length ? Math.min(...vals) : 0;
+  }
+  // MAX(range)
+  m = upper.match(/^MAX\((.+)\)$/);
+  if (m) {
+    const refs = excelExpandRange(m[1]);
+    const vals = refs.map(r => excelCellValue(r));
+    return vals.length ? Math.max(...vals) : 0;
+  }
+  // IF(cond, then, else) — simple
+  m = upper.match(/^IF\((.+),(.+),(.+)\)$/);
+  if (m) {
+    const cond = excelEvalSimple(m[1].trim());
+    return cond ? excelEvalSimple(m[2].trim()) : excelEvalSimple(m[3].trim());
+  }
+  // Simple arithmetic: cell refs + numbers + operators
+  return excelEvalSimple(upper);
+}
+
+function excelEvalSimple(expr) {
+  // Replace cell references with their values
+  let replaced = expr.replace(/[A-J]\d{1,2}/g, (ref) => {
+    return excelCellValue(ref);
+  });
+  // Safe eval: only allow numbers, operators, parens
+  if (/^[\d\s\+\-\*\/\.\(\)<>=!&|]+$/.test(replaced)) {
+    try { return Function('"use strict"; return (' + replaced + ')')(); }
+    catch { return 0; }
+  }
+  return 0;
+}
+
+async function excelLoadList() {
+  try {
+    const r = await fetch('/api/notes?doc_type=spreadsheet');
+    _excelNotes = await r.json();
+  } catch { _excelNotes = []; }
+  excelRenderList();
+}
+
+function excelRenderList() {
+  const el = document.getElementById('excelList');
+  if (!el) return;
+  if (_excelNotes.length === 0) {
+    el.innerHTML = '<div class="notepad-list-empty">Nenhuma planilha.<br>Clique + Nova Planilha.</div>';
+    return;
+  }
+  el.innerHTML = _excelNotes.map(n => `
+    <div class="notepad-list-item ${n.id === _excelActiveId ? 'active' : ''}" onclick="excelSelect(${n.id})">
+      <div class="notepad-list-title">${escapeHtml(n.title || 'Sem titulo')}</div>
+      <div class="notepad-list-date">${n.updated_at || ''}</div>
+    </div>
+  `).join('');
+}
+
+async function excelSelect(id) {
+  if (_excelDirty && _excelActiveId) await excelSave();
+  try {
+    const r = await fetch(`/api/notes/${id}`);
+    const note = await r.json();
+    _excelActiveId = note.id;
+    document.getElementById('excelTitle').value = note.title || '';
+    try { _excelData = JSON.parse(note.content || '{}'); } catch { _excelData = {}; }
+    document.getElementById('excelStatus').textContent = `Planilha #${note.id}`;
+    document.getElementById('excelSaveBtn').style.display = '';
+    document.getElementById('excelDeleteBtn').style.display = '';
+    _excelDirty = false;
+    excelBuildGrid();
+    excelRecalc();
+    excelRenderList();
+  } catch(e) {
+    document.getElementById('excelStatus').textContent = 'Erro ao carregar planilha';
+  }
+}
+
+async function excelNew() {
+  if (_excelDirty && _excelActiveId) await excelSave();
+  try {
+    const r = await fetch('/api/notes', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Nova planilha', content: '{}', doc_type: 'spreadsheet' })
+    });
+    const d = await r.json();
+    await excelLoadList();
+    excelSelect(d.id);
+  } catch(e) {
+    document.getElementById('excelStatus').textContent = 'Erro ao criar planilha';
+  }
+}
+
+async function excelSave() {
+  if (!_excelActiveId) return;
+  const title = document.getElementById('excelTitle').value;
+  try {
+    await fetch(`/api/notes/${_excelActiveId}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, content: JSON.stringify(_excelData) })
+    });
+    _excelDirty = false;
+    document.getElementById('excelStatus').textContent = 'Salvo!';
+    const n = _excelNotes.find(x => x.id === _excelActiveId);
+    if (n) n.title = title;
+    excelRenderList();
+  } catch(e) {
+    document.getElementById('excelStatus').textContent = 'Erro ao salvar';
+  }
+}
+
+async function excelDelete() {
+  if (!_excelActiveId) return;
+  if (!confirm('Excluir esta planilha?')) return;
+  try {
+    await fetch(`/api/notes/${_excelActiveId}`, { method: 'DELETE' });
+    _excelActiveId = null;
+    _excelDirty = false;
+    _excelData = {};
+    document.getElementById('excelTitle').value = '';
+    document.getElementById('excelStatus').textContent = 'Planilha excluida';
+    document.getElementById('excelSaveBtn').style.display = 'none';
+    document.getElementById('excelDeleteBtn').style.display = 'none';
+    excelBuildGrid();
+    await excelLoadList();
+  } catch(e) {
+    document.getElementById('excelStatus').textContent = 'Erro ao excluir';
+  }
+}
+
+function excelMarkDirty() { _excelDirty = true; }

@@ -1,0 +1,262 @@
+{
+  "id": "shock",
+  "title": "Choque (Estado de Choque)",
+  "urgency": "critical",
+  "description": "Protocolo para identificacao e tratamento de choque. O choque e a falencia do sistema circulatorio — sem tratamento, leva a morte em minutos a horas.",
+  "steps": [
+    {
+      "id": "check-safety",
+      "type": "decision",
+      "text": "O local e seguro para voce se aproximar?",
+      "detail": "Verifique riscos antes de socorrer. Se houver sangramento ativo, prepare-se para controla-lo.",
+      "yes": "recognize-shock",
+      "no": "wait-safe"
+    },
+    {
+      "id": "wait-safe",
+      "type": "action",
+      "text": "NAO se aproxime! Ligue 192 (SAMU) e aguarde o local ficar seguro.",
+      "warning": "Sua seguranca vem primeiro.",
+      "next": null
+    },
+    {
+      "id": "recognize-shock",
+      "type": "info",
+      "text": "SINAIS DE CHOQUE — identifique rapidamente:",
+      "detail": "INICIAIS: pulso rapido (>100bpm), respiracao rapida, ansiedade/agitacao, sede intensa, pele palida. PROGRESSIVOS: pele fria e pegajosa (suor frio), palidez extrema, labios/unhas azulados, pulso fraco e filiforme. TARDIOS: confusao mental, sonolencia, pressao muito baixa, inconsciencia.",
+      "next": "call-emergency"
+    },
+    {
+      "id": "call-emergency",
+      "type": "action",
+      "text": "Ligue 192 (SAMU) IMEDIATAMENTE! Informe: 'pessoa em estado de choque' e descreva os sintomas.",
+      "warning": "CHOQUE E UMA EMERGENCIA! Cada minuto sem tratamento aumenta o risco de dano a orgaos e morte!",
+      "next": "check-consciousness"
+    },
+    {
+      "id": "check-consciousness",
+      "type": "decision",
+      "text": "A pessoa esta CONSCIENTE e RESPIRANDO?",
+      "yes": "identify-cause",
+      "no": "check-breathing"
+    },
+    {
+      "id": "check-breathing",
+      "type": "decision",
+      "text": "A pessoa esta RESPIRANDO?",
+      "detail": "Verifique por 10 segundos: olhe o peito, ouca e sinta o ar.",
+      "yes": "recovery-position",
+      "no": "start-cpr"
+    },
+    {
+      "id": "start-cpr",
+      "type": "action",
+      "text": "SEM RESPIRACAO! Inicie RCP: 30 compressoes toracicas + 2 ventilacoes. Continue ate o socorro chegar.",
+      "warning": "Se o choque nao for tratado, evolui para parada cardiaca!",
+      "detail": "Compressoes: centro do peito, 5-6cm de profundidade, 100-120/min. Veja protocolo completo de RCP.",
+      "next": null
+    },
+    {
+      "id": "recovery-position",
+      "type": "action",
+      "text": "Pessoa inconsciente mas respirando: coloque em posicao de recuperacao (de lado). Monitore respiracao a cada minuto.",
+      "detail": "Mantenha vias aereas abertas. Se houver suspeita de lesao na coluna, NAO mova — apenas mantenha a via aerea.",
+      "next": "identify-cause"
+    },
+    {
+      "id": "identify-cause",
+      "type": "info",
+      "text": "Identifique a CAUSA PROVAVEL do choque para direcionar o tratamento:",
+      "detail": "HIPOVOLEMICO: perda de sangue ou liquidos (hemorragia, desidratacao, queimaduras). ANAFILATICO: reacao alergica grave (inseto, alimento, medicamento). CARDIOGENICO: problema no coracao (infarto, arritmia). NEUROGÊNICO: lesao na medula espinhal. SEPTICO: infeccao grave generalizada.",
+      "next": "is-bleeding"
+    },
+    {
+      "id": "is-bleeding",
+      "type": "decision",
+      "text": "Ha HEMORRAGIA VISIVEL (sangramento externo ativo)?",
+      "yes": "control-bleeding",
+      "no": "check-allergy"
+    },
+    {
+      "id": "control-bleeding",
+      "type": "action",
+      "text": "CONTROLE O SANGRAMENTO PRIMEIRO! Aplique pressao direta FIRME com pano. Se em membro e nao parar, use torniquete.",
+      "warning": "No choque hipovolemico, o CONTROLE DA HEMORRAGIA e a prioridade absoluta!",
+      "detail": "Veja protocolo completo de Hemorragia. Cada ml de sangue perdido piora o choque. Controle o sangramento antes de qualquer outra medida.",
+      "next": "position-hypovolemic"
+    },
+    {
+      "id": "check-allergy",
+      "type": "decision",
+      "text": "A pessoa foi exposta a alergeno? (picada de inseto, alimento, medicamento) Apresenta urticaria, inchaco no rosto/labios, dificuldade para respirar?",
+      "detail": "ANAFILAXIA: inchaco de labios/lingua/garganta, urticaria (vergoes vermelhos), dificuldade para respirar, queda de pressao. Pode matar em MINUTOS!",
+      "yes": "anaphylaxis",
+      "no": "check-chest-pain"
+    },
+    {
+      "id": "anaphylaxis",
+      "type": "action",
+      "text": "ANAFILAXIA! Se a pessoa tiver EPINEFRINA AUTO-INJETAVEL (EpiPen), aplique IMEDIATAMENTE na parte lateral da coxa!",
+      "warning": "ANAFILAXIA MATA EM MINUTOS! Epinefrina e o unico tratamento que salva. NAO hesite em aplicar!",
+      "detail": "Dose adulto: 0,3mg (EpiPen amarelo). Dose crianca: 0,15mg (EpiPen verde). Aplique na lateral EXTERNA da coxa, atraves da roupa se necessario. Segure por 10 segundos.",
+      "next": "post-epinephrine"
+    },
+    {
+      "id": "post-epinephrine",
+      "type": "action",
+      "text": "Apos epinefrina: deite a pessoa com pernas elevadas. Se tiver ANTI-HISTAMINICO (Difenidramina/Benadryl 50mg ou Loratadina 10mg), de por via oral.",
+      "detail": "A epinefrina pode precisar ser repetida em 5-15 minutos se os sintomas nao melhorarem ou retornarem. Uma segunda dose e aceitavel.",
+      "next": "anaphylaxis-breathing"
+    },
+    {
+      "id": "anaphylaxis-breathing",
+      "type": "decision",
+      "text": "A pessoa esta conseguindo RESPIRAR adequadamente?",
+      "detail": "Se a garganta estiver inchando (estridor, voz rouca, dificuldade para engolir), a via aerea esta comprometida.",
+      "yes": "position-shock",
+      "no": "airway-emergency"
+    },
+    {
+      "id": "airway-emergency",
+      "type": "action",
+      "text": "VIA AEREA COMPROMETIDA! Mantenha a pessoa sentada (posicao mais facil para respirar). Se parar de respirar, inicie ventilacao boca-a-boca.",
+      "warning": "Se a via aerea fechar completamente, a pessoa pode morrer em 3-5 minutos! Aplique segunda dose de epinefrina se disponivel!",
+      "detail": "Se nao tiver epinefrina e a garganta fechar: a unica opcao e cricotireoidotomia de emergencia (apenas se treinado). Mantenha RCP se parar de respirar.",
+      "next": null
+    },
+    {
+      "id": "check-chest-pain",
+      "type": "decision",
+      "text": "A pessoa tem dor no peito, falta de ar e historico de problemas cardiacos?",
+      "detail": "Choque cardiogenico: causado por infarto ou arritmia grave. A pessoa pode estar com dor no peito que irradia para braco/mandibula, suando frio, nausea.",
+      "yes": "cardiogenic-shock",
+      "no": "check-infection-fever"
+    },
+    {
+      "id": "cardiogenic-shock",
+      "type": "action",
+      "text": "Possivel CHOQUE CARDIOGENICO. Coloque a pessoa sentada ou semi-sentada (reclinada a 45 graus). NAO deite com pernas elevadas!",
+      "warning": "No choque cardiogenico, elevar as pernas PIORA a situacao — sobrecarrega o coracao!",
+      "detail": "Se disponivel, de Aspirina 200-300mg (mastigar e engolir) — APENAS se nao for alergico e nao tiver sangramento ativo. Mantenha a pessoa calma. Monitore respiracao.",
+      "next": "cardiac-monitor"
+    },
+    {
+      "id": "cardiac-monitor",
+      "type": "action",
+      "text": "Monitore continuamente. Se perder consciencia ou parar de respirar, inicie RCP imediatamente. Procure DEA (desfibrilador).",
+      "detail": "Choque cardiogenico tem alta mortalidade sem atendimento hospitalar. O transporte rapido ao hospital e essencial.",
+      "next": null
+    },
+    {
+      "id": "check-infection-fever",
+      "type": "decision",
+      "text": "A pessoa tem FEBRE ALTA, infeccao conhecida, ou ferimento infectado + sinais de choque?",
+      "detail": "Choque septico: causado por infeccao grave. Comum apos ferimentos infectados, pneumonia, infeccao urinaria. A pessoa pode estar com febre alta OU temperatura muito baixa.",
+      "yes": "septic-shock",
+      "no": "hypovolemic-general"
+    },
+    {
+      "id": "septic-shock",
+      "type": "action",
+      "text": "Possivel CHOQUE SEPTICO! Administre ANTIBIOTICO imediatamente se disponivel. Hidrate a pessoa abundantemente.",
+      "warning": "No choque septico, CADA HORA sem antibiotico aumenta a mortalidade em 7-8%!",
+      "detail": "Se disponivel: Amoxicilina+Clavulanato 1g OU Ciprofloxacino 500mg + Metronidazol 500mg. De liquidos em abundancia (SRO ou agua). Controle a febre com Dipirona 1g ou Paracetamol 750mg.",
+      "next": "position-shock"
+    },
+    {
+      "id": "hypovolemic-general",
+      "type": "info",
+      "text": "Provavel CHOQUE HIPOVOLEMICO por outra causa: desidratacao grave, queimaduras extensas, diarreia/vomito intensos, ou hemorragia interna.",
+      "detail": "Se desidratacao: reidrate com SRO. Se queimadura: cubra e hidrate. Se suspeita de hemorragia interna (abdomen rigido/distendido, dor intensa): transporte ao hospital URGENTE.",
+      "next": "position-hypovolemic"
+    },
+    {
+      "id": "position-hypovolemic",
+      "type": "action",
+      "text": "POSICAO DE CHOQUE: deite a pessoa de costas e ELEVE AS PERNAS 20-30 cm (sobre mochila, cobertor enrolado).",
+      "warning": "NAO eleve as pernas se: fratura na perna/pelve/coluna, ferimento no torax, dificuldade para respirar, lesao na cabeca, ou se causar mais dor.",
+      "detail": "Elevar as pernas faz o sangue das pernas retornar ao coracao e cerebro. E uma medida simples que pode salvar a vida.",
+      "next": "position-shock"
+    },
+    {
+      "id": "position-shock",
+      "type": "action",
+      "text": "Mantenha a pessoa AQUECIDA: cubra com cobertores, roupas, o que tiver. Isole do chao frio.",
+      "detail": "O choque causa hipotermia. A perda de calor piora o choque criando um ciclo vicioso (triade da morte: hipotermia + acidose + coagulopatia). Cobertores em cima e EMBAIXO da pessoa.",
+      "next": "fluid-resuscitation"
+    },
+    {
+      "id": "fluid-resuscitation",
+      "type": "decision",
+      "text": "A pessoa esta CONSCIENTE e consegue beber? (E o choque NAO e cardiogenico)",
+      "detail": "No choque hipovolemico e septico, a reposicao de liquidos e fundamental. No cardiogenico, liquidos em excesso pioram.",
+      "yes": "give-fluids",
+      "no": "no-oral-fluids"
+    },
+    {
+      "id": "give-fluids",
+      "type": "action",
+      "text": "De LIQUIDOS em pequenos goles frequentes: SRO (soro de reidratacao oral) e o ideal. Agua com sal e acucar serve em emergencia.",
+      "detail": "SRO caseiro: 1 litro de agua + 1 colher sopa de acucar + 1 colher cafe de sal. Oferecer 200-300ml a cada 15-20 minutos se tolerado. NAO de em grandes quantidades de uma vez.",
+      "warning": "Se a pessoa vomitar, pare por 10 minutos e recomece com goles menores. NAO force liquidos se estiver vomitando muito.",
+      "next": "reassess"
+    },
+    {
+      "id": "no-oral-fluids",
+      "type": "action",
+      "text": "NAO de liquidos por via oral. Mantenha a posicao, aquecimento e monitore. Se tiver acesso a soro IV e conhecimento, administre Ringer Lactato ou Soro Fisiologico 0,9%.",
+      "detail": "Dose IV para choque hipovolemico: 1-2 litros rapido nos primeiros 15-30 minutos, depois reavaliar. Em cenario de sobrevivencia, hipodermoclise (soro subcutaneo) e alternativa possivel.",
+      "next": "reassess"
+    },
+    {
+      "id": "reassess",
+      "type": "action",
+      "text": "REAVALIE a cada 5 MINUTOS: nivel de consciencia, pulso (frequencia e forca), respiracao, cor da pele, preenchimento capilar.",
+      "detail": "PREENCHIMENTO CAPILAR: aperte a unha por 2 seg e solte. Normal: cor volta em <2 seg. No choque: demora >3-4 seg. Use como indicador rapido de perfusao.",
+      "next": "improving-question"
+    },
+    {
+      "id": "improving-question",
+      "type": "decision",
+      "text": "A pessoa esta MELHORANDO? (pulso mais forte, pele mais rosada, mais alerta)",
+      "yes": "continue-treatment",
+      "no": "worsening"
+    },
+    {
+      "id": "continue-treatment",
+      "type": "action",
+      "text": "Continue o tratamento: mantenha posicao, aquecimento, hidratacao. Monitore constantemente ate o socorro chegar.",
+      "detail": "Mesmo com melhora, NAO deixe a pessoa ficar de pe ou se mover. O choque pode retornar. Mantenha monitoramento constante.",
+      "next": "transport-decision"
+    },
+    {
+      "id": "worsening",
+      "type": "action",
+      "text": "PIORANDO! Reavalie: ha sangramento nao controlado? A causa foi tratada? Considere causas ocultas (hemorragia interna, pneumotorax).",
+      "warning": "Se o pulso desaparecer ou a pessoa parar de respirar, inicie RCP IMEDIATAMENTE!",
+      "detail": "Verifique torniquetes (afrouxaram?), curativos (sangrando?), abdomen (rigido/distendido?). Aumente a reposicao de liquidos se hipovolemico.",
+      "next": "transport-decision"
+    },
+    {
+      "id": "transport-decision",
+      "type": "decision",
+      "text": "O SAMU/socorro esta a caminho ou disponivel?",
+      "yes": "wait-rescue",
+      "no": "field-transport"
+    },
+    {
+      "id": "wait-rescue",
+      "type": "action",
+      "text": "Mantenha o tratamento e monitore. Informe ao SAMU: causa provavel do choque, sinais vitais, medicamentos administrados e horarios.",
+      "next": null
+    },
+    {
+      "id": "field-transport",
+      "type": "action",
+      "text": "Se nao houver socorro disponivel: transporte ao hospital DEITADO, mantendo posicao de choque. Evite solavancos. Continue monitorando.",
+      "warning": "Transporte com cuidado. Mantenha aquecimento e hidratacao durante todo o trajeto.",
+      "detail": "Use maca improvisada rigida. Uma pessoa deve ir ao lado monitorando pulso e respiracao continuamente. Se perder consciencia ou parar de respirar, PARE e inicie RCP.",
+      "next": null
+    }
+  ]
+}

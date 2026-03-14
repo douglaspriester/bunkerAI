@@ -13,7 +13,7 @@
 
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Bunker AI — DON'T PANIC</title>
+  <title>Bunker OS — DON'T PANIC</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -25,8 +25,67 @@
   <!-- Animated sweep line -->
   <div class="sweep-line" aria-hidden="true"></div>
 
-  <!-- Sidebar -->
-  <nav class="sidebar" id="sidebar">
+  <!-- ═══ BOOT SCREEN ═══ -->
+  <div id="bootScreen" class="boot-screen">
+    <div class="boot-logo">
+      <svg width="64" height="64" viewBox="0 0 32 32" fill="none">
+        <rect width="32" height="32" rx="8" fill="var(--accent)"/>
+        <path d="M8 22V12l8-5 8 5v10l-8 5-8-5z" stroke="var(--bg)" stroke-width="2" fill="none"/>
+        <circle cx="16" cy="16" r="3" fill="var(--bg)"/>
+      </svg>
+    </div>
+    <div class="boot-title">BUNKER OS</div>
+    <div class="boot-subtitle">v3.0 — DON'T PANIC</div>
+    <div class="boot-log" id="bootLog"></div>
+    <div class="boot-bar"><div class="boot-bar-fill" id="bootBarFill"></div></div>
+  </div>
+
+  <!-- ═══ BUNKER OS DESKTOP ═══ -->
+  <div id="desktop" class="os-desktop" style="display:none">
+
+  <!-- Desktop Icons Grid -->
+  <div id="desktopIcons" class="desktop-icons"></div>
+
+  <!-- Windows Container -->
+  <div id="windowsContainer" class="windows-container"></div>
+
+  <!-- Start Menu -->
+  <div id="startMenu" class="start-menu hidden">
+    <div class="start-menu-header">
+      <svg width="22" height="22" viewBox="0 0 32 32" fill="none">
+        <rect width="32" height="32" rx="8" fill="var(--accent)"/>
+        <path d="M8 22V12l8-5 8 5v10l-8 5-8-5z" stroke="var(--bg)" stroke-width="2" fill="none"/>
+        <circle cx="16" cy="16" r="3" fill="var(--bg)"/>
+      </svg>
+      <span>Bunker OS</span>
+    </div>
+    <div id="startMenuApps" class="start-menu-apps"></div>
+    <div class="start-menu-footer">
+      <span class="start-menu-ver">v3.0 — DON'T PANIC</span>
+    </div>
+  </div>
+
+  <!-- Taskbar -->
+  <div id="taskbar" class="taskbar">
+    <button class="taskbar-start" onclick="toggleStartMenu()">
+      <svg width="18" height="18" viewBox="0 0 32 32" fill="none">
+        <rect width="32" height="32" rx="6" fill="var(--accent)"/>
+        <path d="M8 22V12l8-5 8 5v10l-8 5-8-5z" stroke="var(--bg)" stroke-width="2" fill="none"/>
+        <circle cx="16" cy="16" r="2.5" fill="var(--bg)"/>
+      </svg>
+      <span>Bunker</span>
+    </button>
+    <div id="taskbarApps" class="taskbar-apps"></div>
+    <div class="taskbar-tray">
+      <span class="taskbar-status" id="taskbarStatus" title="Status do sistema — duplo clique para config" ondblclick="openApp('settings')">
+        <span class="sys-dot sys-warn" id="taskbarStatusDot"></span>
+      </span>
+      <span class="taskbar-clock" id="taskbarClock" ondblclick="openApp('journal')">00:00</span>
+    </div>
+  </div>
+
+  <!-- ═══ Hidden: Original Sidebar (used by start menu / settings) ═══ -->
+  <nav class="sidebar hidden" id="sidebar">
     <div class="sidebar-header">
       <div class="logo">
         <svg width="30" height="30" viewBox="0 0 32 32" fill="none" aria-label="Bunker AI">
@@ -312,13 +371,13 @@ Use markdown: headers ##, listas com -, **negrito** para termos criticos, `codig
     </div>
   </aside>
 
-  <!-- Hamburger -->
-  <button class="hamburger" id="hamburger" onclick="toggleSidebar()">
+  <!-- Hamburger (hidden in desktop mode, kept for compat) -->
+  <button class="hamburger hidden" id="hamburger" onclick="toggleSidebar()">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
   </button>
 
-  <!-- Main -->
-  <main class="main" id="mainArea">
+  <!-- Main (holds original panel views — they'll be adopted into windows by JS) -->
+  <main class="main hidden" id="mainArea">
     <!-- Chat View (default) -->
     <div class="chat-container" id="chatView">
       <div class="chat-messages" id="chatMessages">
@@ -659,6 +718,25 @@ Use markdown: headers ##, listas com -, **negrito** para termos criticos, `codig
       </div>
     </div>
 
+    <!-- Book Reader View -->
+    <div class="panel-view hidden" id="bookReaderView">
+      <div class="panel-topbar">
+        <button class="btn-back" onclick="closeBookReader()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+          Biblioteca
+        </button>
+        <h2 class="panel-title" id="bookReaderTitle">Livro</h2>
+        <div class="book-reader-nav">
+          <button class="btn-sm" onclick="bookPrevPage()">◀ Anterior</button>
+          <span id="bookReaderProgress" class="book-reader-pct">0%</span>
+          <button class="btn-sm" onclick="bookNextPage()">Próxima ▶</button>
+        </div>
+      </div>
+      <div class="panel-body book-reader-body">
+        <div id="bookReaderArea" class="book-reader-area"></div>
+      </div>
+    </div>
+
     <!-- Games View -->
     <div class="panel-view hidden" id="gamesView">
       <div class="panel-topbar">
@@ -723,7 +801,120 @@ Use markdown: headers ##, listas com -, **negrito** para termos criticos, `codig
         <div id="journalContent" class="journal-content"></div>
       </div>
     </div>
+
+    <!-- Notepad View -->
+    <div class="panel-view hidden" id="notepadView">
+      <div class="panel-topbar">
+        <button class="btn-back" onclick="showChatView()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+          Voltar
+        </button>
+        <h2 class="panel-title">Bloco de Notas</h2>
+        <button class="btn-sm btn-accent" onclick="notepadNew()">+ Nova Nota</button>
+      </div>
+      <div class="panel-body notepad-body">
+        <div class="notepad-sidebar" id="notepadList"></div>
+        <div class="notepad-editor">
+          <input type="text" id="notepadTitle" class="notepad-title-input" placeholder="Titulo da nota..." oninput="notepadMarkDirty()" />
+          <textarea id="notepadTextarea" class="notepad-textarea" placeholder="Escreva aqui..." oninput="notepadMarkDirty()"></textarea>
+          <div class="notepad-status">
+            <span id="notepadStatus">Nenhuma nota selecionada</span>
+            <button class="btn-sm" id="notepadSaveBtn" onclick="notepadSave()" style="display:none">Salvar</button>
+            <button class="btn-sm btn-danger-sm" id="notepadDeleteBtn" onclick="notepadDelete()" style="display:none">Excluir</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Word Simple View -->
+    <div class="panel-view hidden" id="wordView">
+      <div class="panel-topbar">
+        <button class="btn-back" onclick="showChatView()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+          Voltar
+        </button>
+        <h2 class="panel-title">Documento</h2>
+        <button class="btn-sm btn-accent" onclick="wordNew()">+ Novo Doc</button>
+      </div>
+      <div class="panel-body word-body">
+        <div class="notepad-sidebar" id="wordList"></div>
+        <div class="word-editor">
+          <input type="text" id="wordTitle" class="notepad-title-input" placeholder="Titulo do documento..." oninput="wordMarkDirty()" />
+          <div class="word-toolbar">
+            <button class="word-tb-btn" onclick="wordExec('bold')" title="Negrito"><b>B</b></button>
+            <button class="word-tb-btn" onclick="wordExec('italic')" title="Italico"><i>I</i></button>
+            <button class="word-tb-btn" onclick="wordExec('underline')" title="Sublinhado"><u>U</u></button>
+            <span class="word-tb-sep"></span>
+            <button class="word-tb-btn" onclick="wordExec('insertUnorderedList')" title="Lista">&#8226;</button>
+            <button class="word-tb-btn" onclick="wordExec('insertOrderedList')" title="Lista numerada">1.</button>
+            <span class="word-tb-sep"></span>
+            <select class="word-tb-select" onchange="wordExecBlock(this.value); this.value=''">
+              <option value="">Formato</option>
+              <option value="H1">Titulo 1</option>
+              <option value="H2">Titulo 2</option>
+              <option value="H3">Titulo 3</option>
+              <option value="P">Paragrafo</option>
+            </select>
+          </div>
+          <div id="wordContent" class="word-content" contenteditable="true" oninput="wordMarkDirty()"></div>
+          <div class="notepad-status">
+            <span id="wordStatus">Nenhum documento selecionado</span>
+            <button class="btn-sm" id="wordSaveBtn" onclick="wordSave()" style="display:none">Salvar</button>
+            <button class="btn-sm btn-danger-sm" id="wordDeleteBtn" onclick="wordDelete()" style="display:none">Excluir</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Excel Simple View -->
+    <div class="panel-view hidden" id="excelView">
+      <div class="panel-topbar">
+        <button class="btn-back" onclick="showChatView()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+          Voltar
+        </button>
+        <h2 class="panel-title">Planilha</h2>
+        <button class="btn-sm btn-accent" onclick="excelNew()">+ Nova Planilha</button>
+      </div>
+      <div class="panel-body excel-body">
+        <div class="notepad-sidebar" id="excelList"></div>
+        <div class="excel-editor">
+          <input type="text" id="excelTitle" class="notepad-title-input" placeholder="Titulo da planilha..." oninput="excelMarkDirty()" />
+          <div class="excel-formula-bar">
+            <span class="excel-cell-ref" id="excelCellRef">A1</span>
+            <input type="text" id="excelFormulaInput" class="excel-formula-input" placeholder="Valor ou formula (=SUM(A1:A5))" onkeydown="excelFormulaKey(event)" />
+          </div>
+          <div class="excel-grid-wrap" id="excelGridWrap">
+            <table class="excel-grid" id="excelGrid"></table>
+          </div>
+          <div class="notepad-status">
+            <span id="excelStatus">Nenhuma planilha selecionada</span>
+            <button class="btn-sm" id="excelSaveBtn" onclick="excelSave()" style="display:none">Salvar</button>
+            <button class="btn-sm btn-danger-sm" id="excelDeleteBtn" onclick="excelDelete()" style="display:none">Excluir</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- System Monitor View -->
+    <div class="panel-view hidden" id="sysmonView">
+      <div class="panel-topbar">
+        <button class="btn-back" onclick="showChatView()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+          Voltar
+        </button>
+        <h2 class="panel-title">Monitor do Sistema</h2>
+      </div>
+      <div class="panel-body" style="padding:12px">
+        <div id="sysmonContent" class="sysmon-content">
+          <div class="guide-loading">Carregando...</div>
+        </div>
+      </div>
+    </div>
+
   </main>
+
+  </div><!-- /desktop -->
 
   <!-- ═══ Setup Modal ═══ -->
   <div id="setupModal" class="modal-overlay hidden" onclick="closeSetupModal(event)">
@@ -764,6 +955,8 @@ Use markdown: headers ##, listas com -, **negrito** para termos criticos, `codig
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="./lib/jszip.min.js"></script>
+  <script src="./lib/epub.min.js"></script>
   <script src="./lib/minisearch.min.js"></script>
   <script src="./app.js"></script>
 </body>

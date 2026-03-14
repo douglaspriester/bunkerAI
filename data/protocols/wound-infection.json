@@ -1,0 +1,208 @@
+{
+  "id": "wound-infection",
+  "title": "Infeccao de Ferimentos",
+  "urgency": "moderate",
+  "description": "Protocolo para prevencao, identificacao e tratamento de infeccoes em ferimentos. Em cenarios de sobrevivencia, infeccoes podem se tornar fatais sem antibioticos.",
+  "steps": [
+    {
+      "id": "assess-wound-age",
+      "type": "decision",
+      "text": "O ferimento e RECENTE (menos de 6 horas) e ainda NAO mostra sinais de infeccao?",
+      "detail": "Ferimentos recentes devem ser limpos e tratados para PREVENIR infeccao. Ferimentos antigos com sinais de infeccao precisam de tratamento diferente.",
+      "yes": "prevention-clean",
+      "no": "check-infection-signs"
+    },
+    {
+      "id": "prevention-clean",
+      "type": "action",
+      "text": "PREVENCAO: Lave o ferimento ABUNDANTEMENTE com agua limpa (filtrada, fervida ou soro fisiologico). Use PRESSAO para irrigar.",
+      "detail": "Ideal: seringa ou garrafa com furo pequeno para criar jato. Irrigue por pelo menos 5-10 minutos com 500ml-1 litro. A irrigacao com pressao e o passo MAIS IMPORTANTE para prevenir infeccao.",
+      "warning": "A limpeza mecanica (irrigacao com pressao) e mais importante que qualquer antisseptico!",
+      "next": "remove-debris"
+    },
+    {
+      "id": "remove-debris",
+      "type": "action",
+      "text": "Remova TODA sujeira visivel: terra, fragmentos, tecido morto. Use pincas limpas (esterilizadas com fogo ou alcool) se necessario.",
+      "detail": "Cada particula de sujeira e um foco potencial de infeccao. Se houver terra profunda que nao sai com irrigacao, use pinca com delicadeza. Lave novamente apos remover.",
+      "next": "antiseptic"
+    },
+    {
+      "id": "antiseptic",
+      "type": "action",
+      "text": "Aplique ANTISSEPTICO se disponivel: Clorexidina (ideal), Iodopovidona (PVPI), ou agua oxigenada 3% apenas na primeira limpeza.",
+      "detail": "Clorexidina 0,5-2%: o melhor — amplo espectro, baixa toxicidade. PVPI 10%: eficaz, mas pode retardar cicatrizacao se usado repetidamente. Agua oxigenada: util na primeira limpeza para remocao mecanica, mas NAO usar repetidamente (destroi tecido novo).",
+      "next": "to-close-or-not"
+    },
+    {
+      "id": "to-close-or-not",
+      "type": "decision",
+      "text": "O ferimento e limpo (corte com lamina/vidro limpo, sem contaminacao) e tem menos de 6 horas?",
+      "detail": "Ferimentos limpos e recentes podem ser fechados. Ferimentos sujos, mordidas, ou com mais de 6 horas devem ficar ABERTOS.",
+      "yes": "close-wound",
+      "no": "leave-open"
+    },
+    {
+      "id": "close-wound",
+      "type": "action",
+      "text": "Aproxime as bordas com fitas adesivas estereis (Steri-Strip) ou esparadrapo cortado em tiras finas. Aplique PERPENDICULARMENTE ao corte.",
+      "detail": "Coloque as tiras a cada 3-5mm ao longo do corte. NAO puxe com forca excessiva — apenas aproxime as bordas. Se tiver habilidade e material esteril, suturas simples com fio e agulha estereis sao o ideal.",
+      "next": "dress-wound"
+    },
+    {
+      "id": "leave-open",
+      "type": "action",
+      "text": "DEIXE O FERIMENTO ABERTO! Ferimentos sujos, mordidas, perfuracoes e ferimentos com mais de 6 horas NAO devem ser fechados.",
+      "warning": "Fechar um ferimento contaminado APRISIONA bacterias dentro e GARANTE infeccao grave!",
+      "detail": "Preencha cavidades profundas com gaze umida (soro ou agua limpa). Isso permite drenagem e cicatrizacao de dentro para fora.",
+      "next": "dress-wound"
+    },
+    {
+      "id": "dress-wound",
+      "type": "action",
+      "text": "Cubra com CURATIVO: camada de gaze (ou pano limpo) sobre o ferimento + camada de protecao + fixacao com esparadrapo ou faixa.",
+      "detail": "O curativo deve ser absorvente, proteger de sujeira e permitir troca facil. Nao aperte demais. Troque o curativo a cada 12-24 horas ou quando estiver sujo/umido.",
+      "next": "prophylactic-antibiotics"
+    },
+    {
+      "id": "prophylactic-antibiotics",
+      "type": "decision",
+      "text": "O ferimento e de ALTO RISCO para infeccao? (mordida animal/humana, contaminacao com terra/fezes, perfuracao profunda, esmagamento)",
+      "detail": "Ferimentos de alto risco se beneficiam de antibiotico PROFILATICO (preventivo) se disponivel.",
+      "yes": "start-antibiotics",
+      "no": "monitor-wound"
+    },
+    {
+      "id": "start-antibiotics",
+      "type": "action",
+      "text": "ANTIBIOTICO PROFILATICO (se disponivel): Amoxicilina+Clavulanato 875/125mg a cada 12 horas OU Cefalexina 500mg a cada 6 horas por 5-7 dias.",
+      "detail": "Mordida de animal: Amoxicilina+Clavulanato e o ideal (cobre Pasteurella e anaerobios). Se alergia a penicilina: Clindamicina 300mg a cada 8 horas + Ciprofloxacino 500mg a cada 12 horas.",
+      "warning": "Antibioticos NAO substituem limpeza adequada! A irrigacao com pressao e o fator mais importante na prevencao de infeccao.",
+      "next": "tetanus-check"
+    },
+    {
+      "id": "tetanus-check",
+      "type": "info",
+      "text": "TETANO: todo ferimento sujo, profundo ou com corpo estranho tem risco de tetano.",
+      "detail": "Se a pessoa NAO tomou vacina antitetanica nos ultimos 5 anos (ferimento sujo) ou 10 anos (ferimento limpo), ela precisa ser vacinada o mais rapido possivel. Em cenario de sobrevivencia sem acesso a vacina, mantenha o ferimento ABERTO e LIMPO — o tetano se desenvolve em ambiente SEM oxigenio.",
+      "next": "monitor-wound"
+    },
+    {
+      "id": "monitor-wound",
+      "type": "action",
+      "text": "Monitore o ferimento diariamente para sinais de INFECCAO. Troque o curativo a cada 12-24 horas com nova limpeza.",
+      "detail": "A cada troca: lave com agua limpa ou soro, observe a aparencia, cheire (odor fetido e sinal de alarme). Registre a evolucao se possivel.",
+      "next": "check-infection-signs"
+    },
+    {
+      "id": "check-infection-signs",
+      "type": "info",
+      "text": "SINAIS DE INFECCAO — observe cuidadosamente:",
+      "detail": "1) Vermelhidao crescente ao redor do ferimento. 2) Inchaco que AUMENTA. 3) Calor local. 4) Dor que PIORA (em vez de melhorar). 5) Pus (secrecao amarela/verde). 6) Odor fetido. 7) Febre (acima de 38C). 8) Linhas vermelhas subindo pelo membro (linfangite).",
+      "next": "has-infection"
+    },
+    {
+      "id": "has-infection",
+      "type": "decision",
+      "text": "O ferimento apresenta sinais de infeccao? (vermelhidao crescente, pus, febre, dor que piora)",
+      "yes": "treat-infection",
+      "no": "continue-monitoring"
+    },
+    {
+      "id": "continue-monitoring",
+      "type": "end",
+      "text": "Sem sinais de infeccao. Continue limpeza e troca de curativos diarios por 7-14 dias ate cicatrizacao completa. Procure atendimento medico se surgirem sinais de infeccao."
+    },
+    {
+      "id": "treat-infection",
+      "type": "action",
+      "text": "INFECCAO DETECTADA! Reabra o ferimento se estava fechado. Lave ABUNDANTEMENTE com irrigacao sob pressao. Remova todo pus e tecido morto.",
+      "warning": "Ferimento infectado DEVE ficar ABERTO para drenar. NUNCA feche um ferimento infectado!",
+      "detail": "Use pano ou gaze para remover pus e tecido amarelado/esverdeado morto. Lave com soro ou agua limpa. Aplique antisseptico. Preencha com gaze umida.",
+      "next": "infection-antibiotics"
+    },
+    {
+      "id": "infection-antibiotics",
+      "type": "action",
+      "text": "Inicie ANTIBIOTICO (se disponivel): Cefalexina 500mg a cada 6 horas OU Amoxicilina+Clavulanato 875/125mg a cada 12 horas por 7-10 dias.",
+      "detail": "Se infeccao grave ou mordida: Clindamicina 300-600mg a cada 8 horas. Se alergia a penicilina: Sulfametoxazol+Trimetoprima (Bactrim) 800/160mg a cada 12 horas. COMPLETE todo o ciclo de antibiotico, mesmo que melhore!",
+      "warning": "NAO interrompa o antibiotico antes do prazo! Parar cedo causa resistencia bacteriana.",
+      "next": "abscess-check"
+    },
+    {
+      "id": "abscess-check",
+      "type": "decision",
+      "text": "Ha uma area FLUTUANTE (mole, como uma bolsa de liquido sob a pele) proximo ao ferimento?",
+      "detail": "Area flutuante indica ABSCESSO (bolsa de pus). Abscessos precisam ser DRENADOS — antibiotico sozinho nao resolve.",
+      "yes": "drain-abscess",
+      "no": "check-red-lines"
+    },
+    {
+      "id": "drain-abscess",
+      "type": "action",
+      "text": "DRENAR ABSCESSO: esterilize uma lamina (fogo + alcool). Faca uma incisao na parte mais mole/elevada. Drene todo o pus. Lave a cavidade com soro.",
+      "warning": "So faca drenagem se nao houver acesso a medico! Use tecnica limpa. Certifique-se de que e abscesso (flutuante, superficial).",
+      "detail": "Incisao de 1-2 cm. Pressione delicadamente para drenar todo pus. Lave a cavidade com seringa e soro. Preencha com gaze umida. Deixe ABERTO para continuar drenando.",
+      "next": "check-red-lines"
+    },
+    {
+      "id": "check-red-lines",
+      "type": "decision",
+      "text": "Ha LINHAS VERMELHAS subindo pelo braco ou perna a partir do ferimento?",
+      "detail": "Linhas vermelhas indicam LINFANGITE — a infeccao esta se espalhando pelo sistema linfatico. Sinal de gravidade!",
+      "yes": "lymphangitis",
+      "no": "systemic-signs"
+    },
+    {
+      "id": "lymphangitis",
+      "type": "action",
+      "text": "LINFANGITE! A infeccao esta se espalhando! Marque a borda da vermelhidao com caneta e anote a hora para monitorar progressao.",
+      "warning": "Linfangite pode evoluir para SEPSE (infeccao generalizada) — risco de MORTE! Procure atendimento medico URGENTE!",
+      "detail": "Antibiotico de amplo espectro URGENTE. Se disponivel: Amoxicilina+Clavulanato dose maxima OU Cefalexina 1g a cada 6 horas. Monitore a cada 2-4 horas — se a linha vermelha ultrapassar a marca, a infeccao esta progredindo.",
+      "next": "systemic-signs"
+    },
+    {
+      "id": "systemic-signs",
+      "type": "decision",
+      "text": "A pessoa tem sinais de infeccao SISTEMICA? (febre alta >38.5C, calafrios, confusao, frequencia cardiaca >100bpm, respiracao rapida)",
+      "detail": "Estes sao sinais de SEPSE (infeccao generalizada no sangue). E uma emergencia potencialmente fatal.",
+      "yes": "sepsis-protocol",
+      "no": "wound-care-routine"
+    },
+    {
+      "id": "sepsis-protocol",
+      "type": "action",
+      "text": "POSSIVEL SEPSE! Ligue 192 (SAMU). Administre antibiotico de AMPLO ESPECTRO imediatamente. Hidrate a pessoa (SRO ou agua em abundancia).",
+      "warning": "SEPSE MATA em horas! A cada hora sem antibiotico, a mortalidade AUMENTA. Busque atendimento medico URGENTE!",
+      "detail": "Se disponivel, antibioticos por via oral em dose maxima: Amoxicilina+Clavulanato 1g a cada 8h + Ciprofloxacino 500mg a cada 12h. Mantenha hidratacao. Monitore consciencia e respiracao continuamente.",
+      "next": null
+    },
+    {
+      "id": "wound-care-routine",
+      "type": "action",
+      "text": "ROTINA DE CUIDADO: lave o ferimento 2x ao dia com soro ou agua limpa. Troque curativos apos cada limpeza. Mantenha antibiotico por 7-10 dias.",
+      "detail": "Observe melhora: diminuicao da vermelhidao, pus e dor em 48-72 horas. Se nao melhorar em 48h com antibiotico, troque para outro antibiotico se disponivel.",
+      "next": "improving-check"
+    },
+    {
+      "id": "improving-check",
+      "type": "decision",
+      "text": "O ferimento esta melhorando? (menos vermelhidao, menos pus, menos dor, sem febre)",
+      "yes": "recovery-wound",
+      "no": "not-improving"
+    },
+    {
+      "id": "not-improving",
+      "type": "action",
+      "text": "Infeccao NAO esta respondendo! Considere: limpeza cirurgica mais agressiva, troca de antibiotico, ou busca urgente por atendimento medico.",
+      "detail": "Pode haver tecido morto profundo, corpo estranho nao removido, ou bacteria resistente ao antibiotico. Em ultimo caso, se a infeccao ameacar a vida e nao houver acesso medico, considere irrigacao profunda diaria agressiva.",
+      "warning": "Infeccao progressiva que nao responde a tratamento pode necessitar de intervencao cirurgica hospitalar.",
+      "next": null
+    },
+    {
+      "id": "recovery-wound",
+      "type": "end",
+      "text": "Continue o tratamento ate cicatrizacao completa. Complete TODO o ciclo de antibiotico. Mantenha o ferimento limpo e protegido. Observe por recorrencia de infeccao por 2 semanas apos cicatrizacao."
+    }
+  ]
+}
