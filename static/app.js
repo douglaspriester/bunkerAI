@@ -616,6 +616,7 @@ function startResize(winId, e) {
 function renderTaskbar() {
   const container = document.getElementById('taskbarApps');
   if (!container) return;
+  if (typeof debounceSaveSession === 'function') debounceSaveSession();
 
   container.innerHTML = '';
   const openWindows = Object.values(_windows);
@@ -877,6 +878,36 @@ function tileWindows() {
   });
 }
 
+// ─── Session Save / Restore ───────────────────────────────────────────────
+function saveSession() {
+  const openApps = Object.values(_windows)
+    .filter(w => w.appId && !w.appId.startsWith('_'))
+    .map(w => w.appId);
+  storage.set('bunker_session', JSON.stringify(openApps));
+}
+
+function restoreSession() {
+  try {
+    const saved = storage.get('bunker_session');
+    if (saved) {
+      const apps = JSON.parse(saved);
+      if (Array.isArray(apps) && apps.length > 0) {
+        apps.forEach((appId, i) => setTimeout(() => openApp(appId), i * 100));
+        return;
+      }
+    }
+  } catch {}
+  // Default: open chat
+  openApp('chat');
+}
+
+// Save session on debounce (called from renderTaskbar which runs on every open/close)
+let _sessionSaveTimeout = null;
+function debounceSaveSession() {
+  clearTimeout(_sessionSaveTimeout);
+  _sessionSaveTimeout = setTimeout(saveSession, 1000);
+}
+
 // ─── Wallpaper ───────────────────────────────────────────────────────────
 const WALLPAPERS = [
   'default',       // dark gradient (original)
@@ -938,6 +969,13 @@ document.addEventListener('keydown', (e) => {
   if (e.ctrlKey && e.shiftKey && e.key === 'N') {
     e.preventDefault();
     openApp('notepad');
+  }
+  // F2 — open start menu search
+  if (e.key === 'F2' && !e.ctrlKey && !e.altKey) {
+    e.preventDefault();
+    const menu = document.getElementById('startMenu');
+    if (menu && menu.classList.contains('hidden')) toggleStartMenu();
+    setTimeout(() => { const sb = document.getElementById('startMenuSearch'); if (sb) sb.focus(); }, 100);
   }
   // Alt+Tab — cycle windows
   if (e.altKey && e.key === 'Tab') {
@@ -1014,7 +1052,7 @@ function runBootSequence() {
     applyWallpaper();
     renderDesktopIcons();
     startTaskbarClock();
-    setTimeout(() => openApp('chat'), 150);
+    setTimeout(() => restoreSession(), 150);
     return;
   }
 
@@ -1053,7 +1091,7 @@ function runBootSequence() {
         applyWallpaper();
         renderDesktopIcons();
         startTaskbarClock();
-        setTimeout(() => openApp('chat'), 300);
+        setTimeout(() => restoreSession(), 300);
         setTimeout(() => bootScreen.remove(), 1000);
       }, 400);
     }
