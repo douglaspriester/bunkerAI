@@ -183,6 +183,7 @@ const OS_APPS = [
   { id: 'radio',      name: 'Frequencias',  icon: '\u{1F4FB}', width: 480, height: 500, viewId: 'radioView' },
   { id: 'phonetic',   name: 'Fonetico NATO', icon: '\u{1F399}\uFE0F', width: 420, height: 480, viewId: 'phoneticView' },
   { id: 'sun',        name: 'Sol / Lua',     icon: '\u2600\uFE0F', width: 400, height: 460, viewId: 'sunView' },
+  { id: 'waterCalc',  name: 'Agua Segura',   icon: '\u{1F4A7}', width: 420, height: 500, viewId: 'waterCalcView' },
   { id: 'settings',   name: 'Configura\u00E7\u00F5es', icon: '\u2699\uFE0F', width: 560, height: 520, viewId: null },
 ];
 
@@ -312,6 +313,7 @@ function _triggerAppOpen(appId) {
     case 'morse': morseInit(); break;
     case 'phonetic': phoneticInit(); break;
     case 'sun': sunCalcInit(); break;
+    case 'waterCalc': waterCalcCompute(); break;
   }
 }
 
@@ -5636,4 +5638,100 @@ function sunCalcCompute() {
       <div class="sun-value">${moonPhase} (dia ${Math.round(moonAge)} de ${lunarCycle.toFixed(0)})</div>
     </div>
   `;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// WATER PURIFICATION CALCULATOR
+// ═══════════════════════════════════════════════════════════════════════════
+
+function waterCalcCompute() {
+  const liters = parseFloat(document.getElementById('waterLiters')?.value || '1');
+  const clarity = document.getElementById('waterClarity')?.value || 'clear';
+  const method = document.getElementById('waterMethod')?.value || 'bleach';
+  const el = document.getElementById('waterResult');
+  if (!el) return;
+
+  // Multiplier for turbid water (double dose)
+  const turbidMult = clarity === 'turbid' ? 2 : 1;
+  let html = '';
+
+  switch (method) {
+    case 'bleach': {
+      // Household bleach (5-6% sodium hypochlorite)
+      // Standard: 2 drops per liter for clear, 4 drops for turbid
+      const drops = Math.ceil(2 * liters * turbidMult);
+      const ml = (drops * 0.05).toFixed(2); // ~0.05mL per drop
+      html = `
+        <div class="water-result-card">
+          <h4>🧴 Agua Sanitaria (5-6% cloro)</h4>
+          <div class="water-dose">${drops} gotas</div>
+          <div class="water-sub">(≈ ${ml} mL)</div>
+          <div class="water-info">
+            <p>⏱️ Espere <strong>30 minutos</strong> antes de beber</p>
+            <p>👃 Deve ter leve cheiro de cloro</p>
+            <p>⚠️ Se nao sentir cheiro, repita a dose e espere +15 min</p>
+          </div>
+        </div>`;
+      break;
+    }
+    case 'iodine': {
+      // Tincture of iodine 2%: 5 drops per liter clear, 10 for turbid
+      const drops = Math.ceil(5 * liters * turbidMult);
+      html = `
+        <div class="water-result-card">
+          <h4>💊 Tintura de Iodo (2%)</h4>
+          <div class="water-dose">${drops} gotas</div>
+          <div class="water-info">
+            <p>⏱️ Espere <strong>30 minutos</strong> (1h se agua fria)</p>
+            <p>⚠️ Nao usar em gravidas ou alergicos a iodo</p>
+            <p>💡 Vitamina C (tang) remove gosto apos purificar</p>
+          </div>
+        </div>`;
+      break;
+    }
+    case 'boil': {
+      html = `
+        <div class="water-result-card">
+          <h4>🔥 Fervura</h4>
+          <div class="water-dose">Fervura rolante por 1 minuto</div>
+          <div class="water-sub">(3 min se altitude > 2000m)</div>
+          <div class="water-info">
+            <p>✅ Metodo mais seguro e confiavel</p>
+            <p>🫗 Deixe esfriar naturalmente</p>
+            <p>💡 Agite para reoxigenar e melhorar sabor</p>
+            <p>🪵 Combustivel: ~1kg de lenha para ${liters}L</p>
+          </div>
+        </div>`;
+      break;
+    }
+    case 'sodis': {
+      const bottles = Math.ceil(liters / 1.5);
+      html = `
+        <div class="water-result-card">
+          <h4>☀️ SODIS (Desinfeccao Solar)</h4>
+          <div class="water-dose">${bottles} garrafa${bottles > 1 ? 's' : ''} PET transparente${bottles > 1 ? 's' : ''}</div>
+          <div class="water-info">
+            <p>⏱️ <strong>6 horas</strong> em sol direto (ou 2 dias com nuvens)</p>
+            <p>📦 Use garrafas PET de ate 2L, transparentes</p>
+            <p>🔄 Agite antes para oxigenar</p>
+            <p>⚠️ Nao funciona com agua muito turva — filtre antes</p>
+            <p>🌡️ Coloque sobre superficie escura (metal) para aquecer</p>
+          </div>
+        </div>`;
+      break;
+    }
+  }
+
+  // Add general tips
+  html += `
+    <div class="water-tips">
+      <h4>💡 Dicas Gerais</h4>
+      <ul>
+        <li>Sempre filtre antes de purificar (tecido, areia, carvao)</li>
+        <li>Agua turva: deixe decantar antes de tratar</li>
+        <li>Necessidade diaria: 2-3 litros por pessoa</li>
+        <li>Sintomas de agua contaminada: diarreia, vomito, febre</li>
+      </ul>
+    </div>`;
+  el.innerHTML = html;
 }

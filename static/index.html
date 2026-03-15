@@ -1120,6 +1120,35 @@ Use markdown: headers ##, listas com -, **negrito** para termos criticos, `codig
       </div>
     </div>
 
+    <!-- ═══ Water Purification Calculator ═══ -->
+    <div class="panel-view hidden" id="waterCalcView">
+      <div style="padding:14px;height:100%;overflow-y:auto">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:center">
+          <div>
+            <label class="morse-label">Volume (L)</label>
+            <input type="number" id="waterLiters" value="1" min="0.1" step="0.5" class="countdown-input" style="width:70px" oninput="waterCalcCompute()">
+          </div>
+          <div>
+            <label class="morse-label">Claridade</label>
+            <select id="waterClarity" class="conv-select" onchange="waterCalcCompute()">
+              <option value="clear">Clara</option>
+              <option value="turbid">Turva</option>
+            </select>
+          </div>
+          <div>
+            <label class="morse-label">Metodo</label>
+            <select id="waterMethod" class="conv-select" onchange="waterCalcCompute()">
+              <option value="bleach">Agua Sanitaria</option>
+              <option value="iodine">Iodo</option>
+              <option value="boil">Fervura</option>
+              <option value="sodis">SODIS (Solar)</option>
+            </select>
+          </div>
+        </div>
+        <div id="waterResult"></div>
+      </div>
+    </div>
+
     <!-- ═══ NATO Phonetic Alphabet ═══ -->
     <div class="panel-view hidden" id="phoneticView">
       <div style="padding:14px;overflow-y:auto;height:100%">

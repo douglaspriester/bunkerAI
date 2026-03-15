@@ -3541,6 +3541,27 @@ body {
 .morse-ref-char { font-size: 16px; font-weight: 700; color: var(--text-bright); }
 .morse-ref-code { font-size: 11px; color: var(--accent); font-family: var(--font-mono); letter-spacing: 1px; }
 
+/* ═══ Water Purification ═══ */
+.water-result-card {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px; margin-bottom: 12px;
+}
+.water-result-card h4 { color: var(--accent); margin-bottom: 8px; font-size: 14px; }
+.water-dose {
+  font-size: 32px; font-weight: 700; color: var(--text-bright);
+  font-family: var(--font-mono); text-align: center; margin: 8px 0;
+}
+.water-sub { text-align: center; font-size: 13px; color: var(--text-muted); font-family: var(--font-mono); }
+.water-info { margin-top: 12px; }
+.water-info p { font-size: 13px; color: var(--text); margin: 4px 0; line-height: 1.5; }
+.water-info strong { color: var(--text-bright); }
+.water-tips {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 12px;
+}
+.water-tips h4 { color: var(--accent); font-size: 13px; margin-bottom: 6px; }
+.water-tips ul { padding-left: 18px; font-size: 12px; color: var(--text); line-height: 1.7; }
+
 /* ═══ Sun / Moon Calculator ═══ */
 .sun-grid {
   display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
