@@ -33,6 +33,9 @@ export const OS_APPS = [
   { id: 'sun',        name: 'Sol / Lua',     icon: '\u2600\uFE0F', width: 400, height: 460, viewId: 'sunView' },
   { id: 'waterCalc',  name: 'Agua Segura',   icon: '\u{1F4A7}', width: 420, height: 500, viewId: 'waterCalcView' },
   { id: 'calendar',   name: 'Calend\u00E1rio', icon: '\u{1F4C5}', width: 400, height: 420, viewId: 'calendarView' },
+  { id: 'terminal',   name: 'Terminal',      icon: '\u{1F4DF}', width: 700, height: 440, viewId: 'terminalView' },
+  { id: 'fileManager', name: 'Arquivos',    icon: '\u{1F4C1}', width: 720, height: 500, viewId: 'fileManagerView' },
+  { id: 'paint',      name: 'Paint',        icon: '\u{1F3A8}', width: 780, height: 560, viewId: 'paintView' },
   { id: 'settings',   name: 'Configura\u00E7\u00F5es', icon: '\u2699\uFE0F', width: 560, height: 520, viewId: null },
 ];
 
@@ -563,7 +566,7 @@ export function applyWallpaper() {
 }
 
 // ─── Toast Notifications ────────────────────────────────────────────────────
-export function osToast(msg, duration = 2500) {
+export function osToast(msg, duration = 2500, variant = '') {
   let container = document.getElementById('osToasts');
   if (!container) {
     container = document.createElement('div');
@@ -572,7 +575,7 @@ export function osToast(msg, duration = 2500) {
     document.body.appendChild(container);
   }
   const toast = document.createElement('div');
-  toast.className = 'os-toast';
+  toast.className = 'os-toast' + (variant ? ' toast-' + variant : '');
   toast.textContent = msg;
   container.appendChild(toast);
   requestAnimationFrame(() => toast.classList.add('show'));
@@ -580,6 +583,168 @@ export function osToast(msg, duration = 2500) {
     toast.classList.remove('show');
     setTimeout(() => toast.remove(), 300);
   }, duration);
+}
+
+// ─── Spotlight / Command Palette ─────────────────────────────────────────────
+let _spotlightActive = -1;
+
+export function openSpotlight() {
+  const overlay = document.getElementById('spotlightOverlay');
+  const input = document.getElementById('spotlightInput');
+  if (!overlay || !input) return;
+  overlay.classList.remove('hidden');
+  input.value = '';
+  _spotlightActive = -1;
+  renderSpotlightResults('');
+  setTimeout(() => input.focus(), 50);
+}
+
+export function closeSpotlight() {
+  const overlay = document.getElementById('spotlightOverlay');
+  if (overlay) overlay.classList.add('hidden');
+}
+
+function renderSpotlightResults(query) {
+  const container = document.getElementById('spotlightResults');
+  if (!container) return;
+
+  const q = query.trim().toLowerCase();
+  let html = '';
+
+  // Search apps
+  const apps = OS_APPS.filter(a => !a.hidden &&
+    (a.name.toLowerCase().includes(q) || a.id.toLowerCase().includes(q))
+  );
+
+  if (!q) {
+    // Show all apps grouped
+    html += '<div class="spotlight-section">Apps</div>';
+    for (const app of OS_APPS.filter(a => !a.hidden)) {
+      const running = Object.values(_windows).some(w => w.appId === app.id);
+      html += `<div class="spotlight-item" data-action="app:${app.id}">
+        <span class="spotlight-item-icon">${app.icon}</span>
+        <div class="spotlight-item-text">
+          <div class="spotlight-item-title">${app.name}</div>
+        </div>
+        ${running ? '<span class="spotlight-item-badge">aberto</span>' : ''}
+      </div>`;
+    }
+  } else {
+    // Show matching apps
+    if (apps.length) {
+      html += '<div class="spotlight-section">Apps</div>';
+      for (const app of apps) {
+        const running = Object.values(_windows).some(w => w.appId === app.id);
+        html += `<div class="spotlight-item" data-action="app:${app.id}">
+          <span class="spotlight-item-icon">${app.icon}</span>
+          <div class="spotlight-item-text">
+            <div class="spotlight-item-title">${app.name}</div>
+          </div>
+          ${running ? '<span class="spotlight-item-badge">aberto</span>' : ''}
+        </div>`;
+      }
+    }
+
+    // Search content (guides, protocols, games) via MiniSearch
+    const si = window.searchIndex;
+    if (si) {
+      const results = si.search(q).slice(0, 8);
+      if (results.length) {
+        const typeLabel = { guide: 'Guia', protocol: 'Protocolo', game: 'Jogo' };
+        const typeIcon = { guide: '\u{1F4CB}', protocol: '\u{1F6A8}', game: '\u{1F3AE}' };
+        html += '<div class="spotlight-section">Conteudo</div>';
+        for (const r of results) {
+          html += `<div class="spotlight-item" data-action="content:${r.type}:${escapeHtml(r._id || r.id)}">
+            <span class="spotlight-item-icon">${typeIcon[r.type] || '\u{1F4C4}'}</span>
+            <div class="spotlight-item-text">
+              <div class="spotlight-item-title">${escapeHtml(r.title)}</div>
+              <div class="spotlight-item-sub">${typeLabel[r.type] || r.type}</div>
+            </div>
+          </div>`;
+        }
+      }
+    }
+
+    // Quick actions
+    const actions = [
+      { label: 'Organizar janelas', icon: '\u{1F4D0}', action: 'cmd:tile' },
+      { label: 'Fechar todas as janelas', icon: '\u274C', action: 'cmd:closeAll' },
+      { label: 'Trocar wallpaper', icon: '\u{1F3A8}', action: 'cmd:wallpaper' },
+      { label: 'Reiniciar Bunker OS', icon: '\u{1F504}', action: 'cmd:restart' },
+    ].filter(a => a.label.toLowerCase().includes(q));
+    if (actions.length) {
+      html += '<div class="spotlight-section">Acoes</div>';
+      for (const a of actions) {
+        html += `<div class="spotlight-item" data-action="${a.action}">
+          <span class="spotlight-item-icon">${a.icon}</span>
+          <div class="spotlight-item-text">
+            <div class="spotlight-item-title">${a.label}</div>
+          </div>
+          <span class="spotlight-item-badge">acao</span>
+        </div>`;
+      }
+    }
+
+    if (!html) {
+      html = '<div class="spotlight-empty">Nenhum resultado para "' + escapeHtml(q) + '"</div>';
+    }
+  }
+
+  container.innerHTML = html;
+  _spotlightActive = -1;
+
+  // Attach click handlers
+  container.querySelectorAll('.spotlight-item').forEach((el, i) => {
+    el.addEventListener('click', () => executeSpotlightItem(el));
+    el.addEventListener('mouseenter', () => {
+      container.querySelectorAll('.spotlight-item.active').forEach(e => e.classList.remove('active'));
+      el.classList.add('active');
+      _spotlightActive = i;
+    });
+  });
+}
+
+function navigateSpotlight(dir) {
+  const items = document.querySelectorAll('#spotlightResults .spotlight-item');
+  if (!items.length) return;
+  items.forEach(el => el.classList.remove('active'));
+  _spotlightActive += dir;
+  if (_spotlightActive < 0) _spotlightActive = items.length - 1;
+  if (_spotlightActive >= items.length) _spotlightActive = 0;
+  items[_spotlightActive].classList.add('active');
+  items[_spotlightActive].scrollIntoView({ block: 'nearest' });
+}
+
+function executeSpotlightItem(el) {
+  const action = el?.dataset?.action;
+  if (!action) return;
+  closeSpotlight();
+
+  if (action.startsWith('app:')) {
+    openApp(action.slice(4));
+  } else if (action.startsWith('content:')) {
+    const [, type, id] = action.split(':');
+    window.openSearchResult?.(type, id);
+  } else if (action === 'cmd:tile') {
+    tileWindows();
+  } else if (action === 'cmd:closeAll') {
+    closeAllWindows();
+  } else if (action === 'cmd:wallpaper') {
+    cycleWallpaper();
+  } else if (action === 'cmd:restart') {
+    location.reload();
+  }
+}
+
+// ─── Keyboard Shortcuts Help ─────────────────────────────────────────────────
+export function openShortcuts() {
+  const overlay = document.getElementById('shortcutsOverlay');
+  if (overlay) overlay.classList.remove('hidden');
+}
+
+export function closeShortcuts() {
+  const overlay = document.getElementById('shortcutsOverlay');
+  if (overlay) overlay.classList.add('hidden');
 }
 
 // ─── Close parent window from a "back" button ──────────────────────────────
@@ -693,9 +858,48 @@ export function initWindowManagerEvents() {
 
   // Keyboard shortcuts
   document.addEventListener('keydown', (e) => {
+    const spotlightOpen = !document.getElementById('spotlightOverlay')?.classList.contains('hidden');
+    const shortcutsOpen = !document.getElementById('shortcutsOverlay')?.classList.contains('hidden');
+
+    // Spotlight-specific keys
+    if (spotlightOpen) {
+      if (e.key === 'Escape') { e.preventDefault(); closeSpotlight(); return; }
+      if (e.key === 'ArrowDown') { e.preventDefault(); navigateSpotlight(1); return; }
+      if (e.key === 'ArrowUp') { e.preventDefault(); navigateSpotlight(-1); return; }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const active = document.querySelector('#spotlightResults .spotlight-item.active');
+        if (active) executeSpotlightItem(active);
+        else {
+          const first = document.querySelector('#spotlightResults .spotlight-item');
+          if (first) executeSpotlightItem(first);
+        }
+        return;
+      }
+      return; // Don't process other shortcuts while spotlight is open
+    }
+
+    // Shortcuts overlay
+    if (shortcutsOpen) {
+      if (e.key === 'Escape') { e.preventDefault(); closeShortcuts(); return; }
+      return;
+    }
+
+    // Ctrl+K — open spotlight
+    if (e.ctrlKey && e.key === 'k') { e.preventDefault(); openSpotlight(); return; }
+
+    // F1 — shortcuts help
+    if (e.key === 'F1' && !e.ctrlKey && !e.altKey) { e.preventDefault(); openShortcuts(); return; }
+
+    // Window management
     if (e.ctrlKey && e.key === 'w' && _activeWindowId) { e.preventDefault(); closeWindow(_activeWindowId); }
     if (e.ctrlKey && e.key === 'm' && _activeWindowId) { e.preventDefault(); minimizeWindow(_activeWindowId); }
+
+    // Quick app launchers
     if (e.ctrlKey && e.shiftKey && e.key === 'N') { e.preventDefault(); openApp('notepad'); }
+    if (e.ctrlKey && e.shiftKey && e.key === 'C') { e.preventDefault(); openApp('chat'); }
+    if (e.ctrlKey && e.shiftKey && e.key === 'A') { e.preventDefault(); openApp('calc'); }
+
     if (e.key === 'F2' && !e.ctrlKey && !e.altKey) {
       e.preventDefault();
       const menu = document.getElementById('startMenu');
@@ -719,6 +923,12 @@ export function initWindowManagerEvents() {
       closeContextMenu();
     }
   });
+
+  // Spotlight input handler
+  const spotlightInput = document.getElementById('spotlightInput');
+  if (spotlightInput) {
+    spotlightInput.addEventListener('input', () => renderSpotlightResults(spotlightInput.value));
+  }
 
   // Game close via postMessage
   window.addEventListener('message', (e) => {

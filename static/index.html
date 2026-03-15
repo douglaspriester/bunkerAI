@@ -1222,6 +1222,60 @@ Use markdown: headers ##, listas com -, **negrito** para termos criticos, `codig
       </div>
     </div>
 
+    <!-- ═══ Terminal ═══ -->
+    <div class="panel-view hidden" id="terminalView">
+      <div class="terminal-body" id="terminalBody">
+        <div class="terminal-output" id="terminalOutput">
+          <div class="terminal-line term-info">Bunker OS Terminal v1.0</div>
+          <div class="terminal-line term-info">Digite 'help' para ver os comandos disponiveis.</div>
+        </div>
+        <div class="terminal-prompt">
+          <span class="terminal-ps1">bunker $</span>
+          <input type="text" class="terminal-input" id="terminalInput" autocomplete="off" spellcheck="false"
+                 onkeydown="if(event.key==='Enter')terminalExec()" />
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ File Manager ═══ -->
+    <div class="panel-view hidden" id="fileManagerView">
+      <div class="fm-toolbar">
+        <button class="fm-btn" onclick="fmNavigate('..')" title="Voltar">&#x2B06;&#xFE0F;</button>
+        <button class="fm-btn" onclick="fmNavigate('.')" title="Atualizar">&#x1F504;</button>
+        <div class="fm-breadcrumb" id="fmBreadcrumb">/ raiz</div>
+      </div>
+      <div class="fm-content" id="fmContent">
+        <div class="fm-loading">Carregando...</div>
+      </div>
+      <div class="fm-preview hidden" id="fmPreview">
+        <div class="fm-preview-header">
+          <span id="fmPreviewName">arquivo.txt</span>
+          <button class="fm-btn" onclick="fmClosePreview()">&#x2715;</button>
+        </div>
+        <pre class="fm-preview-content" id="fmPreviewContent"></pre>
+      </div>
+    </div>
+
+    <!-- ═══ Paint / Draw ═══ -->
+    <div class="panel-view hidden" id="paintView">
+      <div class="paint-toolbar" id="paintToolbar">
+        <button class="paint-tool active" data-tool="brush" onclick="paintSetTool('brush')" title="Pincel">&#x270F;&#xFE0F;</button>
+        <button class="paint-tool" data-tool="eraser" onclick="paintSetTool('eraser')" title="Borracha">&#x1F6AB;</button>
+        <button class="paint-tool" data-tool="line" onclick="paintSetTool('line')" title="Linha">&#x2571;</button>
+        <button class="paint-tool" data-tool="rect" onclick="paintSetTool('rect')" title="Retangulo">&#x25A1;</button>
+        <button class="paint-tool" data-tool="circle" onclick="paintSetTool('circle')" title="Circulo">&#x25CB;</button>
+        <button class="paint-tool" data-tool="fill" onclick="paintSetTool('fill')" title="Balde">&#x1F3A8;</button>
+        <span class="paint-sep"></span>
+        <input type="color" id="paintColor" value="#00ffaa" class="paint-color" onchange="paintState.color=this.value" title="Cor">
+        <input type="range" id="paintSize" min="1" max="30" value="3" class="paint-size" oninput="paintState.size=+this.value" title="Tamanho">
+        <span class="paint-sep"></span>
+        <button class="paint-tool" onclick="paintUndo()" title="Desfazer">&#x21A9;&#xFE0F;</button>
+        <button class="paint-tool" onclick="paintClear()" title="Limpar">&#x1F5D1;&#xFE0F;</button>
+        <button class="paint-tool" onclick="paintSave()" title="Salvar PNG">&#x1F4BE;</button>
+      </div>
+      <canvas id="paintCanvas" class="paint-canvas"></canvas>
+    </div>
+
   </main>
 
   </div><!-- /desktop -->
@@ -1262,6 +1316,53 @@ Use markdown: headers ##, listas com -, **negrito** para termos criticos, `codig
       </button>
     </div>
     <div id="dlToastItems" class="dl-toast-items"></div>
+  </div>
+
+  <!-- Spotlight Command Palette -->
+  <div class="spotlight-overlay hidden" id="spotlightOverlay" onclick="if(event.target===this)window.closeSpotlight()">
+    <div class="spotlight-box">
+      <div class="spotlight-input-wrap">
+        <span class="spotlight-icon">&#x1F50D;</span>
+        <input class="spotlight-input" id="spotlightInput" type="text" placeholder="Buscar apps, guias, protocolos, jogos..." autocomplete="off" />
+        <span class="spotlight-kbd">ESC</span>
+      </div>
+      <div class="spotlight-results" id="spotlightResults"></div>
+      <div class="spotlight-footer">
+        <span><kbd>&uarr;</kbd><kbd>&darr;</kbd> navegar</span>
+        <span><kbd>Enter</kbd> abrir</span>
+        <span><kbd>Esc</kbd> fechar</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Keyboard Shortcuts Help -->
+  <div class="shortcuts-overlay hidden" id="shortcutsOverlay" onclick="if(event.target===this)window.closeShortcuts()">
+    <div class="shortcuts-box">
+      <div class="shortcuts-header">
+        <h3>&#x2328;&#xFE0F; Atalhos de Teclado</h3>
+        <button class="shortcuts-close" onclick="window.closeShortcuts()">&times;</button>
+      </div>
+      <div class="shortcuts-body">
+        <div class="shortcuts-section">
+          <h4>Geral</h4>
+          <div class="shortcut-row"><span>Command Palette</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>K</kbd></div></div>
+          <div class="shortcut-row"><span>Atalhos de Teclado</span><div class="shortcut-keys"><kbd>F1</kbd></div></div>
+          <div class="shortcut-row"><span>Menu Iniciar</span><div class="shortcut-keys"><kbd>F2</kbd></div></div>
+        </div>
+        <div class="shortcuts-section">
+          <h4>Janelas</h4>
+          <div class="shortcut-row"><span>Fechar janela ativa</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>W</kbd></div></div>
+          <div class="shortcut-row"><span>Minimizar janela</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>M</kbd></div></div>
+          <div class="shortcut-row"><span>Alternar janela</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>Tab</kbd></div></div>
+        </div>
+        <div class="shortcuts-section">
+          <h4>Apps Rapidos</h4>
+          <div class="shortcut-row"><span>Novo Bloco de Notas</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>N</kbd></div></div>
+          <div class="shortcut-row"><span>Abrir Chat</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>C</kbd></div></div>
+          <div class="shortcut-row"><span>Calculadora</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>A</kbd></div></div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>

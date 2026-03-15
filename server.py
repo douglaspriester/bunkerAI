@@ -1229,6 +1229,107 @@ async def delete_note(note_id: int):
     return {"ok": True}
 
 
+# ─── Terminal ─────────────────────────────────────────────────────────────────
+
+TERMINAL_ALLOWED_CMDS = {
+    "ls", "dir", "cat", "type", "echo", "date", "whoami", "hostname",
+    "pwd", "cd", "ping", "ipconfig", "ifconfig", "netstat", "nslookup",
+    "df", "du", "free", "uptime", "uname", "env", "set", "tree",
+    "head", "tail", "wc", "sort", "find", "grep", "which", "where",
+    "python", "pip", "node", "npm", "git",
+}
+
+
+@app.post("/api/terminal")
+async def terminal_exec(request: Request):
+    body = await request.json()
+    cmd = body.get("command", "").strip()
+    if not cmd:
+        return {"output": "", "exit_code": 0}
+
+    # Extract the base command for allowlist check
+    base_cmd = cmd.split()[0].split("/")[-1].split("\\")[-1].lower()
+    # Remove .exe extension for Windows
+    if base_cmd.endswith(".exe"):
+        base_cmd = base_cmd[:-4]
+
+    if base_cmd not in TERMINAL_ALLOWED_CMDS:
+        return {"output": f"bunker-sh: {base_cmd}: comando nao permitido\nComandos permitidos: {', '.join(sorted(TERMINAL_ALLOWED_CMDS))}", "exit_code": 1}
+
+    try:
+        result = subprocess.run(
+            cmd, shell=True, capture_output=True, text=True,
+            timeout=15, cwd=str(Path.cwd()),
+        )
+        output = result.stdout + result.stderr
+        return {"output": output.rstrip(), "exit_code": result.returncode}
+    except subprocess.TimeoutExpired:
+        return {"output": "bunker-sh: tempo limite excedido (15s)", "exit_code": 124}
+    except Exception as e:
+        return {"output": f"bunker-sh: erro: {e}", "exit_code": 1}
+
+
+# ─── File Manager ─────────────────────────────────────────────────────────────
+
+FILEMGR_ROOT = Path.cwd()
+
+
+@app.get("/api/files")
+async def list_files(path: str = "."):
+    target = (FILEMGR_ROOT / path).resolve()
+    # Prevent path traversal
+    if not str(target).startswith(str(FILEMGR_ROOT.resolve())):
+        return JSONResponse({"error": "Acesso negado"}, status_code=403)
+    if not target.is_dir():
+        return JSONResponse({"error": "Diretorio nao encontrado"}, status_code=404)
+
+    items = []
+    try:
+        for entry in sorted(target.iterdir(), key=lambda e: (not e.is_dir(), e.name.lower())):
+            # Skip hidden and system dirs
+            if entry.name.startswith(".") or entry.name in ("__pycache__", "node_modules", ".git"):
+                continue
+            stat = entry.stat()
+            items.append({
+                "name": entry.name,
+                "type": "dir" if entry.is_dir() else "file",
+                "size": stat.st_size if entry.is_file() else None,
+                "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                "ext": entry.suffix.lower() if entry.is_file() else None,
+            })
+    except PermissionError:
+        return JSONResponse({"error": "Permissao negada"}, status_code=403)
+
+    rel = str(target.relative_to(FILEMGR_ROOT)).replace("\\", "/")
+    if rel == ".":
+        rel = ""
+    return {"path": rel, "items": items}
+
+
+@app.get("/api/files/read")
+async def read_file(path: str):
+    target = (FILEMGR_ROOT / path).resolve()
+    if not str(target).startswith(str(FILEMGR_ROOT.resolve())):
+        return JSONResponse({"error": "Acesso negado"}, status_code=403)
+    if not target.is_file():
+        return JSONResponse({"error": "Arquivo nao encontrado"}, status_code=404)
+
+    # Only allow reading text files
+    text_exts = {".txt", ".md", ".py", ".js", ".css", ".html", ".json", ".yaml", ".yml",
+                 ".toml", ".cfg", ".ini", ".sh", ".bat", ".csv", ".log", ".xml", ".sql", ".env"}
+    if target.suffix.lower() not in text_exts:
+        return {"content": f"[Arquivo binario: {target.suffix}, {target.stat().st_size} bytes]", "binary": True}
+
+    try:
+        content = target.read_text(encoding="utf-8", errors="replace")
+        # Limit to 100KB
+        if len(content) > 102400:
+            content = content[:102400] + "\n\n... [truncado em 100KB]"
+        return {"content": content, "binary": False, "size": target.stat().st_size}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
 # ─── Static ──────────────────────────────────────────────────────────────────
 
 app.mount("/", StaticFiles(directory="static", html=True), name="static")

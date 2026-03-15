@@ -4030,6 +4030,425 @@ function waterCalcCompute() {
 }
 
 
+// ─── Terminal ────────────────────────────────────────────────────────────────
+let _termHistory = [];
+let _termHistIdx = -1;
+
+function terminalInit() {
+  const input = document.getElementById('terminalInput');
+  if (input) {
+    input.focus();
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (_termHistIdx < _termHistory.length - 1) {
+          _termHistIdx++;
+          input.value = _termHistory[_termHistory.length - 1 - _termHistIdx];
+        }
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (_termHistIdx > 0) {
+          _termHistIdx--;
+          input.value = _termHistory[_termHistory.length - 1 - _termHistIdx];
+        } else {
+          _termHistIdx = -1;
+          input.value = '';
+        }
+      }
+    });
+  }
+}
+window.terminalInit = terminalInit;
+
+function terminalExec() {
+  const input = document.getElementById('terminalInput');
+  const output = document.getElementById('terminalOutput');
+  if (!input || !output) return;
+
+  const cmd = input.value.trim();
+  input.value = '';
+  _termHistIdx = -1;
+  if (!cmd) return;
+
+  _termHistory.push(cmd);
+  const cmdLine = document.createElement('div');
+  cmdLine.className = 'terminal-line term-cmd';
+  cmdLine.textContent = cmd;
+  output.appendChild(cmdLine);
+
+  // Built-in commands
+  if (cmd === 'clear' || cmd === 'cls') {
+    output.innerHTML = '';
+    return;
+  }
+  if (cmd === 'help') {
+    termAddLine('Comandos disponiveis:', 'term-info');
+    termAddLine('  help      - Mostra esta ajuda');
+    termAddLine('  clear     - Limpa o terminal');
+    termAddLine('  ls/dir    - Listar arquivos');
+    termAddLine('  cat/type  - Ler arquivo');
+    termAddLine('  pwd       - Diretorio atual');
+    termAddLine('  date      - Data atual');
+    termAddLine('  ping      - Testar conexao');
+    termAddLine('  python    - Executar Python');
+    termAddLine('  git       - Comandos Git');
+    termAddLine('  tree      - Arvore de diretorios');
+    output.scrollTop = output.scrollHeight;
+    return;
+  }
+
+  fetch('/api/terminal', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ command: cmd }),
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.output) {
+        const cls = data.exit_code !== 0 ? 'term-err' : '';
+        data.output.split('\n').forEach(line => termAddLine(line, cls));
+      }
+      output.scrollTop = output.scrollHeight;
+    })
+    .catch(err => {
+      termAddLine('Erro de conexao: ' + err.message, 'term-err');
+      output.scrollTop = output.scrollHeight;
+    });
+}
+window.terminalExec = terminalExec;
+
+function termAddLine(text, cls = '') {
+  const output = document.getElementById('terminalOutput');
+  if (!output) return;
+  const line = document.createElement('div');
+  line.className = 'terminal-line' + (cls ? ' ' + cls : '');
+  line.textContent = text;
+  output.appendChild(line);
+}
+
+// ─── File Manager ────────────────────────────────────────────────────────────
+let _fmPath = '';
+
+function fileManagerInit() {
+  _fmPath = '';
+  fmNavigate('.');
+}
+window.fileManagerInit = fileManagerInit;
+
+function fmNavigate(path) {
+  if (path === '..') {
+    const parts = _fmPath.split('/').filter(Boolean);
+    parts.pop();
+    path = parts.join('/') || '.';
+  }
+  if (path === '.') path = _fmPath || '.';
+  if (path !== '.' && path !== _fmPath && !path.startsWith('/')) {
+    path = _fmPath ? _fmPath + '/' + path : path;
+  }
+
+  const content = document.getElementById('fmContent');
+  if (content) content.innerHTML = '<div class="fm-loading">Carregando...</div>';
+  fmClosePreview();
+
+  fetch('/api/files?path=' + encodeURIComponent(path))
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) {
+        if (content) content.innerHTML = '<div class="fm-loading">' + escapeHtml(data.error) + '</div>';
+        return;
+      }
+      _fmPath = data.path;
+      fmRender(data.items);
+      const bc = document.getElementById('fmBreadcrumb');
+      if (bc) bc.textContent = '/ ' + (_fmPath || 'raiz');
+    })
+    .catch(err => {
+      if (content) content.innerHTML = '<div class="fm-loading">Erro: ' + escapeHtml(err.message) + '</div>';
+    });
+}
+window.fmNavigate = fmNavigate;
+
+function fmRender(items) {
+  const content = document.getElementById('fmContent');
+  if (!content) return;
+
+  if (!items.length) {
+    content.innerHTML = '<div class="fm-loading">Pasta vazia</div>';
+    return;
+  }
+
+  const extIcons = {
+    '.py': '\u{1F40D}', '.js': '\u{1F4DC}', '.css': '\u{1F3A8}', '.html': '\u{1F310}',
+    '.json': '\u{1F4CB}', '.md': '\u{1F4D6}', '.txt': '\u{1F4C4}', '.log': '\u{1F4DD}',
+    '.db': '\u{1F5C4}\uFE0F', '.sqlite': '\u{1F5C4}\uFE0F', '.sqlite3': '\u{1F5C4}\uFE0F',
+    '.png': '\u{1F5BC}\uFE0F', '.jpg': '\u{1F5BC}\uFE0F', '.jpeg': '\u{1F5BC}\uFE0F', '.gif': '\u{1F5BC}\uFE0F',
+    '.pdf': '\u{1F4D5}', '.zip': '\u{1F4E6}', '.bat': '\u{2699}\uFE0F', '.sh': '\u{2699}\uFE0F',
+    '.yaml': '\u{1F4CB}', '.yml': '\u{1F4CB}', '.toml': '\u{1F4CB}', '.cfg': '\u{1F4CB}',
+    '.csv': '\u{1F4CA}', '.xml': '\u{1F4C3}',
+  };
+
+  const grid = document.createElement('div');
+  grid.className = 'fm-grid';
+  for (const item of items) {
+    const el = document.createElement('div');
+    el.className = 'fm-item';
+    const icon = item.type === 'dir' ? '\u{1F4C1}' : (extIcons[item.ext] || '\u{1F4C4}');
+    const sizeStr = item.size != null ? fmFormatSize(item.size) : '';
+    el.innerHTML = `<span class="fm-item-icon">${icon}</span><span class="fm-item-name">${escapeHtml(item.name)}</span>${sizeStr ? `<span class="fm-item-size">${sizeStr}</span>` : ''}`;
+
+    if (item.type === 'dir') {
+      el.ondblclick = () => fmNavigate(item.name);
+    } else {
+      el.onclick = () => fmOpenFile(item);
+    }
+    grid.appendChild(el);
+  }
+  content.innerHTML = '';
+  content.appendChild(grid);
+}
+
+function fmFormatSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / 1048576).toFixed(1) + ' MB';
+}
+
+function fmOpenFile(item) {
+  const preview = document.getElementById('fmPreview');
+  const nameEl = document.getElementById('fmPreviewName');
+  const contentEl = document.getElementById('fmPreviewContent');
+  if (!preview || !contentEl) return;
+
+  nameEl.textContent = item.name;
+  contentEl.textContent = 'Carregando...';
+  preview.classList.remove('hidden');
+
+  const filePath = _fmPath ? _fmPath + '/' + item.name : item.name;
+  fetch('/api/files/read?path=' + encodeURIComponent(filePath))
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) contentEl.textContent = data.error;
+      else contentEl.textContent = data.content;
+    })
+    .catch(err => contentEl.textContent = 'Erro: ' + err.message);
+}
+
+function fmClosePreview() {
+  const preview = document.getElementById('fmPreview');
+  if (preview) preview.classList.add('hidden');
+}
+window.fmClosePreview = fmClosePreview;
+
+// ─── Paint / Draw ────────────────────────────────────────────────────────────
+const paintState = {
+  tool: 'brush',
+  color: '#00ffaa',
+  size: 3,
+  drawing: false,
+  lastX: 0,
+  lastY: 0,
+  history: [],
+  startX: 0,
+  startY: 0,
+  snapshot: null,
+};
+window.paintState = paintState;
+
+function paintInit() {
+  const canvas = document.getElementById('paintCanvas');
+  if (!canvas) return;
+  const parent = canvas.parentElement;
+
+  function resizeCanvas() {
+    const toolbarH = document.getElementById('paintToolbar')?.offsetHeight || 40;
+    const w = parent.clientWidth;
+    const h = parent.clientHeight - toolbarH;
+    if (canvas.width !== w || canvas.height !== h) {
+      // Save current content
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = canvas.width;
+      tempCanvas.height = canvas.height;
+      tempCanvas.getContext('2d').drawImage(canvas, 0, 0);
+
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#1a1a2e';
+      ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(tempCanvas, 0, 0);
+    }
+  }
+  resizeCanvas();
+
+  const ctx = canvas.getContext('2d');
+  paintState.history = [];
+  paintSaveState();
+
+  canvas.addEventListener('mousedown', (e) => {
+    paintState.drawing = true;
+    const rect = canvas.getBoundingClientRect();
+    paintState.lastX = e.clientX - rect.left;
+    paintState.lastY = e.clientY - rect.top;
+    paintState.startX = paintState.lastX;
+    paintState.startY = paintState.lastY;
+    paintState.snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+    if (paintState.tool === 'fill') {
+      paintFloodFill(ctx, Math.round(paintState.lastX), Math.round(paintState.lastY), paintState.color);
+      paintState.drawing = false;
+      paintSaveState();
+    } else if (paintState.tool === 'brush' || paintState.tool === 'eraser') {
+      ctx.beginPath();
+      ctx.moveTo(paintState.lastX, paintState.lastY);
+    }
+  });
+
+  canvas.addEventListener('mousemove', (e) => {
+    if (!paintState.drawing) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    if (paintState.tool === 'brush' || paintState.tool === 'eraser') {
+      ctx.lineWidth = paintState.size;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = paintState.tool === 'eraser' ? '#1a1a2e' : paintState.color;
+      ctx.lineTo(x, y);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+    } else {
+      // Preview shapes
+      ctx.putImageData(paintState.snapshot, 0, 0);
+      ctx.strokeStyle = paintState.color;
+      ctx.lineWidth = paintState.size;
+      ctx.lineCap = 'round';
+
+      if (paintState.tool === 'line') {
+        ctx.beginPath();
+        ctx.moveTo(paintState.startX, paintState.startY);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+      } else if (paintState.tool === 'rect') {
+        ctx.strokeRect(paintState.startX, paintState.startY, x - paintState.startX, y - paintState.startY);
+      } else if (paintState.tool === 'circle') {
+        const rx = Math.abs(x - paintState.startX) / 2;
+        const ry = Math.abs(y - paintState.startY) / 2;
+        const cx = paintState.startX + (x - paintState.startX) / 2;
+        const cy = paintState.startY + (y - paintState.startY) / 2;
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+    paintState.lastX = x;
+    paintState.lastY = y;
+  });
+
+  canvas.addEventListener('mouseup', () => {
+    if (paintState.drawing) {
+      paintState.drawing = false;
+      paintSaveState();
+    }
+  });
+
+  canvas.addEventListener('mouseleave', () => {
+    if (paintState.drawing) {
+      paintState.drawing = false;
+      paintSaveState();
+    }
+  });
+
+  // Observe resize
+  new ResizeObserver(resizeCanvas).observe(parent);
+}
+window.paintInit = paintInit;
+
+function paintSetTool(tool) {
+  paintState.tool = tool;
+  document.querySelectorAll('.paint-tool[data-tool]').forEach(el => {
+    el.classList.toggle('active', el.dataset.tool === tool);
+  });
+}
+window.paintSetTool = paintSetTool;
+
+function paintSaveState() {
+  const canvas = document.getElementById('paintCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  paintState.history.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+  if (paintState.history.length > 30) paintState.history.shift();
+}
+
+function paintUndo() {
+  const canvas = document.getElementById('paintCanvas');
+  if (!canvas || paintState.history.length < 2) return;
+  paintState.history.pop(); // Remove current
+  const prev = paintState.history[paintState.history.length - 1];
+  canvas.getContext('2d').putImageData(prev, 0, 0);
+}
+window.paintUndo = paintUndo;
+
+function paintClear() {
+  const canvas = document.getElementById('paintCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  paintSaveState();
+}
+window.paintClear = paintClear;
+
+function paintSave() {
+  const canvas = document.getElementById('paintCanvas');
+  if (!canvas) return;
+  const link = document.createElement('a');
+  link.download = 'bunker-paint-' + Date.now() + '.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+  osToast('\u{1F4BE} Imagem salva!', 2500, 'success');
+}
+window.paintSave = paintSave;
+
+function paintFloodFill(ctx, startX, startY, fillColor) {
+  const w = ctx.canvas.width;
+  const h = ctx.canvas.height;
+  const imageData = ctx.getImageData(0, 0, w, h);
+  const data = imageData.data;
+
+  // Parse fill color
+  const temp = document.createElement('canvas').getContext('2d');
+  temp.fillStyle = fillColor;
+  temp.fillRect(0, 0, 1, 1);
+  const fc = temp.getImageData(0, 0, 1, 1).data;
+
+  const targetIdx = (startY * w + startX) * 4;
+  const tr = data[targetIdx], tg = data[targetIdx + 1], tb = data[targetIdx + 2];
+
+  if (tr === fc[0] && tg === fc[1] && tb === fc[2]) return;
+
+  const stack = [[startX, startY]];
+  const visited = new Uint8Array(w * h);
+
+  while (stack.length) {
+    const [x, y] = stack.pop();
+    if (x < 0 || x >= w || y < 0 || y >= h) continue;
+    const idx = y * w + x;
+    if (visited[idx]) continue;
+
+    const pi = idx * 4;
+    if (Math.abs(data[pi] - tr) > 30 || Math.abs(data[pi + 1] - tg) > 30 || Math.abs(data[pi + 2] - tb) > 30) continue;
+
+    visited[idx] = 1;
+    data[pi] = fc[0]; data[pi + 1] = fc[1]; data[pi + 2] = fc[2]; data[pi + 3] = 255;
+
+    stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+  }
+  ctx.putImageData(imageData, 0, 0);
+}
+
+
 // ─── Expose mutable state to window for main.js close callbacks ─────────────
 // These use defineProperty so main.js always reads the current value.
 Object.defineProperty(window, '_notepadDirty', { get() { return _notepadDirty; }, configurable: true });

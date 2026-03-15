@@ -22,6 +22,8 @@ import {
   closeContextMenu, closeAllWindows, tileWindows,
   restoreSession, applyWallpaper, cycleWallpaper,
   osToast, closeParentWindow, openSavedApp,
+  openSpotlight, closeSpotlight,
+  openShortcuts, closeShortcuts,
   registerAppOpen, registerAppClose,
   initWindowManagerEvents,
 } from './windowManager.js';
@@ -64,6 +66,8 @@ const globals = {
   closeContextMenu, closeAllWindows, tileWindows,
   restoreSession, applyWallpaper, cycleWallpaper,
   osToast, closeParentWindow, openSavedApp,
+  openSpotlight, closeSpotlight,
+  openShortcuts, closeShortcuts,
 
   // Chat
   renderChatList, switchChat, restoreChat,
@@ -171,6 +175,9 @@ function wireAppCallbacks() {
     phonetic:   () => window.phoneticInit?.(),
     sun:        () => window.sunCalcInit?.(),
     waterCalc:  () => window.waterCalcCompute?.(),
+    terminal:   () => window.terminalInit?.(),
+    fileManager: () => window.fileManagerInit?.(),
+    paint:      () => window.paintInit?.(),
   };
   Object.entries(openMap).forEach(([appId, fn]) => registerAppOpen(appId, fn));
 
