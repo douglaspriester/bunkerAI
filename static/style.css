@@ -3502,6 +3502,72 @@ body {
 .conv-swap { text-align: center; }
 .conv-swap .calc-btn { font-size: 22px; padding: 6px 20px; }
 
+/* ═══ Morse Code ═══ */
+.morse-body { padding: 12px; display: flex; flex-direction: column; gap: 12px; height: 100%; }
+.morse-section { display: flex; flex-direction: column; gap: 6px; }
+.morse-label { font-size: 12px; color: var(--text-muted); font-weight: 600; font-family: var(--font-mono); }
+.morse-input {
+  padding: 10px 14px; background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text-bright);
+  font-family: var(--font-mono); font-size: 15px;
+}
+.morse-input:focus { border-color: var(--accent); outline: none; }
+.morse-output-row { display: flex; gap: 8px; align-items: center; }
+.morse-output-row .morse-code-display { flex: 1; }
+.morse-code-display {
+  padding: 8px 12px; background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius); font-family: var(--font-mono); font-size: 16px;
+  color: var(--accent); letter-spacing: 3px; min-height: 36px;
+  word-break: break-all;
+}
+.morse-signals { margin-bottom: 8px; }
+.morse-signals h4 { color: var(--accent); font-size: 13px; margin-bottom: 6px; }
+.morse-signal {
+  display: flex; gap: 8px; align-items: center; padding: 4px 0;
+  font-size: 12px; color: var(--text);
+}
+.morse-signal strong { color: var(--text-bright); min-width: 60px; }
+.morse-signal .morse-code-display { padding: 2px 8px; font-size: 12px; letter-spacing: 2px; min-height: auto; }
+.morse-desc { color: var(--text-muted); font-size: 11px; }
+.morse-ref-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 4px;
+}
+.morse-ref-item {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 6px; background: var(--surface-2); border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+.morse-ref-char { font-size: 16px; font-weight: 700; color: var(--text-bright); }
+.morse-ref-code { font-size: 11px; color: var(--accent); font-family: var(--font-mono); letter-spacing: 1px; }
+
+/* ═══ Compass ═══ */
+.compass-body {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 16px; gap: 12px; height: 100%;
+}
+.compass-display { filter: drop-shadow(0 0 15px rgba(0,212,255,0.15)); }
+.compass-info {
+  display: flex; gap: 16px; align-items: baseline;
+}
+.compass-heading {
+  font-family: var(--font-mono); font-size: 36px;
+  color: var(--text-bright); letter-spacing: 2px;
+}
+.compass-dir {
+  font-family: var(--font-display); font-size: 24px;
+  color: var(--accent); font-weight: 700;
+}
+.compass-status {
+  font-size: 11px; color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+.compass-slider { width: 80%; }
+.compass-slider input[type="range"] {
+  width: 100%; accent-color: var(--accent);
+  cursor: pointer;
+}
+
 /* ═══ Window snap indicator ═══ */
 .os-window.snap-left { box-shadow: -4px 0 0 var(--accent) !important; }
 .os-window.snap-right { box-shadow: 4px 0 0 var(--accent) !important; }

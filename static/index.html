@@ -981,6 +981,64 @@ Use markdown: headers ##, listas com -, **negrito** para termos criticos, `codig
       </div>
     </div>
 
+    <!-- ═══ Compass ═══ -->
+    <div class="panel-view hidden" id="compassView">
+      <div class="compass-body">
+        <div class="compass-display">
+          <svg width="300" height="300" viewBox="0 0 300 300">
+            <circle cx="150" cy="150" r="140" fill="none" stroke="var(--border-bright)" stroke-width="2"/>
+            <circle cx="150" cy="150" r="130" fill="none" stroke="var(--border)" stroke-width="1" stroke-dasharray="4,4"/>
+            <g id="compassRose">
+              <text x="150" y="30" text-anchor="middle" fill="#ff4444" font-size="22" font-weight="bold" font-family="Orbitron,sans-serif">N</text>
+              <text x="270" y="155" text-anchor="middle" fill="var(--text-muted)" font-size="16" font-family="Orbitron,sans-serif">L</text>
+              <text x="150" y="280" text-anchor="middle" fill="var(--text-muted)" font-size="16" font-family="Orbitron,sans-serif">S</text>
+              <text x="30" y="155" text-anchor="middle" fill="var(--text-muted)" font-size="16" font-family="Orbitron,sans-serif">O</text>
+              <text x="235" y="65" text-anchor="middle" fill="var(--text-muted)" font-size="11" opacity="0.6">NE</text>
+              <text x="235" y="245" text-anchor="middle" fill="var(--text-muted)" font-size="11" opacity="0.6">SE</text>
+              <text x="65" y="245" text-anchor="middle" fill="var(--text-muted)" font-size="11" opacity="0.6">SO</text>
+              <text x="65" y="65" text-anchor="middle" fill="var(--text-muted)" font-size="11" opacity="0.6">NO</text>
+              <line x1="150" y1="15" x2="150" y2="35" stroke="#ff4444" stroke-width="3"/>
+              <line x1="285" y1="150" x2="265" y2="150" stroke="var(--text-muted)" stroke-width="2"/>
+              <line x1="150" y1="285" x2="150" y2="265" stroke="var(--text-muted)" stroke-width="2"/>
+              <line x1="15" y1="150" x2="35" y2="150" stroke="var(--text-muted)" stroke-width="2"/>
+            </g>
+            <polygon points="150,45 143,155 157,155" fill="var(--accent)" opacity="0.9"/>
+            <polygon points="150,255 143,155 157,155" fill="var(--text-muted)" opacity="0.4"/>
+            <circle cx="150" cy="150" r="6" fill="var(--accent)"/>
+          </svg>
+        </div>
+        <div class="compass-info">
+          <span class="compass-heading" id="compassHeading">0°</span>
+          <span class="compass-dir" id="compassDirection">N</span>
+        </div>
+        <div class="compass-status" id="compassStatus">Verificando sensor...</div>
+        <div class="compass-slider">
+          <input type="range" id="compassSlider" min="0" max="359" value="0" oninput="compassSetManual(this.value)">
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ Morse Code ═══ -->
+    <div class="panel-view hidden" id="morseView">
+      <div class="morse-body">
+        <div class="morse-section">
+          <label class="morse-label">Texto → Morse</label>
+          <input type="text" id="morseInput" class="morse-input" placeholder="Digite texto aqui..." oninput="morseTranslate()">
+          <div class="morse-output-row">
+            <div class="morse-code-display" id="morseOutput">...</div>
+            <button class="btn-sm" onclick="morsePlayAudio()" title="Tocar audio">🔊</button>
+          </div>
+        </div>
+        <div class="morse-section">
+          <label class="morse-label">Morse → Texto</label>
+          <input type="text" id="morseDecodeIn" class="morse-input" placeholder="·−· ·· / −−− −·−" oninput="morseDecodeInput()">
+          <div class="morse-code-display" id="morseDecodeOut">...</div>
+          <div style="font-size:10px;color:var(--text-muted);margin-top:4px">Separe letras com espaço, palavras com " / "</div>
+        </div>
+        <div class="morse-ref" id="morseRef" style="flex:1;overflow-y:auto"></div>
+      </div>
+    </div>
+
     <!-- ═══ Unit Converter ═══ -->
     <div class="panel-view hidden" id="converterView">
       <div class="conv-body">

@@ -87,7 +87,9 @@ Roda num PC com placa de video boa, sem internet, usando modelos locais via Olla
 | Calculadora | 🖩 | Calculadora com teclado, ±, %, operacoes | ✅ Funcional |
 | Timer | ⏱️ | Cronometro + contagem regressiva + voltas | ✅ Funcional |
 | Conversor | 🔢 | Temperatura, distancia, peso, volume, velocidade | ✅ Funcional |
-| Checklists | ✅ | Listas de verificacao com progresso, SQLite | ✅ Funcional |
+| Checklists | ✅ | Listas com templates de sobrevivencia, progresso | ✅ Funcional |
+| Bussola | 🧭 | Bussola com sensor ou manual, direcoes cardeais | ✅ Funcional |
+| Codigo Morse | 📡 | Tradutor texto↔morse, audio, referencia, SOS | ✅ Funcional |
 | Config Sistema | ⚙️ | Modelos, TTS, tema, sobre | ✅ Funcional (drawer) |
 
 ### Arquitetura do Window Manager

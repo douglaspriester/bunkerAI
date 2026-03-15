@@ -178,6 +178,8 @@ const OS_APPS = [
   { id: 'timer',      name: 'Timer',         icon: '\u23F1\uFE0F', width: 360, height: 400, viewId: 'timerView' },
   { id: 'converter',  name: 'Conversor',     icon: '\u{1F522}', width: 380, height: 460, viewId: 'converterView' },
   { id: 'checklist',  name: 'Checklists',   icon: '\u2705', width: 500, height: 480, viewId: 'checklistView' },
+  { id: 'compass',    name: 'Bussola',      icon: '\u{1F9ED}', width: 380, height: 440, viewId: 'compassView' },
+  { id: 'morse',      name: 'Codigo Morse', icon: '\u{1F4E1}', width: 520, height: 500, viewId: 'morseView' },
   { id: 'settings',   name: 'Configura\u00E7\u00F5es', icon: '\u2699\uFE0F', width: 560, height: 520, viewId: null },
 ];
 
@@ -303,6 +305,8 @@ function _triggerAppOpen(appId) {
     case 'timer': timerInit(); break;
     case 'converter': converterInit(); break;
     case 'checklist': checklistInit(); break;
+    case 'compass': compassInit(); break;
+    case 'morse': morseInit(); break;
   }
 }
 
@@ -5158,17 +5162,75 @@ function checklistRemoveItem(idx) {
   checklistSave();
 }
 
-async function checklistNew() {
+const CHECKLIST_TEMPLATES = {
+  'Em branco': [],
+  'Bug-Out Bag (72h)': [
+    'Agua (3L minimo)', 'Filtro/purificador de agua', 'Comida (barras, enlatados)', 'Kit de primeiros socorros',
+    'Faca / multi-tool', 'Isqueiro + fosforos', 'Lanterna + pilhas extras', 'Corda / paracord (15m)',
+    'Cobertor termico / saco de dormir', 'Lona / poncho', 'Radio AM/FM', 'Mapa da regiao + bussola',
+    'Documentos (copias)', 'Dinheiro em especie', 'Roupa extra (meia, camiseta)', 'Apito de emergencia',
+    'Fita adesiva / silver tape', 'Sacos plasticos', 'Caderno + caneta', 'Carregador solar / powerbank'
+  ],
+  'Kit Primeiros Socorros': [
+    'Gaze esterilizada (pacote)', 'Bandagem elastica', 'Esparadrapo', 'Band-aids diversos tamanhos',
+    'Luvas descartaveis', 'Tesoura pequena', 'Pinca', 'Soro fisiologico', 'Antisseptico (iodo/clorexidina)',
+    'Dipirona / paracetamol', 'Ibuprofeno', 'Anti-alergico', 'Sais de reidratacao oral',
+    'Pomada antibiotica', 'Termometro', 'Atadura triangular (tipoia)', 'Tala improvisavel',
+    'Manual de primeiros socorros'
+  ],
+  'Rotina Diaria Bunker': [
+    'Checar reservatorio de agua', 'Inspecionar perimetro', 'Verificar estoques de comida',
+    'Exercicio fisico (30min)', 'Checar radio para transmissoes', 'Registrar no diario',
+    'Manter fogueira/aquecimento', 'Higiene pessoal', 'Preparar refeicoes', 'Verificar equipamentos',
+    'Estudar um guia de sobrevivencia', 'Planejar proximos passos', 'Checar saude do grupo'
+  ],
+  'Preparacao Inverno': [
+    'Lenha cortada e seca (reserva 30 dias)', 'Isolamento de janelas e portas', 'Cobertores extras',
+    'Roupas termicas para todos', 'Agua extra (tubulacao pode congelar)', 'Comida de alto calor (gorduras, nozes)',
+    'Lampiao / velas extras', 'Anticongelante para veiculos', 'Pa de neve', 'Sal / areia para gelo',
+    'Kit de reparo de aquecimento', 'Medicamentos para gripe/resfriado', 'Sinalizacao de emergencia'
+  ],
+  'Evacuacao Rapida': [
+    'Bug-out bag pronta', 'Documentos na mochila', 'Tanque do veiculo cheio', 'Rota de fuga definida (A e B)',
+    'Ponto de encontro combinado', 'Radio carregado', 'Celular carregado', 'Comida para 3 dias',
+    'Agua para 3 dias', 'Dinheiro em especie', 'Chaves/ferramentas essenciais', 'Mapa impresso',
+    'Avisar contatos', 'Desligar gas/eletricidade', 'Trancar propriedade'
+  ]
+};
+
+async function checklistNew(templateName) {
   if (_checklistDirty && _checklistActiveId) await checklistSave();
+  if (!templateName) {
+    // Show template picker
+    checklistShowTemplates();
+    return;
+  }
+  const items = (CHECKLIST_TEMPLATES[templateName] || []).map(t => ({ text: t, done: false }));
+  const title = templateName === 'Em branco' ? 'Nova checklist' : templateName;
   try {
     const r = await fetch('/api/notes', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: 'Nova checklist', content: '[]', doc_type: 'checklist' })
+      body: JSON.stringify({ title, content: JSON.stringify(items), doc_type: 'checklist' })
     });
     const d = await r.json();
     await checklistLoadList();
     checklistSelect(d.id);
   } catch(e) { console.error(e); }
+}
+
+function checklistShowTemplates() {
+  const el = document.getElementById('checklistItems');
+  if (!el) return;
+  let html = '<div style="padding:8px"><h3 style="color:var(--accent);margin-bottom:12px">Escolha um modelo:</h3>';
+  Object.keys(CHECKLIST_TEMPLATES).forEach(name => {
+    const count = CHECKLIST_TEMPLATES[name].length;
+    html += `<div class="start-menu-item" onclick="checklistNew('${name.replace(/'/g, "\\'")}')">
+      <span class="start-menu-item-icon">${name === 'Em branco' ? '📋' : '✅'}</span>
+      <span>${name} ${count ? '('+count+' itens)' : ''}</span>
+    </div>`;
+  });
+  html += '</div>';
+  el.innerHTML = html;
 }
 
 async function checklistSave() {
@@ -5197,4 +5259,159 @@ async function checklistDelete() {
     checklistRenderItems();
     await checklistLoadList();
   } catch(e) { console.error(e); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// COMPASS APP
+// ═══════════════════════════════════════════════════════════════════════════
+
+let _compassHeading = 0;
+let _compassHasDevice = false;
+
+function compassInit() {
+  compassDraw();
+  if (window.DeviceOrientationEvent) {
+    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+      DeviceOrientationEvent.requestPermission().then(perm => {
+        if (perm === 'granted') {
+          window.addEventListener('deviceorientation', compassOnOrientation);
+          _compassHasDevice = true;
+        }
+      }).catch(() => {});
+    } else {
+      window.addEventListener('deviceorientation', compassOnOrientation);
+      setTimeout(() => {
+        const statusEl = document.getElementById('compassStatus');
+        if (!_compassHasDevice && statusEl) statusEl.textContent = 'Manual — gire com o slider';
+      }, 2000);
+    }
+  }
+}
+
+function compassOnOrientation(e) {
+  if (e.alpha !== null) {
+    _compassHasDevice = true;
+    _compassHeading = e.alpha ? 360 - e.alpha : 0;
+    if (e.webkitCompassHeading !== undefined) _compassHeading = e.webkitCompassHeading;
+    compassDraw();
+    const statusEl = document.getElementById('compassStatus');
+    if (statusEl) statusEl.textContent = 'Sensor ativo';
+  }
+}
+
+function compassSetManual(deg) {
+  _compassHeading = parseFloat(deg) || 0;
+  compassDraw();
+}
+
+function compassDraw() {
+  const headingEl = document.getElementById('compassHeading');
+  const dirEl = document.getElementById('compassDirection');
+  const h = _compassHeading;
+  if (headingEl) headingEl.textContent = Math.round(h) + '°';
+  const dirs = ['N', 'NE', 'L', 'SE', 'S', 'SO', 'O', 'NO'];
+  const idx = Math.round(h / 45) % 8;
+  if (dirEl) dirEl.textContent = dirs[idx];
+  const rose = document.getElementById('compassRose');
+  if (rose) rose.setAttribute('transform', `rotate(${-h}, 150, 150)`);
+  const slider = document.getElementById('compassSlider');
+  if (slider && !_compassHasDevice) slider.value = h;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MORSE CODE APP
+// ═══════════════════════════════════════════════════════════════════════════
+
+const MORSE_MAP = {
+  'A':'·−','B':'−···','C':'−·−·','D':'−··','E':'·','F':'··−·','G':'−−·','H':'····',
+  'I':'··','J':'·−−−','K':'−·−','L':'·−··','M':'−−','N':'−·','O':'−−−','P':'·−−·',
+  'Q':'−−·−','R':'·−·','S':'···','T':'−','U':'··−','V':'···−','W':'·−−','X':'−··−',
+  'Y':'−·−−','Z':'−−··',
+  '0':'−−−−−','1':'·−−−−','2':'··−−−','3':'···−−','4':'····−','5':'·····',
+  '6':'−····','7':'−−···','8':'−−−··','9':'−−−−·',
+  '.':'·−·−·−',',':'−−··−−','?':'··−−··','!':'−·−·−−','/':'−··−·',
+  '(':'−·−−·',')':'−·−−·−','&':'·−···',':':'−−−···',';':'−·−·−·',
+  '=':'−···−','+':'·−·−·','-':'−····−','_':'··−−·−','"':'·−··−·',
+  '$':'···−··−','@':'·−−·−·',' ':' / '
+};
+const MORSE_REV = {};
+Object.entries(MORSE_MAP).forEach(([k, v]) => { if (k !== ' ') MORSE_REV[v] = k; });
+
+// Important codes
+const MORSE_SIGNALS = [
+  { code: 'SOS', morse: '··· −−− ···', desc: 'Pedido de socorro universal' },
+  { code: 'CQD', morse: '−·−· −−·− −··', desc: 'Sinal de perigo (antigo)' },
+  { code: 'MAYDAY', morse: '−− ·− −·−− −·· ·− −·−−', desc: 'Socorro por voz/radio' },
+  { code: 'OK', morse: '−−− −·−', desc: 'Confirmacao / tudo bem' },
+  { code: 'WATER', morse: '·−− ·− − · ·−·', desc: 'Preciso de agua' },
+  { code: 'HELP', morse: '···· · ·−·· ·−−·', desc: 'Preciso de ajuda' },
+];
+
+let _morseAudioCtx = null;
+
+function morseInit() {
+  morseTranslate();
+  // Render reference table
+  const refEl = document.getElementById('morseRef');
+  if (refEl) {
+    let html = '<div class="morse-signals"><h4>Sinais Importantes</h4>';
+    MORSE_SIGNALS.forEach(s => {
+      html += `<div class="morse-signal"><strong>${s.code}</strong> <span class="morse-code-display">${s.morse}</span> <span class="morse-desc">${s.desc}</span></div>`;
+    });
+    html += '</div><h4 style="margin-top:12px">Referencia Completa</h4><div class="morse-ref-grid">';
+    Object.entries(MORSE_MAP).forEach(([ch, code]) => {
+      if (ch === ' ') return;
+      html += `<div class="morse-ref-item"><span class="morse-ref-char">${ch}</span><span class="morse-ref-code">${code}</span></div>`;
+    });
+    html += '</div>';
+    refEl.innerHTML = html;
+  }
+}
+
+function morseTranslate() {
+  const input = (document.getElementById('morseInput')?.value || '').toUpperCase();
+  const output = document.getElementById('morseOutput');
+  if (!output) return;
+  const morse = input.split('').map(ch => MORSE_MAP[ch] || '').join(' ');
+  output.textContent = morse || '...';
+}
+
+function morseDecodeInput() {
+  const input = document.getElementById('morseDecodeIn')?.value || '';
+  const output = document.getElementById('morseDecodeOut');
+  if (!output) return;
+  // Split by ' / ' for spaces between words, ' ' for spaces between letters
+  const words = input.split(' / ').map(word =>
+    word.trim().split(/\s+/).map(code => MORSE_REV[code] || '?').join('')
+  );
+  output.textContent = words.join(' ') || '...';
+}
+
+function morsePlayAudio() {
+  const morse = document.getElementById('morseOutput')?.textContent || '';
+  if (!morse || morse === '...') return;
+  if (!_morseAudioCtx) _morseAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  const ctx = _morseAudioCtx;
+  const DOT = 0.08, DASH = 0.24, GAP = 0.08, LETTER_GAP = 0.24, WORD_GAP = 0.56;
+  let time = ctx.currentTime + 0.1;
+
+  for (const ch of morse) {
+    if (ch === '·') {
+      const osc = ctx.createOscillator(); const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = 700; gain.gain.value = 0.3;
+      osc.start(time); osc.stop(time + DOT);
+      time += DOT + GAP;
+    } else if (ch === '−') {
+      const osc = ctx.createOscillator(); const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = 700; gain.gain.value = 0.3;
+      osc.start(time); osc.stop(time + DASH);
+      time += DASH + GAP;
+    } else if (ch === '/') {
+      time += WORD_GAP;
+    } else if (ch === ' ') {
+      time += LETTER_GAP;
+    }
+  }
 }
