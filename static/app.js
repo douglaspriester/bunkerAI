@@ -5453,3 +5453,42 @@ function morsePlayAudio() {
     }
   }
 }
+
+let _morseFlashing = false;
+function morseFlashSOS() {
+  if (_morseFlashing) { _morseFlashing = false; return; }
+  _morseFlashing = true;
+  // SOS pattern: ··· −−− ···
+  const DOT = 200, DASH = 600, GAP = 200, LETTER_GAP = 600, WORD_GAP = 1400;
+  const pattern = [
+    DOT, GAP, DOT, GAP, DOT, LETTER_GAP,  // S
+    DASH, GAP, DASH, GAP, DASH, LETTER_GAP, // O
+    DOT, GAP, DOT, GAP, DOT, WORD_GAP       // S
+  ];
+
+  let overlay = document.getElementById('morseFlashOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'morseFlashOverlay';
+    overlay.className = 'morse-flash-overlay';
+    overlay.innerHTML = '<div class="morse-flash-label">SOS</div><div class="morse-flash-sub">Toque para parar</div>';
+    overlay.onclick = () => { _morseFlashing = false; };
+    document.body.appendChild(overlay);
+  }
+  overlay.style.display = 'flex';
+
+  let idx = 0;
+  let isOn = true; // odd indexes are gaps
+  function tick() {
+    if (!_morseFlashing || idx >= pattern.length) {
+      if (_morseFlashing) { idx = 0; tick(); return; } // Loop
+      overlay.style.display = 'none';
+      overlay.style.background = 'rgba(0,0,0,0.95)';
+      return;
+    }
+    overlay.style.background = isOn ? '#ffffff' : 'rgba(0,0,0,0.95)';
+    overlay.querySelector('.morse-flash-label').style.color = isOn ? '#000' : '#fff';
+    setTimeout(() => { idx++; isOn = !isOn; tick(); }, pattern[idx]);
+  }
+  tick();
+}
