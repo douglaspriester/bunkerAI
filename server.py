@@ -34,6 +34,44 @@ from fastapi.staticfiles import StaticFiles
 
 app = FastAPI(title="Bunker AI")
 
+
+@app.on_event("startup")
+async def _detect_backend():
+    """Auto-detect LLM backend: Ollama or llama.cpp."""
+    global BACKEND, LLAMA_CPP_URL
+    import httpx as _hx
+
+    # Try Ollama
+    try:
+        async with _hx.AsyncClient(timeout=3) as c:
+            r = await c.get(f"{OLLAMA_BASE}/api/tags")
+            if r.status_code == 200:
+                models = r.json().get("models", [])
+                BACKEND = "ollama"
+                print(f"[LLM] Backend: Ollama ({len(models)} modelos)")
+                return
+    except Exception:
+        pass
+
+    # Try llama.cpp (check env or default port)
+    llama_urls = [LLAMA_CPP_URL] if LLAMA_CPP_URL else ["http://localhost:8070", "http://localhost:8080"]
+    for url in llama_urls:
+        if not url:
+            continue
+        try:
+            async with _hx.AsyncClient(timeout=3) as c:
+                r = await c.get(f"{url}/v1/models")
+                if r.status_code == 200:
+                    BACKEND = "llama.cpp"
+                    LLAMA_CPP_URL = url
+                    print(f"[LLM] Backend: llama.cpp em {url}")
+                    return
+        except Exception:
+            pass
+
+    print("[LLM] Nenhum backend LLM detectado. Chat estara offline.")
+
+
 # ─── Simple rate limiter ──────────────────────────────────────────────────────
 from collections import defaultdict
 _rate_buckets = defaultdict(list)  # { key: [timestamps] }
@@ -60,6 +98,10 @@ def _check_rate_limit(key: str, client_ip: str = "local") -> bool:
 
 
 OLLAMA_BASE = os.getenv("OLLAMA_URL", "http://localhost:11434")
+# llama.cpp server (portable mode) — set via env or auto-detected
+LLAMA_CPP_URL = os.getenv("LLAMA_CPP_URL", "")  # e.g. "http://localhost:8070"
+LLAMA_CPP_MODEL = os.getenv("LLAMA_CPP_MODEL", "built-in")  # model name for display
+BACKEND = "ollama"  # will be set to "llama.cpp" if detected
 GENERATED_DIR = Path("generated_apps")
 GENERATED_DIR.mkdir(exist_ok=True)
 TTS_DIR = Path("tts_cache")
@@ -233,7 +275,14 @@ async def _tts_pyttsx3(text: str, filepath: Path, voice_id: str = None) -> Path 
 # ─── Shared streaming helper ─────────────────────────────────────────────────
 
 def _chat_stream(payload: dict, timeout: float = 300.0) -> StreamingResponse:
-    """Stream Ollama /api/chat tokens as SSE — used by chat, vision, and build."""
+    """Stream chat tokens as SSE — supports Ollama and llama.cpp backends."""
+    if BACKEND == "llama.cpp" and LLAMA_CPP_URL:
+        return _chat_stream_llamacpp(payload, timeout)
+    return _chat_stream_ollama(payload, timeout)
+
+
+def _chat_stream_ollama(payload: dict, timeout: float) -> StreamingResponse:
+    """Stream from Ollama /api/chat."""
     async def generate():
         async with httpx.AsyncClient(timeout=httpx.Timeout(timeout)) as c:
             async with c.stream("POST", f"{OLLAMA_BASE}/api/chat", json=payload) as resp:
@@ -252,10 +301,79 @@ def _chat_stream(payload: dict, timeout: float = 300.0) -> StreamingResponse:
     return StreamingResponse(generate(), media_type="text/event-stream")
 
 
+def _chat_stream_llamacpp(payload: dict, timeout: float) -> StreamingResponse:
+    """Stream from llama.cpp server (OpenAI-compatible /v1/chat/completions)."""
+    # Convert Ollama payload → OpenAI format
+    messages = payload.get("messages", [])
+    # llama.cpp doesn't support images in the same way, strip them for text-only
+    oai_messages = []
+    for m in messages:
+        msg = {"role": m.get("role", "user"), "content": m.get("content", "")}
+        oai_messages.append(msg)
+
+    oai_payload = {
+        "messages": oai_messages,
+        "stream": True,
+        "temperature": payload.get("options", {}).get("temperature", 0.7),
+        "max_tokens": payload.get("options", {}).get("num_predict", 2048),
+    }
+
+    async def generate():
+        try:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(timeout)) as c:
+                async with c.stream(
+                    "POST", f"{LLAMA_CPP_URL}/v1/chat/completions",
+                    json=oai_payload,
+                    headers={"Content-Type": "application/json"},
+                ) as resp:
+                    async for line in resp.aiter_lines():
+                        line = line.strip()
+                        if not line or not line.startswith("data: "):
+                            continue
+                        data = line[6:]
+                        if data == "[DONE]":
+                            yield f"data: {json.dumps({'done': True})}\n\n"
+                            break
+                        try:
+                            chunk = json.loads(data)
+                            delta = chunk.get("choices", [{}])[0].get("delta", {})
+                            token = delta.get("content", "")
+                            if token:
+                                yield f"data: {json.dumps({'token': token})}\n\n"
+                        except (json.JSONDecodeError, IndexError, KeyError):
+                            pass
+        except httpx.ConnectError:
+            yield f"data: {json.dumps({'token': '[Erro: servidor LLM nao conectado]'})}\n\n"
+            yield f"data: {json.dumps({'done': True})}\n\n"
+    return StreamingResponse(generate(), media_type="text/event-stream")
+
+
 # ─── Health / Models ─────────────────────────────────────────────────────────
 
 @app.get("/api/health")
 async def health():
+    global BACKEND
+
+    # Voice capabilities (backend-independent)
+    whisper_ok = get_whisper_model() is not None
+    piper_ok = check_piper()
+    pyttsx3_ok = check_pyttsx3()
+    if piper_ok:
+        tts_engine = "piper"
+    elif pyttsx3_ok:
+        tts_engine = "pyttsx3"
+    else:
+        tts_engine = "edge-tts"
+
+    piper_models_status = {}
+    for model_id, info in PIPER_MODELS.items():
+        onnx = VOICE_MODELS_DIR / f"{model_id}.onnx"
+        piper_models_status[model_id] = {
+            **info,
+            "downloaded": onnx.exists() and onnx.stat().st_size > 1000,
+        }
+
+    # Try Ollama first
     try:
         async with httpx.AsyncClient(timeout=5) as c:
             r = await c.get(f"{OLLAMA_BASE}/api/tags")
@@ -265,31 +383,10 @@ async def health():
                 "llava", "bakllava", "gemma3", "moondream", "minicpm",
                 "llama3.2-vision", "granite3", "granite-vision"
             ])]
-
-            # Voice capabilities
-            whisper_ok = get_whisper_model() is not None
-            piper_ok = check_piper()
-            pyttsx3_ok = check_pyttsx3()
-
-            # Determine best TTS
-            if piper_ok:
-                tts_engine = "piper"
-            elif pyttsx3_ok:
-                tts_engine = "pyttsx3"
-            else:
-                tts_engine = "edge-tts"
-
-            # Piper model status
-            piper_models_status = {}
-            for model_id, info in PIPER_MODELS.items():
-                onnx = VOICE_MODELS_DIR / f"{model_id}.onnx"
-                piper_models_status[model_id] = {
-                    **info,
-                    "downloaded": onnx.exists() and onnx.stat().st_size > 1000,
-                }
-
+            BACKEND = "ollama"
             return {
                 "status": "online",
+                "backend": "ollama",
                 "ollama": OLLAMA_BASE,
                 "models": names,
                 "vision_models": vision,
@@ -301,20 +398,50 @@ async def health():
                 "pyttsx3_available": pyttsx3_ok,
                 "piper_models": piper_models_status,
             }
-    except Exception as e:
-        return {
-            "status": "offline",
-            "error": str(e),
-            "models": [],
-            "vision_models": [],
-            "stt": "browser",
-            "tts": "edge-tts",
-            "stt_ready": False,
-            "tts_offline": False,
-            "piper_available": False,
-            "pyttsx3_available": False,
-            "piper_models": {},
-        }
+    except Exception:
+        pass
+
+    # Fallback: try llama.cpp server
+    if LLAMA_CPP_URL:
+        try:
+            async with httpx.AsyncClient(timeout=5) as c:
+                r = await c.get(f"{LLAMA_CPP_URL}/v1/models")
+                data = r.json()
+                models = data.get("data", [])
+                names = [m.get("id", LLAMA_CPP_MODEL) for m in models] if models else [LLAMA_CPP_MODEL]
+                BACKEND = "llama.cpp"
+                return {
+                    "status": "online",
+                    "backend": "llama.cpp",
+                    "ollama": LLAMA_CPP_URL,
+                    "models": names,
+                    "vision_models": [],
+                    "stt": "whisper" if whisper_ok else "browser",
+                    "tts": tts_engine,
+                    "stt_ready": whisper_ok,
+                    "tts_offline": piper_ok or pyttsx3_ok,
+                    "piper_available": piper_ok,
+                    "pyttsx3_available": pyttsx3_ok,
+                    "piper_models": piper_models_status,
+                    "portable": True,
+                }
+        except Exception:
+            pass
+
+    # Both offline
+    return {
+        "status": "offline",
+        "backend": "none",
+        "models": [],
+        "vision_models": [],
+        "stt": "browser",
+        "tts": "edge-tts",
+        "stt_ready": False,
+        "tts_offline": False,
+        "piper_available": False,
+        "pyttsx3_available": False,
+        "piper_models": {},
+    }
 
 
 # ─── STT (Speech-to-Text) — Whisper offline ─────────────────────────────────
@@ -784,6 +911,44 @@ async def pull_model(request: Request):
                         yield f"data: {line}\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream")
+
+
+@app.get("/api/models/recommended")
+async def recommended_models():
+    """Return recommended models based on detected hardware."""
+    # Check GPU
+    has_gpu = False
+    gpu_vram = 0
+    try:
+        result = subprocess.run(
+            ["nvidia-smi", "--query-gpu=memory.total", "--format=csv,noheader,nounits"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if result.returncode == 0:
+            has_gpu = True
+            gpu_vram = int(result.stdout.strip().split("\n")[0]) // 1024  # GB
+    except Exception:
+        pass
+
+    models = [
+        {"name": "gemma3:4b", "desc": "Chat + Visao (compacto)", "size": "~3 GB",
+         "requires": "GPU 4GB+", "priority": 1, "available": gpu_vram >= 4},
+        {"name": "gemma3:12b", "desc": "Chat + Visao (completo)", "size": "~8 GB",
+         "requires": "GPU 8GB+", "priority": 2, "available": gpu_vram >= 8},
+        {"name": "dolphin3", "desc": "Cerebro sem filtros/censura", "size": "~5 GB",
+         "requires": "GPU 6GB+", "priority": 3, "available": gpu_vram >= 6},
+        {"name": "qwen2.5-coder:7b", "desc": "App Builder + codigo", "size": "~5 GB",
+         "requires": "GPU 6GB+", "priority": 4, "available": gpu_vram >= 6},
+        {"name": "phi4-mini", "desc": "Chat rapido e leve", "size": "~2.5 GB",
+         "requires": "GPU 4GB+ ou CPU", "priority": 5, "available": True},
+    ]
+
+    return {
+        "has_gpu": has_gpu,
+        "gpu_vram_gb": gpu_vram,
+        "backend": BACKEND,
+        "models": models,
+    }
 
 
 # ─── SQLite setup ────────────────────────────────────────────────────────────
