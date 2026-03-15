@@ -32,6 +32,14 @@ const state = {
   currentProtocol: null,
 };
 
+// ─── Persistence (with fallback) ────────────────────────────────────────────
+const _ls = () => { try { return window['local' + 'Storage']; } catch { return null; } };
+const storage = {
+  get(key) { const s = _ls(); return s ? s.getItem(key) : null; },
+  set(key, val) { const s = _ls(); if (s) s.setItem(key, val); },
+  del(key) { const s = _ls(); if (s) s.removeItem(key); }
+};
+
 // ─── Guide/Protocol/Game Data (loaded from API) ─────────────────────────────
 const guidesCache = {};  // { id: { title, content(md) } }
 let guidesIndex = [];    // [{ id, title, icon, emoji }]
@@ -923,7 +931,7 @@ const WALLPAPERS = [
   'aurora',        // aurora borealis gradient
   'matrix',        // matrix-style
 ];
-let _wallpaperIdx = parseInt(storage.get('bunker_wallpaper') || '0') || 0;
+var _wallpaperIdx = parseInt(storage.get('bunker_wallpaper') || '0') || 0;
 
 function cycleWallpaper() {
   _wallpaperIdx = (_wallpaperIdx + 1) % WALLPAPERS.length;
@@ -1104,14 +1112,6 @@ function runBootSequence() {
     }
   }, 180);
 }
-
-// ─── Persistence (with fallback) ────────────────────────────────────────────
-const _ls = () => { try { return window['local' + 'Storage']; } catch { return null; } };
-const storage = {
-  get(key) { const s = _ls(); return s ? s.getItem(key) : null; },
-  set(key, val) { const s = _ls(); if (s) s.setItem(key, val); },
-  del(key) { const s = _ls(); if (s) s.removeItem(key); }
-};
 
 function loadPersistedData() {
   try {
