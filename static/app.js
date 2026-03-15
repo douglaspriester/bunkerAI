@@ -182,6 +182,7 @@ const OS_APPS = [
   { id: 'morse',      name: 'Codigo Morse', icon: '\u{1F4E1}', width: 520, height: 500, viewId: 'morseView' },
   { id: 'radio',      name: 'Frequencias',  icon: '\u{1F4FB}', width: 480, height: 500, viewId: 'radioView' },
   { id: 'phonetic',   name: 'Fonetico NATO', icon: '\u{1F399}\uFE0F', width: 420, height: 480, viewId: 'phoneticView' },
+  { id: 'sun',        name: 'Sol / Lua',     icon: '\u2600\uFE0F', width: 400, height: 460, viewId: 'sunView' },
   { id: 'settings',   name: 'Configura\u00E7\u00F5es', icon: '\u2699\uFE0F', width: 560, height: 520, viewId: null },
 ];
 
@@ -310,6 +311,7 @@ function _triggerAppOpen(appId) {
     case 'compass': compassInit(); break;
     case 'morse': morseInit(); break;
     case 'phonetic': phoneticInit(); break;
+    case 'sun': sunCalcInit(); break;
   }
 }
 
@@ -5526,4 +5528,112 @@ function phoneticTranslate() {
     w === '—' ? '<span class="phonetic-space">—</span>'
     : `<span class="phonetic-word"><strong>${w[0]}</strong>${w.slice(1)}</span>`
   ).join(' ');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SUN / MOON CALCULATOR
+// ═══════════════════════════════════════════════════════════════════════════
+
+function sunCalcInit() {
+  // Set default lat/lon to approximate Brazil center
+  const latEl = document.getElementById('sunLat');
+  const lonEl = document.getElementById('sunLon');
+  if (latEl && !latEl.value) latEl.value = '-15.78';
+  if (lonEl && !lonEl.value) lonEl.value = '-47.93';
+  sunCalcCompute();
+}
+
+function sunCalcCompute() {
+  const lat = parseFloat(document.getElementById('sunLat')?.value || '-15.78');
+  const lon = parseFloat(document.getElementById('sunLon')?.value || '-47.93');
+  const now = new Date();
+
+  // Simple sunrise/sunset calculation (Spencer, 1971)
+  const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
+  const decl = -23.45 * Math.cos(2 * Math.PI * (dayOfYear + 10) / 365); // Solar declination
+  const declRad = decl * Math.PI / 180;
+  const latRad = lat * Math.PI / 180;
+
+  // Hour angle at sunrise/sunset
+  const cosH = -Math.tan(latRad) * Math.tan(declRad);
+  let daylight, sunrise, sunset;
+
+  if (cosH > 1) {
+    // Polar night
+    daylight = 0; sunrise = null; sunset = null;
+  } else if (cosH < -1) {
+    // Midnight sun
+    daylight = 24; sunrise = null; sunset = null;
+  } else {
+    const H = Math.acos(cosH) * 180 / Math.PI;
+    daylight = 2 * H / 15; // hours of daylight
+    const solarNoon = 12 - lon / 15; // approximate
+    const halfDay = H / 15;
+    sunrise = solarNoon - halfDay;
+    sunset = solarNoon + halfDay;
+  }
+
+  // Moon phase (simplified)
+  const lunarCycle = 29.53059;
+  const knownNewMoon = new Date(2024, 0, 11, 11, 57); // Jan 11, 2024 new moon
+  const daysSinceNew = (now - knownNewMoon) / 86400000;
+  const moonAge = ((daysSinceNew % lunarCycle) + lunarCycle) % lunarCycle;
+  const moonPct = moonAge / lunarCycle;
+  let moonPhase, moonIcon;
+  if (moonPct < 0.03 || moonPct >= 0.97) { moonPhase = 'Lua Nova'; moonIcon = '🌑'; }
+  else if (moonPct < 0.22) { moonPhase = 'Crescente'; moonIcon = '🌒'; }
+  else if (moonPct < 0.28) { moonPhase = 'Quarto Crescente'; moonIcon = '🌓'; }
+  else if (moonPct < 0.47) { moonPhase = 'Gibosa Crescente'; moonIcon = '🌔'; }
+  else if (moonPct < 0.53) { moonPhase = 'Lua Cheia'; moonIcon = '🌕'; }
+  else if (moonPct < 0.72) { moonPhase = 'Gibosa Minguante'; moonIcon = '🌖'; }
+  else if (moonPct < 0.78) { moonPhase = 'Quarto Minguante'; moonIcon = '🌗'; }
+  else { moonPhase = 'Minguante'; moonIcon = '🌘'; }
+
+  // Render
+  const el = document.getElementById('sunResult');
+  if (!el) return;
+
+  function fmtTime(h) {
+    if (h === null) return '—';
+    h = ((h % 24) + 24) % 24;
+    const hh = Math.floor(h);
+    const mm = Math.round((h - hh) * 60);
+    return String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0');
+  }
+
+  const goldenMorning = sunrise !== null ? fmtTime(sunrise) + ' – ' + fmtTime(sunrise + 1) : '—';
+  const goldenEvening = sunset !== null ? fmtTime(sunset - 1) + ' – ' + fmtTime(sunset) : '—';
+
+  el.innerHTML = `
+    <div class="sun-card">
+      <div class="sun-icon">🌅</div>
+      <div class="sun-label">Nascer do Sol</div>
+      <div class="sun-value">${sunrise !== null ? fmtTime(sunrise) : 'Sol nao nasce'}</div>
+    </div>
+    <div class="sun-card">
+      <div class="sun-icon">🌇</div>
+      <div class="sun-label">Por do Sol</div>
+      <div class="sun-value">${sunset !== null ? fmtTime(sunset) : 'Sol nao se poe'}</div>
+    </div>
+    <div class="sun-card">
+      <div class="sun-icon">☀️</div>
+      <div class="sun-label">Horas de Luz</div>
+      <div class="sun-value">${daylight.toFixed(1)}h</div>
+    </div>
+    <div class="sun-card">
+      <div class="sun-icon">📐</div>
+      <div class="sun-label">Declinacao Solar</div>
+      <div class="sun-value">${decl.toFixed(1)}°</div>
+    </div>
+    <div class="sun-card sun-wide">
+      <div class="sun-icon">📸</div>
+      <div class="sun-label">Golden Hour</div>
+      <div class="sun-value" style="font-size:14px">Manha: ${goldenMorning}<br>Tarde: ${goldenEvening}</div>
+    </div>
+    <div class="sun-card sun-wide">
+      <div class="sun-icon">${moonIcon}</div>
+      <div class="sun-label">Fase da Lua</div>
+      <div class="sun-value">${moonPhase} (dia ${Math.round(moonAge)} de ${lunarCycle.toFixed(0)})</div>
+    </div>
+  `;
 }

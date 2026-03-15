@@ -92,6 +92,7 @@ Roda num PC com placa de video boa, sem internet, usando modelos locais via Olla
 | Codigo Morse | 📡 | Tradutor texto↔morse, audio, flash SOS, referencia | ✅ Funcional |
 | Frequencias Radio | 📻 | Emergencia, HAM, codigos Q, dicas | ✅ Funcional |
 | Fonetico NATO | 🎙️ | Tradutor A→Alpha, referencia completa | ✅ Funcional |
+| Sol / Lua | ☀️ | Nascer/por do sol, golden hour, fase da lua | ✅ Funcional |
 | Config Sistema | ⚙️ | Modelos, TTS, tema, sobre | ✅ Funcional (drawer) |
 
 ### Arquitetura do Window Manager

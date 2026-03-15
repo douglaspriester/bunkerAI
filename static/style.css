@@ -3541,6 +3541,19 @@ body {
 .morse-ref-char { font-size: 16px; font-weight: 700; color: var(--text-bright); }
 .morse-ref-code { font-size: 11px; color: var(--accent); font-family: var(--font-mono); letter-spacing: 1px; }
 
+/* ═══ Sun / Moon Calculator ═══ */
+.sun-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+}
+.sun-card {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px; text-align: center;
+}
+.sun-wide { grid-column: 1 / -1; }
+.sun-icon { font-size: 28px; margin-bottom: 4px; }
+.sun-label { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); margin-bottom: 4px; }
+.sun-value { font-size: 20px; color: var(--text-bright); font-family: var(--font-mono); font-weight: 600; }
+
 /* ═══ NATO Phonetic Alphabet ═══ */
 .phonetic-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
