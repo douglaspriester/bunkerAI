@@ -3541,6 +3541,45 @@ body {
 .morse-ref-char { font-size: 16px; font-weight: 700; color: var(--text-bright); }
 .morse-ref-code { font-size: 11px; color: var(--accent); font-family: var(--font-mono); letter-spacing: 1px; }
 
+/* ═══ NATO Phonetic Alphabet ═══ */
+.phonetic-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 6px;
+}
+.phonetic-card {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 8px 4px; background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--radius);
+}
+.phonetic-char {
+  font-size: 20px; font-weight: 700; color: var(--accent);
+  font-family: var(--font-display);
+}
+.phonetic-card span:last-child { font-size: 11px; color: var(--text); font-family: var(--font-mono); }
+.phonetic-word { color: var(--accent); }
+.phonetic-word strong { color: var(--text-bright); font-size: 1.1em; }
+.phonetic-space { color: var(--text-muted); margin: 0 4px; }
+
+/* ═══ Radio Frequencies ═══ */
+.radio-table {
+  width: 100%; border-collapse: collapse; margin-bottom: 8px;
+  font-family: var(--font-mono); font-size: 12px;
+}
+.radio-table th {
+  background: var(--surface-2); color: var(--accent);
+  padding: 6px 10px; text-align: left; font-weight: 600;
+  border-bottom: 1px solid var(--border-bright);
+}
+.radio-table td {
+  padding: 5px 10px; border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+.radio-table tr:hover td { background: rgba(0,212,255,0.04); }
+.radio-table tr.radio-critical td {
+  color: var(--text-bright); font-weight: 600;
+  background: rgba(255,60,60,0.06);
+}
+
 .morse-flash-overlay {
   position: fixed; inset: 0; z-index: 100000;
   background: rgba(0,0,0,0.95); display: none;

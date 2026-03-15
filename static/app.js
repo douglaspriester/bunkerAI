@@ -180,6 +180,8 @@ const OS_APPS = [
   { id: 'checklist',  name: 'Checklists',   icon: '\u2705', width: 500, height: 480, viewId: 'checklistView' },
   { id: 'compass',    name: 'Bussola',      icon: '\u{1F9ED}', width: 380, height: 440, viewId: 'compassView' },
   { id: 'morse',      name: 'Codigo Morse', icon: '\u{1F4E1}', width: 520, height: 500, viewId: 'morseView' },
+  { id: 'radio',      name: 'Frequencias',  icon: '\u{1F4FB}', width: 480, height: 500, viewId: 'radioView' },
+  { id: 'phonetic',   name: 'Fonetico NATO', icon: '\u{1F399}\uFE0F', width: 420, height: 480, viewId: 'phoneticView' },
   { id: 'settings',   name: 'Configura\u00E7\u00F5es', icon: '\u2699\uFE0F', width: 560, height: 520, viewId: null },
 ];
 
@@ -307,6 +309,7 @@ function _triggerAppOpen(appId) {
     case 'checklist': checklistInit(); break;
     case 'compass': compassInit(); break;
     case 'morse': morseInit(); break;
+    case 'phonetic': phoneticInit(); break;
   }
 }
 
@@ -5491,4 +5494,36 @@ function morseFlashSOS() {
     setTimeout(() => { idx++; isOn = !isOn; tick(); }, pattern[idx]);
   }
   tick();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// NATO PHONETIC ALPHABET
+// ═══════════════════════════════════════════════════════════════════════════
+
+const NATO_ALPHABET = {
+  A:'Alpha', B:'Bravo', C:'Charlie', D:'Delta', E:'Echo', F:'Foxtrot',
+  G:'Golf', H:'Hotel', I:'India', J:'Juliet', K:'Kilo', L:'Lima',
+  M:'Mike', N:'November', O:'Oscar', P:'Papa', Q:'Quebec', R:'Romeo',
+  S:'Sierra', T:'Tango', U:'Uniform', V:'Victor', W:'Whiskey', X:'X-ray',
+  Y:'Yankee', Z:'Zulu',
+  '0':'Zero', '1':'One', '2':'Two', '3':'Three', '4':'Four',
+  '5':'Five', '6':'Six', '7':'Seven', '8':'Eight', '9':'Niner'
+};
+
+function phoneticInit() {
+  phoneticTranslate();
+}
+
+function phoneticTranslate() {
+  const input = (document.getElementById('phoneticInput')?.value || '').toUpperCase();
+  const output = document.getElementById('phoneticOutput');
+  if (!output) return;
+  const words = input.split('').map(ch => {
+    if (ch === ' ') return '—';
+    return NATO_ALPHABET[ch] || ch;
+  }).filter(Boolean);
+  output.innerHTML = words.map(w =>
+    w === '—' ? '<span class="phonetic-space">—</span>'
+    : `<span class="phonetic-word"><strong>${w[0]}</strong>${w.slice(1)}</span>`
+  ).join(' ');
 }

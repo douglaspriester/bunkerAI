@@ -1042,6 +1042,123 @@ Use markdown: headers ##, listas com -, **negrito** para termos criticos, `codig
       </div>
     </div>
 
+    <!-- ═══ Radio Frequencies Reference ═══ -->
+    <div class="panel-view hidden" id="radioView">
+      <div style="padding:14px;overflow-y:auto;height:100%;font-size:13px">
+        <h3 style="color:var(--accent);margin-bottom:8px">🚨 Frequencias de Emergencia</h3>
+        <table class="radio-table">
+          <tr><th>Frequencia</th><th>Uso</th><th>Modo</th></tr>
+          <tr class="radio-critical"><td>156.8 MHz</td><td>Canal 16 — Socorro Maritimo Internacional</td><td>FM</td></tr>
+          <tr class="radio-critical"><td>121.5 MHz</td><td>Emergencia Aeronautica Internacional</td><td>AM</td></tr>
+          <tr class="radio-critical"><td>243.0 MHz</td><td>Emergencia Militar (UHF)</td><td>AM</td></tr>
+          <tr class="radio-critical"><td>406 MHz</td><td>Baliza de Emergencia (EPIRB/PLB)</td><td>Digital</td></tr>
+          <tr><td>462.5625 MHz</td><td>FRS Canal 1 (Radio Familiar)</td><td>FM</td></tr>
+          <tr><td>446.0 MHz</td><td>PMR446 Canal 1 (Europa)</td><td>FM</td></tr>
+          <tr><td>27.065 MHz</td><td>CB Canal 9 — Emergencia Cidadao</td><td>AM/SSB</td></tr>
+          <tr><td>27.185 MHz</td><td>CB Canal 19 — Caminhoneiros</td><td>AM</td></tr>
+        </table>
+
+        <h3 style="color:var(--accent);margin:16px 0 8px">📻 Radioamador (HAM) — Bandas Uteis</h3>
+        <table class="radio-table">
+          <tr><th>Banda</th><th>Faixa</th><th>Alcance</th><th>Uso</th></tr>
+          <tr><td>2m</td><td>144-148 MHz</td><td>Local (50-150km)</td><td>Repetidoras, contatos locais</td></tr>
+          <tr><td>70cm</td><td>430-440 MHz</td><td>Local (30-80km)</td><td>Repetidoras urbanas</td></tr>
+          <tr><td>40m</td><td>7.0-7.3 MHz</td><td>Regional-Global</td><td>Noturno, longa distancia</td></tr>
+          <tr><td>20m</td><td>14.0-14.35 MHz</td><td>Global</td><td>Diurno, contatos internacionais</td></tr>
+          <tr><td>80m</td><td>3.5-4.0 MHz</td><td>Regional (500km+)</td><td>Noturno, redes de emergencia</td></tr>
+        </table>
+
+        <h3 style="color:var(--accent);margin:16px 0 8px">📡 Frequencias de Chamada</h3>
+        <table class="radio-table">
+          <tr><th>Freq</th><th>Banda</th><th>Proposito</th></tr>
+          <tr><td>145.500 MHz</td><td>2m FM</td><td>Chamada nacional (simplex)</td></tr>
+          <tr><td>146.520 MHz</td><td>2m FM</td><td>Chamada nacional (USA)</td></tr>
+          <tr><td>433.500 MHz</td><td>70cm FM</td><td>Chamada UHF</td></tr>
+          <tr><td>7.090 MHz</td><td>40m SSB</td><td>Chamada HF regional</td></tr>
+          <tr><td>14.300 MHz</td><td>20m SSB</td><td>Rede de emergencia HF</td></tr>
+        </table>
+
+        <h3 style="color:var(--accent);margin:16px 0 8px">📋 Codigos Q Essenciais</h3>
+        <table class="radio-table">
+          <tr><th>Codigo</th><th>Significado</th></tr>
+          <tr><td>QRZ</td><td>Quem esta me chamando?</td></tr>
+          <tr><td>QTH</td><td>Qual sua localizacao?</td></tr>
+          <tr><td>QSL</td><td>Recebi sua transmissao</td></tr>
+          <tr><td>QSO</td><td>Contato de radio</td></tr>
+          <tr><td>QRM</td><td>Interferencia de outras estacoes</td></tr>
+          <tr><td>QRN</td><td>Interferencia atmosferica</td></tr>
+          <tr><td>QRT</td><td>Vou encerrar transmissao</td></tr>
+          <tr><td>QRV</td><td>Estou pronto para receber</td></tr>
+          <tr><td>QSY</td><td>Mude de frequencia</td></tr>
+          <tr><td>MAYDAY</td><td>Emergencia — perigo de vida</td></tr>
+          <tr><td>PAN-PAN</td><td>Urgencia — sem perigo imediato</td></tr>
+        </table>
+
+        <h3 style="color:var(--accent);margin:16px 0 8px">💡 Dicas</h3>
+        <ul style="color:var(--text);padding-left:20px;line-height:1.8">
+          <li>Mantenha baterias carregadas e extras</li>
+          <li>Fale devagar e repita informacoes criticas</li>
+          <li>Use alfabeto fonetico NATO (Alpha, Bravo, Charlie...)</li>
+          <li>Escute antes de transmitir</li>
+          <li>Em emergencia: "MAYDAY MAYDAY MAYDAY, aqui [seu indicativo/nome]"</li>
+          <li>Melhor horario para HF: nascer e por do sol</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ═══ NATO Phonetic Alphabet ═══ -->
+    <div class="panel-view hidden" id="phoneticView">
+      <div style="padding:14px;overflow-y:auto;height:100%">
+        <div class="morse-section" style="margin-bottom:14px">
+          <label class="morse-label">Converter para Fonetico NATO</label>
+          <input type="text" id="phoneticInput" class="morse-input" placeholder="Digite texto (ex: SOS HELP)" oninput="phoneticTranslate()">
+          <div class="phonetic-output" id="phoneticOutput" style="padding:10px;min-height:40px;background:var(--surface-2);border-radius:var(--radius);font-size:16px;line-height:1.8;color:var(--text-bright)"></div>
+        </div>
+        <h4 style="color:var(--accent);margin-bottom:8px">Alfabeto Completo</h4>
+        <div class="phonetic-grid">
+          <div class="phonetic-card"><span class="phonetic-char">A</span><span>Alpha</span></div>
+          <div class="phonetic-card"><span class="phonetic-char">B</span><span>Bravo</span></div>
+          <div class="phonetic-card"><span class="phonetic-char">C</span><span>Charlie</span></div>
+          <div class="phonetic-card"><span class="phonetic-char">D</span><span>Delta</span></div>
+          <div class="phonetic-card"><span class="phonetic-char">E</span><span>Echo</span></div>
+          <div class="phonetic-card"><span class="phonetic-char">F</span><span>Foxtrot</span></div>
+          <div class="phonetic-card"><span class="phonetic-char">G</span><span>Golf</span></div>
+          <div class="phonetic-card"><span class="phonetic-char">H</span><span>Hotel</span></div>
+          <div class="phonetic-card"><span class="phonetic-char">I</span><span>India</span></div>
+          <div class="phonetic-card"><span class="phonetic-char">J</span><span>Juliet</span></div>
+          <div class="phonetic-card"><span class="phonetic-char">K</span><span>Kilo</span></div>
+          <div class="phonetic-card"><span class="phonetic-char">L</span><span>Lima</span></div>
+          <div class="phonetic-card"><span class="phonetic-char">M</span><span>Mike</span></div>
+          <div class="phonetic-card"><span class="phonetic-char">N</span><span>November</span></div>
+          <div class="phonetic-card"><span class="phonetic-char">O</span><span>Oscar</span></div>
+          <div class="phonetic-card"><span class="phonetic-char">P</span><span>Papa</span></div>
+          <div class="phonetic-card"><span class="phonetic-char">Q</span><span>Quebec</span></div>
+          <div class="phonetic-card"><span class="phonetic-char">R</span><span>Romeo</span></div>
+          <div class="phonetic-card"><span class="phonetic-char">S</span><span>Sierra</span></div>
+          <div class="phonetic-card"><span class="phonetic-char">T</span><span>Tango</span></div>
+          <div class="phonetic-card"><span class="phonetic-char">U</span><span>Uniform</span></div>
+          <div class="phonetic-card"><span class="phonetic-char">V</span><span>Victor</span></div>
+          <div class="phonetic-card"><span class="phonetic-char">W</span><span>Whiskey</span></div>
+          <div class="phonetic-card"><span class="phonetic-char">X</span><span>X-ray</span></div>
+          <div class="phonetic-card"><span class="phonetic-char">Y</span><span>Yankee</span></div>
+          <div class="phonetic-card"><span class="phonetic-char">Z</span><span>Zulu</span></div>
+        </div>
+        <h4 style="color:var(--accent);margin:12px 0 8px">Numeros</h4>
+        <div class="phonetic-grid">
+          <div class="phonetic-card"><span class="phonetic-char">0</span><span>Zero</span></div>
+          <div class="phonetic-card"><span class="phonetic-char">1</span><span>One</span></div>
+          <div class="phonetic-card"><span class="phonetic-char">2</span><span>Two</span></div>
+          <div class="phonetic-card"><span class="phonetic-char">3</span><span>Three</span></div>
+          <div class="phonetic-card"><span class="phonetic-char">4</span><span>Four</span></div>
+          <div class="phonetic-card"><span class="phonetic-char">5</span><span>Five</span></div>
+          <div class="phonetic-card"><span class="phonetic-char">6</span><span>Six</span></div>
+          <div class="phonetic-card"><span class="phonetic-char">7</span><span>Seven</span></div>
+          <div class="phonetic-card"><span class="phonetic-char">8</span><span>Eight</span></div>
+          <div class="phonetic-card"><span class="phonetic-char">9</span><span>Niner</span></div>
+        </div>
+      </div>
+    </div>
+
     <!-- ═══ Unit Converter ═══ -->
     <div class="panel-view hidden" id="converterView">
       <div class="conv-body">

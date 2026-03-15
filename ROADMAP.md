@@ -89,7 +89,9 @@ Roda num PC com placa de video boa, sem internet, usando modelos locais via Olla
 | Conversor | 🔢 | Temperatura, distancia, peso, volume, velocidade | ✅ Funcional |
 | Checklists | ✅ | Listas com templates de sobrevivencia, progresso | ✅ Funcional |
 | Bussola | 🧭 | Bussola com sensor ou manual, direcoes cardeais | ✅ Funcional |
-| Codigo Morse | 📡 | Tradutor texto↔morse, audio, referencia, SOS | ✅ Funcional |
+| Codigo Morse | 📡 | Tradutor texto↔morse, audio, flash SOS, referencia | ✅ Funcional |
+| Frequencias Radio | 📻 | Emergencia, HAM, codigos Q, dicas | ✅ Funcional |
+| Fonetico NATO | 🎙️ | Tradutor A→Alpha, referencia completa | ✅ Funcional |
 | Config Sistema | ⚙️ | Modelos, TTS, tema, sobre | ✅ Funcional (drawer) |
 
 ### Arquitetura do Window Manager
