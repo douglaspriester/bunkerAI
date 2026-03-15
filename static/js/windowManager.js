@@ -33,6 +33,7 @@ export const OS_APPS = [
   { id: 'sun',        name: 'Sol / Lua',     icon: '\u2600\uFE0F', width: 400, height: 460, viewId: 'sunView' },
   { id: 'waterCalc',  name: 'Agua Segura',   icon: '\u{1F4A7}', width: 420, height: 500, viewId: 'waterCalcView' },
   { id: 'calendar',   name: 'Calend\u00E1rio', icon: '\u{1F4C5}', width: 400, height: 420, viewId: 'calendarView' },
+  { id: 'tasks',      name: 'Agenda',        icon: '\u{1F4CC}', width: 600, height: 520, viewId: 'tasksView' },
   { id: 'terminal',   name: 'Terminal',      icon: '\u{1F4DF}', width: 700, height: 440, viewId: 'terminalView' },
   { id: 'fileManager', name: 'Arquivos',    icon: '\u{1F4C1}', width: 720, height: 500, viewId: 'fileManagerView' },
   { id: 'paint',      name: 'Paint',        icon: '\u{1F3A8}', width: 780, height: 560, viewId: 'paintView' },
@@ -361,16 +362,46 @@ export function renderTaskbar() {
   }
 }
 
-// ─── Desktop Icons ──────────────────────────────────────────────────────────
+// ─── Desktop Icons (with drag-and-drop reorder) ─────────────────────────────
+let _draggedIcon = null;
+
+function getIconOrder() {
+  try {
+    const saved = localStorage.getItem('bunker_icon_order');
+    return saved ? JSON.parse(saved) : null;
+  } catch { return null; }
+}
+
+function saveIconOrder() {
+  const container = document.getElementById('desktopIcons');
+  if (!container) return;
+  const order = [...container.children].map(el => el.dataset.appId).filter(Boolean);
+  try { localStorage.setItem('bunker_icon_order', JSON.stringify(order)); } catch {}
+}
+
 export function renderDesktopIcons() {
   const container = document.getElementById('desktopIcons');
   if (!container) return;
   container.innerHTML = '';
-  for (const app of OS_APPS) {
-    if (app.hidden) continue;
+
+  // Get apps in saved order, with new apps appended at end
+  const savedOrder = getIconOrder();
+  let visibleApps = OS_APPS.filter(a => !a.hidden);
+  if (savedOrder) {
+    const ordered = [];
+    const remaining = [...visibleApps];
+    for (const id of savedOrder) {
+      const idx = remaining.findIndex(a => a.id === id);
+      if (idx !== -1) { ordered.push(remaining.splice(idx, 1)[0]); }
+    }
+    visibleApps = [...ordered, ...remaining];
+  }
+
+  for (const app of visibleApps) {
     const icon = document.createElement('div');
     icon.className = 'desktop-icon';
     icon.dataset.appId = app.id;
+    icon.draggable = true;
     icon.innerHTML = `
       <div class="desktop-icon-img">${app.icon}</div>
       <div class="desktop-icon-label">${app.name}</div>
@@ -384,6 +415,43 @@ export function renderDesktopIcons() {
       document.querySelectorAll('.desktop-icon.selected').forEach(el => el.classList.remove('selected'));
       icon.classList.add('selected');
     };
+
+    // Drag-and-drop reordering
+    icon.addEventListener('dragstart', (e) => {
+      _draggedIcon = icon;
+      icon.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', app.id);
+    });
+    icon.addEventListener('dragend', () => {
+      icon.classList.remove('dragging');
+      _draggedIcon = null;
+      container.querySelectorAll('.desktop-icon.drag-over').forEach(el => el.classList.remove('drag-over'));
+      saveIconOrder();
+    });
+    icon.addEventListener('dragover', (e) => {
+      if (!_draggedIcon || _draggedIcon === icon) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      icon.classList.add('drag-over');
+    });
+    icon.addEventListener('dragleave', () => {
+      icon.classList.remove('drag-over');
+    });
+    icon.addEventListener('drop', (e) => {
+      e.preventDefault();
+      icon.classList.remove('drag-over');
+      if (!_draggedIcon || _draggedIcon === icon) return;
+      const allIcons = [...container.children];
+      const fromIdx = allIcons.indexOf(_draggedIcon);
+      const toIdx = allIcons.indexOf(icon);
+      if (fromIdx < toIdx) {
+        container.insertBefore(_draggedIcon, icon.nextSibling);
+      } else {
+        container.insertBefore(_draggedIcon, icon);
+      }
+    });
+
     container.appendChild(icon);
   }
 }

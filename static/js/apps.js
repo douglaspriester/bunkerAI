@@ -4030,6 +4030,156 @@ function waterCalcCompute() {
 }
 
 
+// ─── Agenda / Tasks ──────────────────────────────────────────────────────────
+let _tasks = [];
+let _taskEditId = null;
+
+function tasksInit() {
+  _taskEditId = null;
+  taskCancelForm();
+  taskLoad();
+}
+window.tasksInit = tasksInit;
+
+function taskLoad() {
+  const filter = document.getElementById('taskFilter')?.value || '';
+  const url = '/api/tasks' + (filter ? '?status=' + filter : '');
+  fetch(url)
+    .then(r => r.json())
+    .then(data => {
+      _tasks = data;
+      taskRender();
+    })
+    .catch(err => {
+      const list = document.getElementById('tasksList');
+      if (list) list.innerHTML = '<div class="task-empty">Erro ao carregar: ' + escapeHtml(err.message) + '</div>';
+    });
+}
+window.taskLoad = taskLoad;
+
+function taskRender() {
+  const list = document.getElementById('tasksList');
+  const counter = document.getElementById('taskCounter');
+  if (!list) return;
+
+  if (counter) {
+    const pending = _tasks.filter(t => t.status !== 'done').length;
+    counter.textContent = `${_tasks.length} tarefa${_tasks.length !== 1 ? 's' : ''} (${pending} pendente${pending !== 1 ? 's' : ''})`;
+  }
+
+  if (!_tasks.length) {
+    list.innerHTML = '<div class="task-empty">\u{1F4CC} Nenhuma tarefa ainda.<br>Clique em "+ Nova Tarefa" para comecar.</div>';
+    return;
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  list.innerHTML = _tasks.map(t => {
+    const isDone = t.status === 'done';
+    const isOverdue = t.due_date && t.due_date < today && !isDone;
+    const priClass = 'pri-' + t.priority;
+    const priLabel = { critical: 'CRITICA', high: 'ALTA', medium: 'MEDIA', low: 'BAIXA' }[t.priority] || t.priority;
+    const statusIcon = { pending: '', doing: '\u{1F504} ', done: '\u2705 ' }[t.status] || '';
+
+    return `<div class="task-item ${isDone ? 'task-done' : ''}">
+      <div class="task-check ${isDone ? 'checked' : ''}" onclick="taskToggle(${t.id})">${isDone ? '\u2713' : ''}</div>
+      <div class="task-body">
+        <div class="task-title">${statusIcon}${escapeHtml(t.title)}</div>
+        <div class="task-meta">
+          <span class="task-badge ${priClass}">${priLabel}</span>
+          <span class="task-badge cat">${escapeHtml(t.category)}</span>
+          ${t.due_date ? `<span class="task-due ${isOverdue ? 'overdue' : ''}">${isOverdue ? '\u26A0 ' : '\u{1F4C5} '}${t.due_date}</span>` : ''}
+        </div>
+        ${t.description ? `<div class="task-desc">${escapeHtml(t.description)}</div>` : ''}
+      </div>
+      <div class="task-actions">
+        <button onclick="taskEdit(${t.id})" title="Editar">\u270F\uFE0F</button>
+        <button onclick="taskDelete(${t.id})" title="Excluir">\u{1F5D1}\uFE0F</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function taskShowForm() {
+  document.getElementById('taskForm')?.classList.remove('hidden');
+  document.getElementById('taskTitle')?.focus();
+}
+window.taskShowForm = taskShowForm;
+
+function taskCancelForm() {
+  document.getElementById('taskForm')?.classList.add('hidden');
+  document.getElementById('taskTitle').value = '';
+  document.getElementById('taskDesc').value = '';
+  document.getElementById('taskPriority').value = 'medium';
+  document.getElementById('taskCategory').value = 'geral';
+  document.getElementById('taskDue').value = '';
+  _taskEditId = null;
+  document.getElementById('taskSaveBtn').textContent = 'Salvar';
+}
+window.taskCancelForm = taskCancelForm;
+
+function taskSave() {
+  const title = document.getElementById('taskTitle')?.value.trim();
+  if (!title) { osToast('Titulo obrigatorio', 2000, 'warning'); return; }
+
+  const body = {
+    title,
+    description: document.getElementById('taskDesc')?.value || '',
+    priority: document.getElementById('taskPriority')?.value || 'medium',
+    category: document.getElementById('taskCategory')?.value || 'geral',
+    due_date: document.getElementById('taskDue')?.value || null,
+  };
+
+  const url = _taskEditId ? `/api/tasks/${_taskEditId}` : '/api/tasks';
+  const method = _taskEditId ? 'PUT' : 'POST';
+
+  fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    .then(r => r.json())
+    .then(() => {
+      taskCancelForm();
+      taskLoad();
+      osToast(_taskEditId ? '\u{1F4CC} Tarefa atualizada' : '\u{1F4CC} Tarefa criada', 2000, 'success');
+    })
+    .catch(err => osToast('Erro: ' + err.message, 3000, 'error'));
+}
+window.taskSave = taskSave;
+
+function taskToggle(id) {
+  const task = _tasks.find(t => t.id === id);
+  if (!task) return;
+  const newStatus = task.status === 'done' ? 'pending' : 'done';
+  fetch(`/api/tasks/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: newStatus }),
+  })
+    .then(() => taskLoad())
+    .catch(err => osToast('Erro: ' + err.message, 3000, 'error'));
+}
+window.taskToggle = taskToggle;
+
+function taskEdit(id) {
+  const task = _tasks.find(t => t.id === id);
+  if (!task) return;
+  _taskEditId = id;
+  document.getElementById('taskTitle').value = task.title;
+  document.getElementById('taskDesc').value = task.description || '';
+  document.getElementById('taskPriority').value = task.priority;
+  document.getElementById('taskCategory').value = task.category;
+  document.getElementById('taskDue').value = task.due_date || '';
+  document.getElementById('taskSaveBtn').textContent = 'Atualizar';
+  taskShowForm();
+}
+window.taskEdit = taskEdit;
+
+function taskDelete(id) {
+  if (!confirm('Excluir esta tarefa?')) return;
+  fetch(`/api/tasks/${id}`, { method: 'DELETE' })
+    .then(() => { taskLoad(); osToast('\u{1F5D1}\uFE0F Tarefa excluida', 2000, 'info'); })
+    .catch(err => osToast('Erro: ' + err.message, 3000, 'error'));
+}
+window.taskDelete = taskDelete;
+
+
 // ─── Terminal ────────────────────────────────────────────────────────────────
 let _termHistory = [];
 let _termHistIdx = -1;

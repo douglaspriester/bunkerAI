@@ -34,6 +34,31 @@ from fastapi.staticfiles import StaticFiles
 
 app = FastAPI(title="Bunker AI")
 
+# ─── Simple rate limiter ──────────────────────────────────────────────────────
+from collections import defaultdict
+_rate_buckets = defaultdict(list)  # { key: [timestamps] }
+RATE_LIMITS = {
+    "terminal": (10, 60),    # 10 requests per 60 seconds
+    "chat": (30, 60),        # 30 requests per 60 seconds
+    "build": (10, 60),       # 10 requests per 60 seconds
+    "tts": (20, 60),         # 20 requests per 60 seconds
+}
+
+def _check_rate_limit(key: str, client_ip: str = "local") -> bool:
+    """Returns True if rate limited (should block)."""
+    if key not in RATE_LIMITS:
+        return False
+    max_req, window = RATE_LIMITS[key]
+    bucket_key = f"{key}:{client_ip}"
+    now = time.time()
+    # Prune old entries
+    _rate_buckets[bucket_key] = [t for t in _rate_buckets[bucket_key] if t > now - window]
+    if len(_rate_buckets[bucket_key]) >= max_req:
+        return True
+    _rate_buckets[bucket_key].append(now)
+    return False
+
+
 OLLAMA_BASE = os.getenv("OLLAMA_URL", "http://localhost:11434")
 GENERATED_DIR = Path("generated_apps")
 GENERATED_DIR.mkdir(exist_ok=True)
@@ -547,6 +572,8 @@ async def list_pyttsx3_voices():
 
 @app.post("/api/chat")
 async def chat(request: Request):
+    if _check_rate_limit("chat", request.client.host if request.client else "local"):
+        return JSONResponse({"error": "Limite de taxa excedido. Aguarde."}, status_code=429)
     body = await request.json()
     model = body.get("model", "gemma3:12b")
     messages = body.get("messages", [])
@@ -797,6 +824,17 @@ def _init_db():
             title TEXT DEFAULT 'Sem titulo',
             content TEXT DEFAULT '',
             doc_type TEXT DEFAULT 'text',
+            created_at TEXT DEFAULT (datetime('now','localtime')),
+            updated_at TEXT DEFAULT (datetime('now','localtime'))
+        );
+        CREATE TABLE IF NOT EXISTS tasks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            description TEXT DEFAULT '',
+            priority TEXT DEFAULT 'medium',
+            status TEXT DEFAULT 'pending',
+            due_date TEXT,
+            category TEXT DEFAULT 'geral',
             created_at TEXT DEFAULT (datetime('now','localtime')),
             updated_at TEXT DEFAULT (datetime('now','localtime'))
         );
@@ -1229,6 +1267,78 @@ async def delete_note(note_id: int):
     return {"ok": True}
 
 
+# ─── Tasks / Agenda API ───────────────────────────────────────────────────────
+
+@app.get("/api/tasks")
+async def list_tasks(status: str = None, category: str = None):
+    conn = _db()
+    sql = "SELECT * FROM tasks"
+    params = []
+    conditions = []
+    if status:
+        conditions.append("status=?")
+        params.append(status)
+    if category:
+        conditions.append("category=?")
+        params.append(category)
+    if conditions:
+        sql += " WHERE " + " AND ".join(conditions)
+    sql += " ORDER BY CASE priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 END, due_date ASC NULLS LAST, created_at DESC"
+    rows = conn.execute(sql, params).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+@app.post("/api/tasks")
+async def create_task(request: Request):
+    body = await request.json()
+    title = body.get("title", "").strip()
+    if not title:
+        return JSONResponse({"error": "Titulo obrigatorio"}, status_code=400)
+    conn = _db()
+    cur = conn.execute(
+        "INSERT INTO tasks (title, description, priority, category, due_date) VALUES (?,?,?,?,?)",
+        (title, body.get("description", ""), body.get("priority", "medium"),
+         body.get("category", "geral"), body.get("due_date")),
+    )
+    conn.commit()
+    task_id = cur.lastrowid
+    row = conn.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone()
+    conn.close()
+    return dict(row)
+
+
+@app.put("/api/tasks/{task_id}")
+async def update_task(task_id: int, request: Request):
+    body = await request.json()
+    conn = _db()
+    fields = []
+    params = []
+    for key in ("title", "description", "priority", "status", "due_date", "category"):
+        if key in body:
+            fields.append(f"{key}=?")
+            params.append(body[key])
+    if not fields:
+        conn.close()
+        return JSONResponse({"error": "Nada para atualizar"}, status_code=400)
+    fields.append("updated_at=datetime('now','localtime')")
+    params.append(task_id)
+    conn.execute(f"UPDATE tasks SET {', '.join(fields)} WHERE id=?", params)
+    conn.commit()
+    row = conn.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else {"ok": True}
+
+
+@app.delete("/api/tasks/{task_id}")
+async def delete_task(task_id: int):
+    conn = _db()
+    conn.execute("DELETE FROM tasks WHERE id=?", (task_id,))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
 # ─── Terminal ─────────────────────────────────────────────────────────────────
 
 TERMINAL_ALLOWED_CMDS = {
@@ -1242,10 +1352,14 @@ TERMINAL_ALLOWED_CMDS = {
 
 @app.post("/api/terminal")
 async def terminal_exec(request: Request):
+    if _check_rate_limit("terminal", request.client.host if request.client else "local"):
+        return JSONResponse({"output": "bunker-sh: limite de taxa excedido. Aguarde.", "exit_code": 1}, status_code=429)
     body = await request.json()
     cmd = body.get("command", "").strip()
     if not cmd:
         return {"output": "", "exit_code": 0}
+    if len(cmd) > 1000:
+        return {"output": "bunker-sh: comando muito longo (max 1000 chars)", "exit_code": 1}
 
     # Extract the base command for allowlist check
     base_cmd = cmd.split()[0].split("/")[-1].split("\\")[-1].lower()

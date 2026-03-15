@@ -1222,6 +1222,49 @@ Use markdown: headers ##, listas com -, **negrito** para termos criticos, `codig
       </div>
     </div>
 
+    <!-- ═══ Agenda / Tasks ═══ -->
+    <div class="panel-view hidden" id="tasksView">
+      <div class="tasks-toolbar">
+        <button class="fm-btn" onclick="taskShowForm()" id="taskAddBtn">+ Nova Tarefa</button>
+        <select class="conv-select" id="taskFilter" onchange="taskLoad()" style="font-size:12px">
+          <option value="">Todas</option>
+          <option value="pending">Pendentes</option>
+          <option value="doing">Em andamento</option>
+          <option value="done">Concluidas</option>
+        </select>
+        <div style="flex:1"></div>
+        <span class="task-counter" id="taskCounter">0 tarefas</span>
+      </div>
+      <div class="tasks-form hidden" id="taskForm">
+        <input type="text" id="taskTitle" class="task-input" placeholder="Titulo da tarefa..." />
+        <textarea id="taskDesc" class="task-input task-textarea" placeholder="Descricao (opcional)" rows="2"></textarea>
+        <div class="tasks-form-row">
+          <select id="taskPriority" class="conv-select">
+            <option value="low">🟢 Baixa</option>
+            <option value="medium" selected>🟡 Media</option>
+            <option value="high">🟠 Alta</option>
+            <option value="critical">🔴 Critica</option>
+          </select>
+          <select id="taskCategory" class="conv-select">
+            <option value="geral">Geral</option>
+            <option value="seguranca">Seguranca</option>
+            <option value="suprimentos">Suprimentos</option>
+            <option value="saude">Saude</option>
+            <option value="comunicacao">Comunicacao</option>
+            <option value="construcao">Construcao</option>
+          </select>
+          <input type="date" id="taskDue" class="task-input" style="width:140px" />
+        </div>
+        <div class="tasks-form-row">
+          <button class="fm-btn" onclick="taskSave()" id="taskSaveBtn">Salvar</button>
+          <button class="fm-btn" onclick="taskCancelForm()">Cancelar</button>
+        </div>
+      </div>
+      <div class="tasks-list" id="tasksList">
+        <div class="fm-loading">Carregando...</div>
+      </div>
+    </div>
+
     <!-- ═══ Terminal ═══ -->
     <div class="panel-view hidden" id="terminalView">
       <div class="terminal-body" id="terminalBody">

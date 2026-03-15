@@ -175,6 +175,7 @@ function wireAppCallbacks() {
     phonetic:   () => window.phoneticInit?.(),
     sun:        () => window.sunCalcInit?.(),
     waterCalc:  () => window.waterCalcCompute?.(),
+    tasks:      () => window.tasksInit?.(),
     terminal:   () => window.terminalInit?.(),
     fileManager: () => window.fileManagerInit?.(),
     paint:      () => window.paintInit?.(),
