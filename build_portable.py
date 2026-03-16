@@ -41,6 +41,10 @@ LLAMA_CPP_URLS = {
     "linux": f"https://github.com/ggml-org/llama.cpp/releases/download/{LLAMA_CPP_VERSION}/llama-{LLAMA_CPP_VERSION}-bin-ubuntu-x64.zip",
 }
 
+# Chrome for Testing — portable Chromium (no install needed)
+# API: https://googlechromelabs.github.io/chrome-for-testing/
+CHROME_TESTING_JSON = "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json"
+
 # ─── Modelos built-in (UNCENSORED por padrao) ────────────────────────────────
 # Filosofia: Em cenarios de sobrevivencia, censura pode custar vidas.
 # Todos os modelos built-in sao uncensored ou sem filtros de seguranca.
@@ -149,7 +153,7 @@ def extract_zip(zip_path: Path, dest_dir: Path):
 
 # ── Build steps ───────────────────────────────────────────────────────────────
 
-def build_portable(output_dir: Path, skip_model: bool = False, cpu_only: bool = False):
+def build_portable(output_dir: Path, skip_model: bool = False, cpu_only: bool = False, skip_chrome: bool = False):
     """Assemble the portable package."""
 
     print()
@@ -173,7 +177,7 @@ def build_portable(output_dir: Path, skip_model: bool = False, cpu_only: bool = 
     tmp_dir.mkdir(exist_ok=True)
 
     # ─── 1. Python embeddable ────────────────────────────────────────────────
-    step("1/5 — Python embeddable")
+    step("1/6 — Python embeddable")
 
     if os_name == "windows":
         python_zip = tmp_dir / "python-embed.zip"
@@ -213,7 +217,7 @@ def build_portable(output_dir: Path, skip_model: bool = False, cpu_only: bool = 
         info("Linux: usando Python do sistema (python3)")
 
     # ─── 2. llama.cpp server ─────────────────────────────────────────────────
-    step("2/5 — llama.cpp server")
+    step("2/6 — llama.cpp server")
 
     llama_url = LLAMA_CPP_URLS.get(os_name)
     if llama_url:
@@ -244,7 +248,7 @@ def build_portable(output_dir: Path, skip_model: bool = False, cpu_only: bool = 
         warn(f"Plataforma {os_name} nao suportada para download automatico")
 
     # ─── 3. Modelos GGUF ────────────────────────────────────────────────────
-    step("3/5 — Modelos LLM built-in")
+    step("3/6 — Modelos LLM built-in")
 
     models_dir = output_dir / "models"
     models_dir.mkdir(exist_ok=True)
@@ -281,8 +285,52 @@ def build_portable(output_dir: Path, skip_model: bool = False, cpu_only: bool = 
     }
     (models_dir / "manifest.json").write_text(_json.dumps(manifest, indent=2, ensure_ascii=False))
 
-    # ─── 4. Copiar app ──────────────────────────────────────────────────────
-    step("4/5 — Copiando app Bunker AI")
+    # ─── 4. Chromium portátil ─────────────────────────────────────────────
+    step("4/6 — Chromium portátil (browser embutido)")
+
+    chrome_dir = runtime_dir / "chrome"
+    if skip_chrome:
+        warn("Download do Chromium pulado (--skip-chrome)")
+        warn("O app usará o browser do sistema")
+    else:
+        try:
+            import json as _json2
+            req = urllib.request.Request(CHROME_TESTING_JSON, headers={"User-Agent": "BunkerAI-Builder/1.0"})
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                cft_data = _json2.loads(resp.read())
+
+            channel = cft_data.get("channels", {}).get("Stable", {})
+            chrome_version = channel.get("version", "unknown")
+            chrome_dl = None
+            for dl in channel.get("downloads", {}).get("chrome", []):
+                if os_name == "windows" and dl["platform"] == "win64":
+                    chrome_dl = dl["url"]
+                elif os_name == "linux" and dl["platform"] == "linux64":
+                    chrome_dl = dl["url"]
+
+            if chrome_dl:
+                chrome_zip = tmp_dir / "chrome-portable.zip"
+                if download(chrome_dl, chrome_zip, f"Chrome {chrome_version} portátil"):
+                    extract_zip(chrome_zip, chrome_dir)
+                    # Chrome for Testing extracts to a subfolder like chrome-win64/ or chrome-linux64/
+                    # Move contents up if needed
+                    subdirs = [d for d in chrome_dir.iterdir() if d.is_dir()]
+                    if len(subdirs) == 1:
+                        subdir = subdirs[0]
+                        for item in subdir.iterdir():
+                            shutil.move(str(item), str(chrome_dir / item.name))
+                        subdir.rmdir()
+                    info(f"Chrome {chrome_version} portátil instalado")
+                else:
+                    warn("Falha ao baixar Chromium — usará browser do sistema")
+            else:
+                warn(f"Chrome for Testing não disponível para {os_name}")
+        except Exception as e:
+            warn(f"Erro ao obter Chrome portátil: {e}")
+            warn("O app usará o browser do sistema como fallback")
+
+    # ─── 5. Copiar app ──────────────────────────────────────────────────────
+    step("5/6 — Copiando app Bunker AI")
 
     # Copy app files
     app_files = [
@@ -307,8 +355,8 @@ def build_portable(output_dir: Path, skip_model: bool = False, cpu_only: bool = 
     for d in ["generated_apps", "tts_cache", "voice_models"]:
         (output_dir / d).mkdir(exist_ok=True)
 
-    # ─── 5. Criar launchers ─────────────────────────────────────────────────
-    step("5/5 — Criando launchers")
+    # ─── 6. Criar launchers ─────────────────────────────────────────────────
+    step("6/6 — Criando launchers")
 
     # Write INICIAR.bat
     iniciar_bat = output_dir / "INICIAR.bat"
@@ -338,10 +386,16 @@ def build_portable(output_dir: Path, skip_model: bool = False, cpu_only: bool = 
     print(f"  Pasta:    {output_dir.resolve()}")
     print(f"  Tamanho:  {total_mb:.0f} MB")
     print()
+    has_chrome = (chrome_dir / "chrome.exe").exists() or (chrome_dir / "chrome").exists()
+    print(f"  Browser:  {'Chromium portátil embutido' if has_chrome else 'Usa browser do sistema'}")
+    print()
     print(f"  Para usar:")
     print(f"    1. Copie a pasta '{output_dir.name}' para o pendrive")
     print(f"    2. No PC destino, double-click em {bold('INICIAR.bat')}")
-    print(f"    3. Abra o navegador em http://localhost:8888")
+    if has_chrome:
+        print(f"    3. O Chromium abre automaticamente (modo app, sem barra)")
+    else:
+        print(f"    3. Abra o navegador em http://localhost:8888")
     print()
     dp = "DON'T PANIC"
     print(f"  {bold(dp)}")
@@ -531,7 +585,20 @@ echo ================================================================
 echo.
 
 REM ---- Abrir navegador ----
-start "" http://localhost:8888
+REM Prioridade: Chromium portatil > browser do sistema
+set "CHROME_EXE="
+if exist "runtime\chrome\chrome.exe" (
+    set "CHROME_EXE=runtime\chrome\chrome.exe"
+    echo [OK] Chromium portatil encontrado
+)
+
+if defined CHROME_EXE (
+    REM Modo --app = sem barra de endereco, parece app nativo
+    start "" "!CHROME_EXE!" --app=http://localhost:8888 --user-data-dir="%~dp0runtime\chrome-data" --disable-background-networking --disable-default-apps --no-first-run --disable-extensions --window-size=1280,800
+) else (
+    echo [--] Chromium portatil nao encontrado — abrindo browser do sistema
+    start "" http://localhost:8888
+)
 
 REM ---- Iniciar servidor ----
 if "!USE_LLAMA_CPP!"=="1" (
@@ -650,6 +717,24 @@ echo "  Aperte Ctrl+C para parar"
 echo "══════════════════════════════════════════════════════════════"
 echo ""
 
+# ─── Abrir navegador ─────────────────────────────────
+CHROME_EXE=""
+if [ -x "runtime/chrome/chrome" ]; then
+    CHROME_EXE="runtime/chrome/chrome"
+    echo "[OK] Chromium portatil encontrado"
+fi
+
+if [ -n "$CHROME_EXE" ]; then
+    "$CHROME_EXE" --app=http://localhost:8888 --user-data-dir="$(pwd)/runtime/chrome-data" --disable-background-networking --disable-default-apps --no-first-run --disable-extensions --window-size=1280,800 &>/dev/null &
+else
+    echo "[--] Chromium portatil nao encontrado — abrindo browser do sistema"
+    if command -v xdg-open &>/dev/null; then
+        xdg-open http://localhost:8888 &
+    elif command -v open &>/dev/null; then
+        open http://localhost:8888 &
+    fi
+fi
+
 $PYTHON_EXE -m uvicorn server:app --host 0.0.0.0 --port 8888
 
 # Cleanup
@@ -667,7 +752,10 @@ if __name__ == "__main__":
                        help="Pular download dos modelos (coloque manualmente depois)")
     parser.add_argument("--cpu-only", action="store_true",
                        help="Baixar apenas o modelo CPU (pendrive menor, ~1 GB)")
+    parser.add_argument("--skip-chrome", action="store_true",
+                       help="Pular download do Chromium portátil (usa browser do sistema)")
     args = parser.parse_args()
 
     output = Path(args.output)
-    build_portable(output, skip_model=args.skip_model, cpu_only=args.cpu_only)
+    build_portable(output, skip_model=args.skip_model, cpu_only=args.cpu_only,
+                   skip_chrome=args.skip_chrome)
