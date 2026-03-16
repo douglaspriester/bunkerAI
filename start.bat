@@ -55,8 +55,9 @@ echo [..] Verificando modelos necessarios...
 echo     (primeiro download pode demorar, mas so acontece uma vez^)
 echo.
 
-call :pull_model "gemma3:12b" "chat principal + visao"
-call :pull_model "dolphin3" "cerebro sem filtros"
+call :pull_model "dolphin3" "chat principal uncensored"
+call :pull_model "dolphin-llama3.1:8b" "chat avancado uncensored"
+call :pull_model "gemma3:12b" "visao + multimodal"
 call :pull_model "qwen2.5-coder:7b" "app builder + codigo"
 
 :skip_models
@@ -99,6 +100,7 @@ if not exist "data\db" mkdir "data\db" 2>nul
 if not exist "tools" mkdir "tools" 2>nul
 if not exist "static\lib" mkdir "static\lib" 2>nul
 if not exist "static\maps" mkdir "static\maps" 2>nul
+if not exist "kokoro_models" mkdir "kokoro_models" 2>nul
 
 REM ---- Auto-setup (primeira execucao) ----
 if not exist "data\.setup_complete" (

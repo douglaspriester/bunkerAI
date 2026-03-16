@@ -200,6 +200,123 @@ function updateGuideFavBtn() {
 function toggleConfig() {
   document.getElementById("configOverlay").classList.toggle("hidden");
   document.getElementById("configDrawer").classList.toggle("hidden");
+  // Update status when opening
+  if (!document.getElementById("configDrawer").classList.contains("hidden")) {
+    updateConfigStatus();
+    checkKokoroStatus();
+  }
+}
+
+function switchConfigTab(btn) {
+  const tabId = btn.dataset.tab;
+  // Deactivate all tabs
+  document.querySelectorAll(".config-tab").forEach(t => t.classList.remove("active"));
+  document.querySelectorAll(".config-tab-content").forEach(c => c.classList.remove("active"));
+  // Activate clicked
+  btn.classList.add("active");
+  const content = document.getElementById(tabId);
+  if (content) content.classList.add("active");
+}
+
+function updateConfigStatus() {
+  const d = state._lastHealth || {};
+
+  // Status chips at top of IA tab
+  const chipBackend = document.getElementById("cfgChipBackend");
+  const chipModels = document.getElementById("cfgChipModels");
+  const chipTTS = document.getElementById("cfgChipTTS");
+
+  if (chipBackend) {
+    const online = d.status === "online";
+    const label = d.backend === "ollama" ? "Ollama" : d.backend === "llama.cpp" ? "llama.cpp" : "Offline";
+    chipBackend.textContent = label;
+    chipBackend.className = "config-status-chip " + (online ? "ok" : "warn");
+  }
+  if (chipModels) {
+    const count = (d.models || []).length;
+    chipModels.textContent = count > 0 ? `${count} modelo${count > 1 ? "s" : ""}` : "0 modelos";
+    chipModels.className = "config-status-chip " + (count > 0 ? "ok" : "warn");
+  }
+  if (chipTTS) {
+    const names = { kokoro: "Kokoro", piper: "Piper", pyttsx3: "Sistema", "edge-tts": "Edge" };
+    chipTTS.textContent = names[d.tts] || d.tts || "\u2014";
+    chipTTS.className = "config-status-chip " + (d.tts_offline ? "ok" : "warn");
+  }
+}
+
+async function checkKokoroStatus() {
+  const dot = document.getElementById("kokoroStatusDot");
+  const text = document.getElementById("kokoroStatusText");
+  const btn = document.getElementById("kokoroDownloadBtn");
+  try {
+    const r = await fetch("/api/tts/kokoro/status");
+    const d = await r.json();
+    if (d.available) {
+      if (dot) { dot.className = "kokoro-status-dot ready"; }
+      if (text) text.textContent = "Pronto (offline)";
+      if (btn) { btn.classList.add("downloaded"); btn.innerHTML = "\u2713 Kokoro instalado"; btn.disabled = true; }
+    } else if (d.installed && !d.models_downloaded) {
+      if (dot) { dot.className = "kokoro-status-dot missing"; }
+      if (text) text.textContent = "Pacote instalado — modelo nao baixado";
+      if (btn) { btn.disabled = false; btn.classList.remove("downloaded"); }
+    } else {
+      if (dot) { dot.className = "kokoro-status-dot missing"; }
+      if (text) text.textContent = "Nao instalado (pip install kokoro-onnx)";
+      if (btn) { btn.disabled = false; btn.classList.remove("downloaded"); }
+    }
+  } catch {
+    if (dot) { dot.className = "kokoro-status-dot error"; }
+    if (text) text.textContent = "Erro ao verificar";
+  }
+}
+
+async function downloadKokoroModel() {
+  const btn = document.getElementById("kokoroDownloadBtn");
+  const prog = document.getElementById("kokoroProgress");
+  const fill = document.getElementById("kokoroFill");
+  const statusEl = document.getElementById("kokoroProgressStatus");
+
+  if (btn) { btn.disabled = true; btn.textContent = "Baixando..."; }
+  if (prog) prog.classList.remove("hidden");
+
+  try {
+    const r = await fetch("/api/tts/kokoro/download", { method: "POST" });
+    const reader = r.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split("\n");
+      buf = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        try {
+          const ev = JSON.parse(line.slice(6));
+          if (ev.status === "downloading" && ev.progress !== undefined) {
+            if (fill) fill.style.width = ev.progress + "%";
+            if (statusEl) {
+              const mbStr = ev.mb ? ` (${ev.mb} MB)` : "";
+              statusEl.textContent = `${ev.file}: ${ev.progress}%${mbStr}`;
+            }
+          } else if (ev.status === "done") {
+            if (fill) fill.style.width = "100%";
+            if (statusEl) statusEl.textContent = "Kokoro TTS pronto!";
+            if (btn) { btn.classList.add("downloaded"); btn.innerHTML = "\u2713 Kokoro instalado"; }
+            checkKokoroStatus();
+          } else if (ev.status === "error") {
+            if (statusEl) statusEl.textContent = "Erro: " + (ev.error || "desconhecido");
+            if (btn) { btn.disabled = false; btn.textContent = "Tentar novamente"; }
+          }
+        } catch { /* skip */ }
+      }
+    }
+  } catch (e) {
+    if (statusEl) statusEl.textContent = "Erro: " + e.message;
+    if (btn) { btn.disabled = false; btn.textContent = "Tentar novamente"; }
+  }
 }
 
 // ─── Drag & Drop ────────────────────────────────────────────────────────────
@@ -275,7 +392,10 @@ function updateVoiceStatus(d) {
     }
   }
   if (ttsEl) {
-    if (d.tts === "piper") {
+    if (d.tts === "kokoro") {
+      ttsEl.textContent = "\u2713 Kokoro TTS (offline, 82M)";
+      ttsEl.className = "voice-engine-status online";
+    } else if (d.tts === "piper") {
       ttsEl.textContent = "\u2713 Piper TTS (offline)";
       ttsEl.className = "voice-engine-status online";
     } else if (d.tts === "pyttsx3") {
@@ -526,8 +646,8 @@ function populateModels() {
     });
     el.innerHTML = sorted.map(m => `<option value="${m}">${m}</option>`).join("");
   };
-  fill("chatModel", state.models, ["gemma3"]);
-  fill("visionModel", state.visionModels.length ? state.visionModels : state.models, ["gemma3", "llava"]);
+  fill("chatModel", state.models, ["dolphin3", "dolphin"]);
+  fill("visionModel", state.visionModels.length ? state.visionModels : state.models, ["llava", "gemma3"]);
   fill("builderModel", state.models, ["qwen2.5-coder", "coder"]);
   fill("brainModel", state.models, ["dolphin3", "dolphin"]);
 }

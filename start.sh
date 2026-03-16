@@ -82,10 +82,10 @@ sys.exit(0 if '$model' in names else 1)
         fi
     }
 
-    pull_if_missing "gemma3:12b"          "chat + visao — ~8GB"
-    pull_if_missing "qwen2.5-coder:14b"   "app builder — ~9GB"
-    pull_if_missing "phi4"                 "modelo rapido — ~9GB"
-    pull_if_missing "dolphin3"             "cerebro sem filtros — ~5GB"
+    pull_if_missing "dolphin3"             "chat principal uncensored — ~5GB"
+    pull_if_missing "dolphin-llama3.1:8b"  "chat avancado uncensored — ~5GB"
+    pull_if_missing "gemma3:12b"           "visao + multimodal — ~8GB"
+    pull_if_missing "qwen2.5-coder:14b"    "app builder — ~9GB"
 fi
 
 # ─── Python venv + deps ──────────────────────────────────────

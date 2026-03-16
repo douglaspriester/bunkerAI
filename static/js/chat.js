@@ -162,7 +162,7 @@ export function updateModeTag() {
     hint.textContent = "Imagem anexada \u2014 sua mensagem analisa a imagem";
   } else {
     tag.textContent = "TEXTO"; tag.style.background = "var(--accent-dim)"; tag.style.color = "var(--accent)";
-    hint.innerHTML = 'Enter envia \u00B7 Shift+Enter nova linha \u00B7 <code>/build</code> gera apps \u00B7 <code>/brain</code> modo cerebro';
+    hint.innerHTML = 'Enter envia \u00B7 Shift+Enter nova linha \u00B7 <code>/build</code> gera apps';
   }
 }
 

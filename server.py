@@ -125,6 +125,8 @@ for d in [GUIDES_DIR, PROTOCOLS_DIR, BOOKS_DIR, GAMES_DIR, DATA_DIR / "db", DATA
 _whisper_model = None
 _piper_available = None
 _pyttsx3_available = None
+_kokoro_instance = None
+_kokoro_available = None
 
 # ─── Piper model catalog ──────────────────────────────────────────────────────
 PIPER_HF_BASE = "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0"
@@ -272,6 +274,123 @@ async def _tts_pyttsx3(text: str, filepath: Path, voice_id: str = None) -> Path 
     return None
 
 
+# ─── Kokoro TTS (best offline quality) ───────────────────────────────────────
+KOKORO_MODELS_DIR = Path("kokoro_models")
+KOKORO_MODELS_DIR.mkdir(exist_ok=True)
+
+# Kokoro voice map: edge-tts voice name → kokoro voice + lang
+KOKORO_VOICE_MAP = {
+    "pt-BR-AntonioNeural": ("pm_alex", "pt-br"),
+    "pt-BR-FranciscaNeural": ("pf_dora", "pt-br"),
+    "en-US-GuyNeural": ("am_adam", "en-us"),
+    "en-US-JennyNeural": ("af_heart", "en-us"),
+    "es-ES-AlvaroNeural": ("em_alex", "es"),
+}
+
+KOKORO_VOICES = {
+    "pt-br": [
+        {"id": "pm_alex", "name": "Alex (Masculino)", "lang": "pt-br"},
+        {"id": "pm_santa", "name": "Santa (Masculino)", "lang": "pt-br"},
+        {"id": "pf_dora", "name": "Dora (Feminino)", "lang": "pt-br"},
+    ],
+    "en-us": [
+        {"id": "af_heart", "name": "Heart (Female)", "lang": "en-us"},
+        {"id": "af_sarah", "name": "Sarah (Female)", "lang": "en-us"},
+        {"id": "af_nova", "name": "Nova (Female)", "lang": "en-us"},
+        {"id": "am_adam", "name": "Adam (Male)", "lang": "en-us"},
+        {"id": "am_michael", "name": "Michael (Male)", "lang": "en-us"},
+    ],
+    "es": [
+        {"id": "ef_dora", "name": "Dora (Femenino)", "lang": "es"},
+        {"id": "em_alex", "name": "Alex (Masculino)", "lang": "es"},
+    ],
+}
+
+
+def check_kokoro():
+    """Check if kokoro-onnx is installed and model files exist"""
+    global _kokoro_available
+    if _kokoro_available is None:
+        try:
+            import kokoro_onnx  # noqa: F401
+            # Check for model files
+            onnx_path = KOKORO_MODELS_DIR / "kokoro-v1.0.onnx"
+            voices_path = KOKORO_MODELS_DIR / "voices-v1.0.bin"
+            if onnx_path.exists() and voices_path.exists():
+                _kokoro_available = True
+                print(f"[TTS] Kokoro TTS available (offline, 82M params)")
+            else:
+                _kokoro_available = False
+                print("[TTS] kokoro-onnx installed but models not found — download via /api/tts/kokoro/download")
+        except ImportError:
+            _kokoro_available = False
+            print("[TTS] kokoro-onnx not installed — pip install kokoro-onnx soundfile")
+    return _kokoro_available
+
+
+def _get_kokoro():
+    """Lazy-load Kokoro instance (singleton)"""
+    global _kokoro_instance
+    if _kokoro_instance is None and check_kokoro():
+        try:
+            from kokoro_onnx import Kokoro
+            onnx_path = KOKORO_MODELS_DIR / "kokoro-v1.0.onnx"
+            voices_path = KOKORO_MODELS_DIR / "voices-v1.0.bin"
+            _kokoro_instance = Kokoro(str(onnx_path), str(voices_path))
+            print("[TTS] Kokoro model loaded")
+        except Exception as e:
+            print(f"[TTS] Kokoro load error: {e}")
+            _kokoro_instance = False
+    return _kokoro_instance if _kokoro_instance is not False else None
+
+
+async def _tts_kokoro(text: str, filepath: Path, voice: str) -> Path | None:
+    """Generate audio with Kokoro TTS (best offline quality, 82M model)"""
+    import concurrent.futures
+
+    kokoro = _get_kokoro()
+    if not kokoro:
+        return None
+
+    # Map edge-tts voice to kokoro voice+lang, or use direct kokoro voice
+    if voice.startswith("kokoro:"):
+        voice_id = voice.split(":", 1)[1]
+        # Detect lang from voice prefix
+        lang = {"p": "pt-br", "a": "en-us", "b": "en-gb", "e": "es", "f": "fr"}.get(voice_id[0], "en-us")
+    else:
+        voice_id, lang = KOKORO_VOICE_MAP.get(voice, ("pm_alex", "pt-br"))
+
+    wav_path = filepath.with_suffix(".wav")
+
+    def _synth():
+        samples, sr = kokoro.create(text, voice=voice_id, speed=1.0, lang=lang)
+        import soundfile as sf
+        sf.write(str(wav_path), samples, sr)
+        return wav_path
+
+    try:
+        loop = asyncio.get_event_loop()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            result = await loop.run_in_executor(pool, _synth)
+
+        if result and result.exists():
+            # Convert to mp3 if ffmpeg available
+            if shutil.which("ffmpeg"):
+                mp3_proc = await asyncio.create_subprocess_exec(
+                    "ffmpeg", "-y", "-i", str(wav_path), "-q:a", "4", str(filepath),
+                    stdout=asyncio.subprocess.DEVNULL,
+                    stderr=asyncio.subprocess.DEVNULL,
+                )
+                await mp3_proc.wait()
+                wav_path.unlink(missing_ok=True)
+                return filepath if filepath.exists() else None
+            else:
+                return wav_path
+    except Exception as e:
+        print(f"[TTS] Kokoro error: {e}")
+    return None
+
+
 # ─── Shared streaming helper ─────────────────────────────────────────────────
 
 def _chat_stream(payload: dict, timeout: float = 300.0) -> StreamingResponse:
@@ -356,9 +475,12 @@ async def health():
 
     # Voice capabilities (backend-independent)
     whisper_ok = get_whisper_model() is not None
+    kokoro_ok = check_kokoro()
     piper_ok = check_piper()
     pyttsx3_ok = check_pyttsx3()
-    if piper_ok:
+    if kokoro_ok:
+        tts_engine = "kokoro"
+    elif piper_ok:
         tts_engine = "piper"
     elif pyttsx3_ok:
         tts_engine = "pyttsx3"
@@ -393,7 +515,8 @@ async def health():
                 "stt": "whisper" if whisper_ok else "browser",
                 "tts": tts_engine,
                 "stt_ready": whisper_ok,
-                "tts_offline": piper_ok or pyttsx3_ok,
+                "tts_offline": kokoro_ok or piper_ok or pyttsx3_ok,
+                "kokoro_available": kokoro_ok,
                 "piper_available": piper_ok,
                 "pyttsx3_available": pyttsx3_ok,
                 "piper_models": piper_models_status,
@@ -435,12 +558,13 @@ async def health():
         "models": [],
         "vision_models": [],
         "stt": "browser",
-        "tts": "edge-tts",
+        "tts": tts_engine,
         "stt_ready": False,
-        "tts_offline": False,
-        "piper_available": False,
-        "pyttsx3_available": False,
-        "piper_models": {},
+        "tts_offline": kokoro_ok or piper_ok or pyttsx3_ok,
+        "kokoro_available": kokoro_ok,
+        "piper_available": piper_ok,
+        "pyttsx3_available": pyttsx3_ok,
+        "piper_models": piper_models_status,
     }
 
 
@@ -485,22 +609,39 @@ async def speech_to_text(audio: UploadFile = File(...), language: str = Form("pt
         os.unlink(tmp.name)
 
 
-# ─── TTS (Text-to-Speech) — Piper offline + edge-tts online ─────────────────
+# ─── TTS (Text-to-Speech) — Kokoro > Piper > pyttsx3 > edge-tts ─────────────
 
 @app.post("/api/tts")
 async def tts(request: Request, background_tasks: BackgroundTasks):
     body = await request.json()
     text = body.get("text", "")
     voice = body.get("voice", "pt-BR-AntonioNeural")
-    engine = body.get("engine", "auto")  # "auto", "piper", "pyttsx3", "edge-tts"
+    engine = body.get("engine", "auto")  # "auto", "kokoro", "piper", "pyttsx3", "edge-tts"
     voice_id = body.get("voice_id", None)   # pyttsx3 system voice ID
+    kokoro_voice = body.get("kokoro_voice", None)  # direct kokoro voice ID
     if not text:
         return JSONResponse({"error": "No text"}, status_code=400)
 
     filename = f"{uuid.uuid4().hex}.mp3"
     filepath = TTS_DIR / filename
 
-    # 1. Try Piper (best offline quality)
+    # 1. Try Kokoro (best offline quality — 82M model, near-human)
+    if engine in ("auto", "kokoro") and check_kokoro():
+        try:
+            # If kokoro_voice specified, override the mapping
+            effective_voice = voice
+            if kokoro_voice:
+                # Create a fake mapping entry to pass through
+                effective_voice = f"kokoro:{kokoro_voice}"
+            result = await _tts_kokoro(text, filepath, effective_voice)
+            if result:
+                mt = "audio/mpeg" if result.suffix == ".mp3" else "audio/wav"
+                background_tasks.add_task(os.unlink, str(result))
+                return FileResponse(str(result), media_type=mt, filename=result.name)
+        except Exception as e:
+            print(f"[TTS] Kokoro error: {e}, trying Piper")
+
+    # 2. Try Piper (good offline quality)
     if engine in ("auto", "piper") and check_piper():
         try:
             result = await _tts_piper(text, filepath, voice)
@@ -511,7 +652,7 @@ async def tts(request: Request, background_tasks: BackgroundTasks):
         except Exception as e:
             print(f"[TTS] Piper error: {e}, trying pyttsx3")
 
-    # 2. Try pyttsx3 (system TTS — offline, no model download needed)
+    # 3. Try pyttsx3 (system TTS — offline, no model download needed)
     if engine in ("auto", "pyttsx3") and check_pyttsx3():
         try:
             result = await _tts_pyttsx3(text, filepath, voice_id)
@@ -522,7 +663,7 @@ async def tts(request: Request, background_tasks: BackgroundTasks):
         except Exception as e:
             print(f"[TTS] pyttsx3 error: {e}, falling back to edge-tts")
 
-    # 3. Fallback: edge-tts (requires internet)
+    # 4. Fallback: edge-tts (requires internet)
     try:
         import edge_tts
         communicate = edge_tts.Communicate(text, voice)
@@ -695,6 +836,95 @@ async def list_pyttsx3_voices():
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
+# ─── TTS: Kokoro model management ────────────────────────────────────────────
+
+KOKORO_ONNX_URL = "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/kokoro-v1.0.onnx"
+KOKORO_VOICES_URL = "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/voices-v1.0.bin"
+
+
+@app.get("/api/tts/kokoro/status")
+async def kokoro_status():
+    """Check Kokoro TTS status: installed, model downloaded, available voices"""
+    has_pkg = False
+    try:
+        import kokoro_onnx  # noqa: F401
+        has_pkg = True
+    except ImportError:
+        pass
+
+    onnx_path = KOKORO_MODELS_DIR / "kokoro-v1.0.onnx"
+    voices_path = KOKORO_MODELS_DIR / "voices-v1.0.bin"
+    has_models = onnx_path.exists() and voices_path.exists()
+
+    return {
+        "installed": has_pkg,
+        "models_downloaded": has_models,
+        "available": has_pkg and has_models,
+        "model_size_mb": 300,
+        "voices": KOKORO_VOICES,
+        "models_dir": str(KOKORO_MODELS_DIR.resolve()),
+    }
+
+
+@app.post("/api/tts/kokoro/download")
+async def download_kokoro_model():
+    """Stream download progress of Kokoro TTS models via SSE"""
+    onnx_dest = KOKORO_MODELS_DIR / "kokoro-v1.0.onnx"
+    voices_dest = KOKORO_MODELS_DIR / "voices-v1.0.bin"
+
+    async def generate():
+        global _kokoro_available, _kokoro_instance
+        try:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(600.0), follow_redirects=True) as client:
+                # Download voices.bin first (small, ~2MB)
+                yield f"data: {json.dumps({'status': 'downloading', 'file': 'voices-v1.0.bin', 'progress': 0})}\n\n"
+                r = await client.get(KOKORO_VOICES_URL)
+                if r.status_code == 200:
+                    voices_dest.write_bytes(r.content)
+                    yield f"data: {json.dumps({'status': 'downloading', 'file': 'voices-v1.0.bin', 'progress': 100})}\n\n"
+                else:
+                    yield f"data: {json.dumps({'status': 'error', 'error': f'HTTP {r.status_code} downloading voices'})}\n\n"
+                    return
+
+                # Stream ONNX model (large, ~300MB)
+                yield f"data: {json.dumps({'status': 'downloading', 'file': 'kokoro-v1.0.onnx', 'progress': 0, 'total_mb': 300})}\n\n"
+
+                async with client.stream("GET", KOKORO_ONNX_URL) as resp:
+                    if resp.status_code != 200:
+                        yield f"data: {json.dumps({'status': 'error', 'error': f'HTTP {resp.status_code}'})}\n\n"
+                        return
+
+                    content_length = int(resp.headers.get("content-length", 300 * 1024 * 1024))
+                    downloaded = 0
+                    last_pct = -1
+                    with open(onnx_dest, "wb") as f:
+                        async for chunk in resp.aiter_bytes(chunk_size=65536):
+                            f.write(chunk)
+                            downloaded += len(chunk)
+                            pct = min(99, int(downloaded / content_length * 100))
+                            if pct != last_pct:
+                                last_pct = pct
+                                mb = downloaded / (1024 * 1024)
+                                yield f"data: {json.dumps({'status': 'downloading', 'file': 'kokoro-v1.0.onnx', 'progress': pct, 'mb': round(mb, 1)})}\n\n"
+
+                if onnx_dest.exists() and onnx_dest.stat().st_size > 1000:
+                    _kokoro_available = None  # reset check
+                    _kokoro_instance = None   # reset singleton
+                    yield f"data: {json.dumps({'status': 'done', 'message': 'Kokoro TTS pronto!'})}\n\n"
+                else:
+                    yield f"data: {json.dumps({'status': 'error', 'error': 'Download incomplete'})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'status': 'error', 'error': str(e)})}\n\n"
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
+
+
+@app.get("/api/tts/kokoro/voices")
+async def list_kokoro_voices():
+    """List all Kokoro voices grouped by language"""
+    return {"voices": KOKORO_VOICES, "available": check_kokoro()}
+
+
 # ─── Chat (streaming) — texto puro ──────────────────────────────────────────
 
 @app.post("/api/chat")
@@ -702,7 +932,7 @@ async def chat(request: Request):
     if _check_rate_limit("chat", request.client.host if request.client else "local"):
         return JSONResponse({"error": "Limite de taxa excedido. Aguarde."}, status_code=429)
     body = await request.json()
-    model = body.get("model", "gemma3:12b")
+    model = body.get("model", "dolphin3")
     messages = body.get("messages", [])
     system = body.get("system", "")
 
@@ -720,7 +950,7 @@ async def vision(request: Request):
     body = await request.json()
     img_b64 = body.get("image", "")
     prompt = body.get("prompt", "Descreva o que voce ve nesta imagem.")
-    model = body.get("model", "gemma3:12b")
+    model = body.get("model", "llava-llama3:8b")  # needs multimodal model for vision
     messages = body.get("messages", [])
 
     if "," in img_b64:
@@ -736,7 +966,7 @@ async def vision(request: Request):
 async def vision_upload(
     image: UploadFile = File(...),
     prompt: str = Form("Descreva esta imagem em detalhes."),
-    model: str = Form("gemma3:12b"),
+    model: str = Form("llava-llama3:8b"),
 ):
     import base64
     img_bytes = await image.read()
@@ -930,17 +1160,29 @@ async def recommended_models():
     except Exception:
         pass
 
+    # Prioritize uncensored models — no safety filters in survival scenarios
     models = [
-        {"name": "gemma3:4b", "desc": "Chat + Visao (compacto)", "size": "~3 GB",
-         "requires": "GPU 4GB+", "priority": 1, "available": gpu_vram >= 4},
-        {"name": "gemma3:12b", "desc": "Chat + Visao (completo)", "size": "~8 GB",
-         "requires": "GPU 8GB+", "priority": 2, "available": gpu_vram >= 8},
-        {"name": "dolphin3", "desc": "Cerebro sem filtros/censura", "size": "~5 GB",
-         "requires": "GPU 6GB+", "priority": 3, "available": gpu_vram >= 6},
+        {"name": "dolphin3", "desc": "Chat sem censura (principal)", "size": "~5 GB",
+         "requires": "GPU 6GB+", "priority": 1, "available": gpu_vram >= 6,
+         "uncensored": True, "tags": ["chat", "default"]},
+        {"name": "dolphin-llama3.1:8b", "desc": "Chat uncensored (avancado)", "size": "~5 GB",
+         "requires": "GPU 6GB+", "priority": 2, "available": gpu_vram >= 6,
+         "uncensored": True, "tags": ["chat"]},
+        {"name": "llava-llama3:8b", "desc": "Visao + Chat (multimodal)", "size": "~5 GB",
+         "requires": "GPU 6GB+", "priority": 3, "available": gpu_vram >= 6,
+         "uncensored": False, "tags": ["vision", "multimodal"]},
+        {"name": "gemma3:4b", "desc": "Visao compacto (multimodal)", "size": "~3 GB",
+         "requires": "GPU 4GB+", "priority": 4, "available": gpu_vram >= 4,
+         "uncensored": False, "tags": ["vision", "multimodal", "compact"]},
         {"name": "qwen2.5-coder:7b", "desc": "App Builder + codigo", "size": "~5 GB",
-         "requires": "GPU 6GB+", "priority": 4, "available": gpu_vram >= 6},
+         "requires": "GPU 6GB+", "priority": 5, "available": gpu_vram >= 6,
+         "uncensored": False, "tags": ["code", "builder"]},
+        {"name": "gemma3:12b", "desc": "Chat + Visao completo", "size": "~8 GB",
+         "requires": "GPU 8GB+", "priority": 6, "available": gpu_vram >= 8,
+         "uncensored": False, "tags": ["vision", "multimodal", "large"]},
         {"name": "phi4-mini", "desc": "Chat rapido e leve", "size": "~2.5 GB",
-         "requires": "GPU 4GB+ ou CPU", "priority": 5, "available": True},
+         "requires": "GPU 4GB+ ou CPU", "priority": 7, "available": True,
+         "uncensored": False, "tags": ["chat", "compact", "cpu"]},
     ]
 
     return {

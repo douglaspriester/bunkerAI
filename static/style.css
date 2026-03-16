@@ -1362,6 +1362,151 @@ body::after {
   word-break: break-all; margin-top: 4px;
 }
 
+/* ─── Config Tabs ────────────────────────────────────────────── */
+.config-tabs {
+  display: flex; border-bottom: 1px solid var(--border);
+  background: var(--surface); flex-shrink: 0;
+  padding: 0 4px; gap: 0;
+}
+.config-tab {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 4px;
+  background: none; border: none; border-bottom: 2px solid transparent;
+  color: var(--text-faint); font-size: 9px; font-family: var(--font-hud);
+  font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 9px 6px 7px; cursor: pointer; transition: all var(--t);
+  white-space: nowrap;
+}
+.config-tab:hover { color: var(--text-muted); background: rgba(0,212,255,0.03); }
+.config-tab.active {
+  color: var(--accent); border-bottom-color: var(--accent);
+  text-shadow: 0 0 8px var(--accent-glow);
+}
+.config-tab svg { opacity: 0.5; transition: opacity var(--t); }
+.config-tab.active svg { opacity: 1; stroke: var(--accent); }
+
+.config-tab-content { display: none; flex-direction: column; gap: 10px; }
+.config-tab-content.active { display: flex; }
+
+/* ─── Config Status Bar (top chips) ──────────────────────────── */
+.config-status-bar {
+  display: flex; gap: 5px; flex-wrap: wrap;
+}
+.config-status-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 9px; font-family: var(--font-mono); font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 3px 8px; border: 1px solid var(--border);
+  background: var(--surface-2); color: var(--text-muted);
+}
+.config-status-chip.ok {
+  border-color: rgba(66,245,160,0.25); color: var(--green);
+  background: rgba(66,245,160,0.06);
+}
+.config-status-chip.warn {
+  border-color: rgba(255,165,0,0.25); color: var(--amber);
+  background: rgba(255,165,0,0.06);
+}
+.config-status-chip::before {
+  content: ''; width: 5px; height: 5px; border-radius: 50%;
+  background: currentColor; flex-shrink: 0;
+}
+
+/* ─── Config Badge ───────────────────────────────────────────── */
+.config-badge {
+  font-size: 7px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.1em; padding: 2px 5px;
+  background: rgba(66,245,160,0.12); color: var(--green);
+  border: 1px solid rgba(66,245,160,0.25);
+}
+
+/* ─── Kokoro TTS ─────────────────────────────────────────────── */
+.kokoro-status {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-family: var(--font-mono); color: var(--text-muted);
+  padding: 6px 8px; background: var(--surface-2); border: 1px solid var(--border);
+}
+.kokoro-status-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--text-faint); flex-shrink: 0;
+}
+.kokoro-status-dot.ready { background: var(--green); box-shadow: 0 0 6px var(--green-glow); }
+.kokoro-status-dot.missing { background: var(--amber); }
+.kokoro-status-dot.error { background: var(--danger); }
+
+.btn-kokoro-download {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  background: rgba(0,212,255,0.06); border: 1px solid rgba(0,212,255,0.2);
+  color: var(--accent); font-size: 11px; font-family: var(--font-body);
+  padding: 8px 12px; cursor: pointer; transition: all var(--t); width: 100%;
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
+}
+.btn-kokoro-download:hover {
+  background: var(--accent); color: var(--bg);
+  box-shadow: 0 0 16px var(--accent-glow);
+}
+.btn-kokoro-download:disabled {
+  opacity: 0.4; cursor: not-allowed;
+  background: rgba(0,212,255,0.03);
+}
+.btn-kokoro-download.downloaded {
+  border-color: rgba(66,245,160,0.3); color: var(--green);
+  background: rgba(66,245,160,0.06);
+}
+.kokoro-hint {
+  font-size: 9.5px; color: var(--text-faint); line-height: 1.4;
+  font-family: var(--font-mono); letter-spacing: 0.03em;
+}
+
+/* ─── Config Recommended Models ──────────────────────────────── */
+.config-recommended {
+  display: flex; flex-direction: column; gap: 4px; margin-top: 4px;
+}
+.config-recommended-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 5px 8px; background: var(--surface-2); border: 1px solid var(--border);
+  font-size: 10px; cursor: pointer; transition: all var(--t);
+}
+.config-recommended-item:hover {
+  border-color: var(--accent); background: rgba(0,212,255,0.04);
+}
+.config-recommended-item .rec-name { color: var(--text); font-family: var(--font-mono); font-weight: 600; }
+.config-recommended-item .rec-desc { color: var(--text-faint); }
+.config-recommended-item .rec-size { color: var(--text-muted); font-family: var(--font-mono); font-size: 9px; }
+.config-recommended-item .rec-tag {
+  font-size: 7px; padding: 1px 4px; text-transform: uppercase;
+  letter-spacing: 0.08em; font-weight: 700;
+}
+.config-recommended-item .rec-tag.uncensored {
+  background: rgba(255,68,68,0.12); color: #ff6b6b; border: 1px solid rgba(255,68,68,0.2);
+}
+
+/* ─── Config Hint ────────────────────────────────────────────── */
+.config-hint {
+  font-size: 10px; color: var(--text-faint); line-height: 1.4;
+}
+
+/* ─── Config About ───────────────────────────────────────────── */
+.config-about {
+  display: flex; flex-direction: column; gap: 4px; text-align: center;
+  padding: 12px 0 4px;
+}
+.config-about-name {
+  font-family: var(--font-hud); font-size: 14px; font-weight: 700;
+  letter-spacing: 0.3em; color: var(--accent);
+  text-shadow: 0 0 12px var(--accent-glow);
+}
+.config-about-version {
+  font-size: 10px; color: var(--text-muted); font-family: var(--font-mono);
+}
+.config-about-desc {
+  font-size: 11px; color: var(--text-faint); line-height: 1.4;
+  margin-top: 6px;
+}
+.config-about-stack {
+  font-size: 9px; color: var(--text-faint); font-family: var(--font-mono);
+  opacity: 0.6; margin-top: 4px;
+}
+
 
 /* ═══════════════════════════════════════════════════════════════
    BUTTONS

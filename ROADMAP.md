@@ -58,6 +58,31 @@ Roda num PC com placa de video boa, sem internet, usando modelos locais via Olla
   - Botao Desligar no start menu
 - [ ] Fase 9: Avatar Companion (Live2D)
 - [x] Fase 10: Conteudo Denso (15 guias, 10 protocolos) — COMPLETO
+- [x] Fase 11: **Modularizacao + UX** (ES Modules + Spotlight + Terminal + Paint + File Manager)
+  - Refatoracao de app.js monolitico em ES Modules (main.js, chat.js, state.js, apps.js, etc.)
+  - Spotlight / Command Palette (Ctrl+K) com busca de apps e acoes rapidas
+  - Terminal integrado com allowlist de comandos seguros
+  - File Manager com navegacao de diretorios e preview
+  - Paint com ferramentas de desenho (brush, eraser, line, rect, circle, fill)
+  - Agenda/Tasks com CRUD, prioridades e datas
+  - Drag-and-drop para reordenar icones do desktop
+  - Atalhos de teclado expandidos (F1, Ctrl+Shift+C, Ctrl+Shift+A)
+- [x] Fase 12: **Modo Portavel Pendrive + Dual Backend**
+  - build_portable.py monta pacote completo para pendrive
+  - Python embarcado + llama-server + modelos GGUF built-in
+  - Auto-deteccao GPU via nvidia-smi com offload automatico
+  - Dual backend: Ollama (primario) / llama.cpp (fallback portavel)
+  - Modelo CPU (Dolphin 1B uncensored) + GPU (Dolphin 8B uncensored + Gemma 3 4B multimodal)
+  - API /api/models/recommended com deteccao de hardware
+  - INICIAR.bat / INICIAR.sh para Windows e Linux
+- [x] Fase 13: **Uncensored + Kokoro TTS**
+  - Filosofia: modelos uncensored por padrao (censura pode custar vidas)
+  - Dolphin3 como modelo padrao de chat (substituiu gemma3:12b)
+  - Kokoro TTS (82M params, near-human) como engine TTS principal
+  - Cascade: Kokoro > Piper > pyttsx3 > edge-tts
+  - Vozes pt-BR, en-US, es com Kokoro (pm_alex, af_heart, etc.)
+  - Download de modelos Kokoro via /api/tts/kokoro/download
+  - Modelos built-in portaveis atualizados para Dolphin uncensored
 
 ## Apps do Bunker OS
 

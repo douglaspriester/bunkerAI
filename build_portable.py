@@ -41,22 +41,36 @@ LLAMA_CPP_URLS = {
     "linux": f"https://github.com/ggml-org/llama.cpp/releases/download/{LLAMA_CPP_VERSION}/llama-{LLAMA_CPP_VERSION}-bin-ubuntu-x64.zip",
 }
 
-# ─── Modelos built-in ─────────────────────────────────────────────────────────
-# Dois modelos embutidos:
-#   1. CPU: Qwen2.5-1.5B-Instruct Q4_K_M (~1.0 GB) — roda em qualquer PC
-#   2. GPU: Gemma-3-4B-Instruct Q4_K_M (~3.0 GB) — multimodal (texto + visao)
+# ─── Modelos built-in (UNCENSORED por padrao) ────────────────────────────────
+# Filosofia: Em cenarios de sobrevivencia, censura pode custar vidas.
+# Todos os modelos built-in sao uncensored ou sem filtros de seguranca.
+#
+# Tres modelos embutidos:
+#   1. CPU: Dolphin-2.9.4-Llama3.1-1B Q4_K_M (~0.8 GB) — uncensored, roda em qualquer PC
+#   2. GPU: Dolphin-2.9.4-Llama3.1-8B Q4_K_M (~4.9 GB) — uncensored, texto completo
+#   3. GPU: Gemma-3-4B-Instruct Q4_K_M (~3.0 GB) — multimodal (texto + visao)
 #
 # O launcher detecta se tem GPU e escolhe o melhor automaticamente.
 # O usuario pode baixar modelos maiores depois pelo app se tiver internet.
 
 BUILTIN_MODELS = [
     {
-        "name": "CPU — Qwen 2.5 1.5B (texto)",
-        "filename": "qwen2.5-1.5b-instruct-q4_k_m.gguf",
-        "url": "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf",
-        "size_gb": 1.0,
+        "name": "CPU — Dolphin 1B (uncensored)",
+        "filename": "dolphin-2.9.4-llama3.1-1b-Q4_K_M.gguf",
+        "url": "https://huggingface.co/bartowski/dolphin-2.9.4-llama3.1-1b-GGUF/resolve/main/dolphin-2.9.4-llama3.1-1b-Q4_K_M.gguf",
+        "size_gb": 0.8,
         "type": "cpu",
-        "desc": "Modelo leve para CPU. Roda em qualquer PC.",
+        "desc": "Modelo leve uncensored para CPU. Roda em qualquer PC.",
+        "uncensored": True,
+    },
+    {
+        "name": "GPU — Dolphin 8B (uncensored)",
+        "filename": "dolphin-2.9.4-llama3.1-8b-Q4_K_M.gguf",
+        "url": "https://huggingface.co/bartowski/dolphin-2.9.4-llama3.1-8b-GGUF/resolve/main/dolphin-2.9.4-llama3.1-8b-Q4_K_M.gguf",
+        "size_gb": 4.9,
+        "type": "gpu",
+        "desc": "Modelo principal uncensored. GPU com 6GB+ VRAM.",
+        "uncensored": True,
     },
     {
         "name": "GPU — Gemma 3 4B (texto + visao)",
@@ -64,7 +78,8 @@ BUILTIN_MODELS = [
         "url": "https://huggingface.co/bartowski/google_gemma-3-4b-it-GGUF/resolve/main/google_gemma-3-4b-it-Q4_K_M.gguf",
         "size_gb": 3.0,
         "type": "gpu",
-        "desc": "Modelo multimodal com visao. Precisa de GPU com 4GB+ VRAM.",
+        "desc": "Modelo multimodal com visao. GPU com 4GB+ VRAM.",
+        "uncensored": False,
     },
 ]
 
@@ -257,10 +272,11 @@ def build_portable(output_dir: Path, skip_model: bool = False, cpu_only: bool = 
             for m in BUILTIN_MODELS
         ],
         "recommended": [
-            {"name": "gemma3:12b", "desc": "Chat + Visao completo (8GB VRAM)", "size": "~8 GB", "requires": "GPU 8GB+"},
-            {"name": "dolphin3", "desc": "Cerebro sem filtros", "size": "~5 GB", "requires": "GPU 6GB+"},
+            {"name": "dolphin3", "desc": "Chat uncensored (principal)", "size": "~5 GB", "requires": "GPU 6GB+", "uncensored": True},
+            {"name": "dolphin-llama3.1:8b", "desc": "Chat uncensored avancado", "size": "~5 GB", "requires": "GPU 6GB+", "uncensored": True},
+            {"name": "llava-llama3:8b", "desc": "Visao + Chat (multimodal)", "size": "~5 GB", "requires": "GPU 6GB+"},
             {"name": "qwen2.5-coder:7b", "desc": "App Builder / codigo", "size": "~5 GB", "requires": "GPU 6GB+"},
-            {"name": "phi4", "desc": "Chat rapido e inteligente", "size": "~9 GB", "requires": "GPU 8GB+"},
+            {"name": "gemma3:12b", "desc": "Chat + Visao completo", "size": "~8 GB", "requires": "GPU 8GB+"},
         ],
     }
     (models_dir / "manifest.json").write_text(_json.dumps(manifest, indent=2, ensure_ascii=False))
@@ -402,18 +418,37 @@ nvidia-smi >nul 2>&1
 if !errorlevel! equ 0 (
     echo [OK] GPU NVIDIA detectada!
     set "HAS_GPU=1"
-    REM Tentar modelo GPU (multimodal) primeiro
-    for %%f in (models\gemma*.gguf) do (
-        set "MODEL_FILE=%%f"
-        echo [OK] Modelo GPU: %%~nxf
+    REM Prioridade: Dolphin 8B (uncensored GPU) > Gemma 4B (multimodal GPU)
+    for %%f in (models\dolphin*8b*.gguf) do (
+        if not defined MODEL_FILE (
+            set "MODEL_FILE=%%f"
+            echo [OK] Modelo GPU uncensored: %%~nxf
+        )
+    )
+    if not defined MODEL_FILE (
+        for %%f in (models\gemma*.gguf) do (
+            set "MODEL_FILE=%%f"
+            echo [OK] Modelo GPU multimodal: %%~nxf
+        )
     )
 )
 
-REM Fallback: modelo CPU
+REM Fallback: modelo CPU (Dolphin 1B uncensored)
+if not defined MODEL_FILE (
+    for %%f in (models\dolphin*1b*.gguf) do (
+        if not defined MODEL_FILE (
+            set "MODEL_FILE=%%f"
+            echo [OK] Modelo CPU uncensored: %%~nxf
+        )
+    )
+)
+REM Last resort: any model
 if not defined MODEL_FILE (
     for %%f in (models\*.gguf) do (
-        set "MODEL_FILE=%%f"
-        echo [OK] Modelo CPU: %%~nxf
+        if not defined MODEL_FILE (
+            set "MODEL_FILE=%%f"
+            echo [OK] Modelo: %%~nxf
+        )
     )
 )
 
@@ -555,7 +590,15 @@ if curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then
 else
     echo "[--] Ollama nao encontrado — usando modelo embutido"
 
-    MODEL_FILE=$(find models/ -name "*.gguf" 2>/dev/null | head -1)
+    # Prioridade: Dolphin 8B (uncensored GPU) > Dolphin 1B (CPU) > qualquer .gguf
+    MODEL_FILE=""
+    if command -v nvidia-smi &>/dev/null; then
+        echo "[OK] GPU NVIDIA detectada"
+        MODEL_FILE=$(find models/ -name "dolphin*8b*.gguf" 2>/dev/null | head -1)
+        [ -n "$MODEL_FILE" ] && GPU_ARGS="-ngl 99"
+    fi
+    [ -z "$MODEL_FILE" ] && MODEL_FILE=$(find models/ -name "dolphin*1b*.gguf" 2>/dev/null | head -1)
+    [ -z "$MODEL_FILE" ] && MODEL_FILE=$(find models/ -name "*.gguf" 2>/dev/null | head -1)
     if [ -z "$MODEL_FILE" ]; then
         echo "[ERRO] Nenhum modelo .gguf em models/"
         exit 1
@@ -579,7 +622,7 @@ else
     chmod +x "$LLAMA_SERVER"
     LLAMA_PORT=8070
     echo "[..] Iniciando LLM local..."
-    "$LLAMA_SERVER" -m "$MODEL_FILE" --port $LLAMA_PORT --host 127.0.0.1 -c 4096 -np 1 &>/dev/null &
+    "$LLAMA_SERVER" -m "$MODEL_FILE" --port $LLAMA_PORT --host 127.0.0.1 -c 4096 -np 1 ${GPU_ARGS:-} &>/dev/null &
     LLAMA_PID=$!
 
     echo "[..] Aguardando LLM carregar..."
