@@ -160,6 +160,10 @@ export function updateModeTag() {
   } else if (state.attachedImage) {
     tag.textContent = "VISAO"; tag.style.background = "rgba(99, 145, 255, 0.12)"; tag.style.color = "#6391ff";
     hint.textContent = "Imagem anexada \u2014 sua mensagem analisa a imagem";
+  } else if (_activeMode !== 'general') {
+    const mode = AI_MODES[_activeMode];
+    tag.textContent = mode.label.toUpperCase(); tag.style.background = `${mode.color}18`; tag.style.color = mode.color;
+    hint.innerHTML = `Modo ${mode.icon} ${mode.label} ativo &mdash; prompt especializado`;
   } else {
     tag.textContent = "TEXTO"; tag.style.background = "var(--accent-dim)"; tag.style.color = "var(--accent)";
     hint.innerHTML = 'Enter envia \u00B7 Shift+Enter nova linha \u00B7 <code>/build</code> gera apps';
@@ -238,20 +242,118 @@ export async function send() {
   processQueue();
 }
 
+// ─── AI Modes ───────────────────────────────────────────────────────────────
+export const AI_MODES = {
+  general: {
+    label: 'Geral',
+    icon: '🤖',
+    color: '#00d4ff',
+    prompt: null,  // uses user-defined system prompt from settings
+  },
+  medical: {
+    label: 'Medico',
+    icon: '🏥',
+    color: '#ff4444',
+    prompt: `Voce e BUNKER AI — modulo MEDICO DE CAMPO. Seu operador pode estar ferido ou cuidando de alguem ferido.
+PRIORIDADES: Salvar vidas. Estabilizar. Improviso com recursos limitados.
+DOMINIO: trauma, farmacologia de emergencia, sutura, imobilizacao, infeccoes, antidotos, cirurgia de campo, obstetrica de emergencia, odontologia de campo.
+FORMATO: Sempre comece com TRIAGEM (gravidade 1-5). Depois ACAO IMEDIATA. Depois MATERIAIS NECESSARIOS. Depois PROCEDIMENTO passo-a-passo.
+ALERTA: Indique sempre quando "EVACUAR PARA HOSPITAL" e a unica opcao real.
+Responda no idioma do usuario. Use markdown. Sem evasivas. Medidas exatas.`,
+  },
+  survival: {
+    label: 'Sobrevivencia',
+    icon: '🏕️',
+    color: '#4caf50',
+    prompt: `Voce e BUNKER AI — modulo SOBREVIVENCIA. Seu operador esta em ambiente hostil com recursos limitados.
+PRIORIDADES: Abrigo, Agua, Fogo, Comida, Sinalizacao (regra dos 3).
+DOMINIO: bushcraft, orientacao sem GPS, purificacao de agua, armadilhas, plantas comestiveis, construcao de abrigos, meteorologia pratica, navegacao estelar, fogueiras, nos e amarracoes.
+FORMATO: Sempre comece com SITUACAO (avalie o cenario). Depois PRIORIDADE IMEDIATA. Depois PASSO-A-PASSO com materiais encontraveis na natureza.
+ALERTA: Indique plantas/fungos TOXICOS similares quando mencionar comestiveis.
+Responda no idioma do usuario. Use markdown. Sem evasivas. Medidas exatas.`,
+  },
+  engineer: {
+    label: 'Engenharia',
+    icon: '🔧',
+    color: '#ff9800',
+    prompt: `Voce e BUNKER AI — modulo ENGENHARIA DE CAMPO. Seu operador precisa construir, reparar ou improvisar.
+PRIORIDADES: Seguranca estrutural. Funcionalidade. Durabilidade com materiais disponiveis.
+DOMINIO: eletrica basica, geradores, energia solar, hidraulica, mecanica, soldagem improvisada, radio, antenas, filtragem, destilacao, quimica pratica, explosivos para demolicao, fortificacao.
+FORMATO: Sempre comece com MATERIAIS (lista do que precisa). Depois FERRAMENTAS. Depois DIAGRAMA (ASCII art se util). Depois PROCEDIMENTO numerado.
+ALERTA: Indique RISCOS DE SEGURANCA (eletrico, quimico, estrutural) em cada procedimento.
+Responda no idioma do usuario. Use markdown. Sem evasivas. Medidas exatas.`,
+  },
+  defense: {
+    label: 'Defesa',
+    icon: '🛡️',
+    color: '#9c27b0',
+    prompt: `Voce e BUNKER AI — modulo DEFESA E TATICA. Seu operador pode estar em zona de conflito ou ameaca.
+PRIORIDADES: Seguranca do grupo. Avaliacao de ameacas. Planejamento tatico. Evasao quando possivel.
+DOMINIO: defesa perimetral, camuflagem, comunicacoes seguras, primeiros socorros taticos, navegacao tatica, contra-vigilancia, seguranca operacional (OPSEC), sinais de alerta, rotas de fuga.
+FORMATO: Sempre comece com AVALIACAO DA AMEACA. Depois OPCOES (ataque/defesa/evasao). Depois PLANO passo-a-passo. Depois CONTINGENCIA (plano B).
+ALERTA: Priorize SEMPRE evasao sobre confronto quando possivel. Indique riscos letais.
+Responda no idioma do usuario. Use markdown. Sem evasivas.`,
+  },
+  psych: {
+    label: 'Psicologico',
+    icon: '🧠',
+    color: '#2196f3',
+    prompt: `Voce e BUNKER AI — modulo SUPORTE PSICOLOGICO DE CRISE. Seu operador ou grupo pode estar sob estresse extremo.
+PRIORIDADES: Estabilizacao emocional. Prevencao de panico. Coesao do grupo. Tomada de decisao sob pressao.
+DOMINIO: primeiros socorros psicologicos, TEPT, gestao de panico, luto em campo, lideranca de crise, conflitos de grupo, criancas em trauma, privacao de sono, resiliencia, tecnicas de grounding.
+FORMATO: Comece com LEITURA DA SITUACAO (sinais observados). Depois INTERVENCAO IMEDIATA. Depois TECNICA (grounding, respiracao, etc). Depois ACOMPANHAMENTO.
+NOTA: Use tom calmo e direto. Sem jargao. Linguagem simples e acolhedora mas sem ser condescendente.
+Responda no idioma do usuario. Use markdown.`,
+  },
+};
+
+let _activeMode = 'general';
+
+export function getActiveMode() { return _activeMode; }
+
+export function setAIMode(modeId) {
+  if (!AI_MODES[modeId]) return;
+  _activeMode = modeId;
+  storage.set('aiMode', modeId);
+  renderModeSelector();
+  updateModeTag();
+}
+
+export function renderModeSelector() {
+  const container = document.getElementById('aiModeSelector');
+  if (!container) return;
+  const mode = AI_MODES[_activeMode];
+  container.innerHTML = Object.entries(AI_MODES).map(([id, m]) =>
+    `<button class="ai-mode-btn${id === _activeMode ? ' active' : ''}" onclick="setAIMode('${id}')" title="${m.label}" style="${id === _activeMode ? `--mode-color:${m.color}` : ''}">${m.icon}<span class="ai-mode-label">${m.label}</span></button>`
+  ).join('');
+}
+
+export function initModeSelector() {
+  _activeMode = storage.get('aiMode') || 'general';
+  renderModeSelector();
+}
+
+function getSystemPrompt() {
+  const mode = AI_MODES[_activeMode];
+  if (mode.prompt) return mode.prompt;
+  return document.getElementById("systemPrompt").value;
+}
+
 // ─── Chat handlers ──────────────────────────────────────────────────────────
 async function handleChat(text) {
   const chat = state.chats[state.activeChatId];
-  addMsgDom("user", text);
-  chat.messages.push({ role: "user", content: text });
+  const modeBadge = _activeMode !== 'general' ? _activeMode : null;
+  addMsgDom("user", text, null, modeBadge);
+  chat.messages.push({ role: "user", content: text, badge: modeBadge });
   saveChats();
 
   const model = document.getElementById("chatModel").value;
-  const system = document.getElementById("systemPrompt").value;
+  const system = getSystemPrompt();
   const apiMessages = chat.messages.map(m => ({ role: m.role, content: m.content }));
-  const { el, contentEl } = addStreamMsgDom();
+  const { el, contentEl } = addStreamMsgDom(modeBadge);
 
   const full = await streamFromAPI("/api/chat", { model, messages: apiMessages, system }, contentEl);
-  chat.messages.push({ role: "assistant", content: full });
+  chat.messages.push({ role: "assistant", content: full, badge: modeBadge });
   saveChats();
   addMsgActions(el, full);
 }
@@ -410,6 +512,7 @@ export function addMsgDom(role, text, imgThumb, badge, imgB64) {
   if (badge === "vision") badgeHtml = '<span class="msg-badge badge-vision">VISAO</span>';
   if (badge === "builder") badgeHtml = '<span class="msg-badge badge-builder">BUILD</span>';
   if (badge === "brain") badgeHtml = '<span class="msg-badge badge-brain">CEREBRO</span>';
+  if (badge && AI_MODES[badge]) badgeHtml = `<span class="msg-badge badge-${badge}">${AI_MODES[badge].icon} ${AI_MODES[badge].label.toUpperCase()}</span>`;
 
   let imgHtml = "";
   if (imgB64) {
@@ -443,6 +546,7 @@ export function addStreamMsgDom(badge) {
   if (badge === "vision") badgeHtml = '<span class="msg-badge badge-vision">VISAO</span>';
   if (badge === "builder") badgeHtml = '<span class="msg-badge badge-builder">BUILD</span>';
   if (badge === "brain") badgeHtml = '<span class="msg-badge badge-brain">CEREBRO</span>';
+  if (badge && AI_MODES[badge]) badgeHtml = `<span class="msg-badge badge-${badge}">${AI_MODES[badge].icon} ${AI_MODES[badge].label.toUpperCase()}</span>`;
 
   const phrase = LOADING_PHRASES[Math.floor(Math.random() * LOADING_PHRASES.length)];
 

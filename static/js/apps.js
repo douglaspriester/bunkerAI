@@ -5017,6 +5017,41 @@ Object.defineProperty(window, '_notepadDirty', { get() { return _notepadDirty; }
 Object.defineProperty(window, '_notepadActiveId', { get() { return _notepadActiveId; }, configurable: true });
 Object.defineProperty(window, '_wordDirty', { get() { return _wordDirty; }, configurable: true });
 Object.defineProperty(window, '_wordActiveId', { get() { return _wordActiveId; }, configurable: true });
+// ═══ Radio Frequency Filter ═══════════════════════════════════════════════
+function radioFilter(query) {
+  const container = document.getElementById('radioView');
+  if (!container) return;
+  const q = query.toLowerCase().trim();
+  const sections = container.querySelectorAll('.radio-section');
+  sections.forEach(h3 => {
+    // Find the next sibling (table or ul)
+    let sibling = h3.nextElementSibling;
+    if (!sibling) return;
+    let sectionVisible = false;
+    if (sibling.tagName === 'TABLE') {
+      const rows = sibling.querySelectorAll('tr');
+      rows.forEach((row, i) => {
+        if (i === 0) return; // skip header
+        const text = row.textContent.toLowerCase();
+        const match = !q || text.includes(q);
+        row.style.display = match ? '' : 'none';
+        if (match) sectionVisible = true;
+      });
+    } else if (sibling.tagName === 'UL') {
+      const items = sibling.querySelectorAll('li');
+      items.forEach(li => {
+        const match = !q || li.textContent.toLowerCase().includes(q);
+        li.style.display = match ? '' : 'none';
+        if (match) sectionVisible = true;
+      });
+    }
+    if (!q) sectionVisible = true;
+    h3.style.display = sectionVisible ? '' : 'none';
+    if (sibling) sibling.style.display = sectionVisible ? '' : 'none';
+  });
+}
+window.radioFilter = radioFilter;
+
 Object.defineProperty(window, '_excelDirty', { get() { return _excelDirty; }, configurable: true });
 Object.defineProperty(window, '_excelActiveId', { get() { return _excelActiveId; }, configurable: true });
 Object.defineProperty(window, '_checklistDirty', { get() { return _checklistDirty; }, configurable: true });

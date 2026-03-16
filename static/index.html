@@ -417,6 +417,9 @@ Responda no idioma do usuario. Use markdown.</textarea>
       <!-- Prompt Queue -->
       <div class="prompt-queue hidden" id="promptQueue"></div>
 
+      <!-- AI Mode Selector -->
+      <div class="ai-mode-bar" id="aiModeSelector"></div>
+
       <!-- Input -->
       <div class="input-area">
         <div class="input-row">
@@ -993,7 +996,8 @@ Responda no idioma do usuario. Use markdown.</textarea>
     <!-- ═══ Radio Frequencies Reference ═══ -->
     <div class="panel-view hidden" id="radioView">
       <div style="padding:14px;overflow-y:auto;height:100%;font-size:13px">
-        <h3 style="color:var(--accent);margin-bottom:8px">🚨 Frequencias de Emergencia</h3>
+        <input type="text" id="radioSearch" class="radio-search" placeholder="Buscar frequencia, banda, codigo..." oninput="radioFilter(this.value)" />
+        <h3 style="color:var(--accent);margin-bottom:8px" class="radio-section">🚨 Frequencias de Emergencia</h3>
         <table class="radio-table">
           <tr><th>Frequencia</th><th>Uso</th><th>Modo</th></tr>
           <tr class="radio-critical"><td>156.8 MHz</td><td>Canal 16 — Socorro Maritimo Internacional</td><td>FM</td></tr>
@@ -1006,7 +1010,7 @@ Responda no idioma do usuario. Use markdown.</textarea>
           <tr><td>27.185 MHz</td><td>CB Canal 19 — Caminhoneiros</td><td>AM</td></tr>
         </table>
 
-        <h3 style="color:var(--accent);margin:16px 0 8px">📻 Radioamador (HAM) — Bandas Uteis</h3>
+        <h3 style="color:var(--accent);margin:16px 0 8px" class="radio-section">📻 Radioamador (HAM) — Bandas Uteis</h3>
         <table class="radio-table">
           <tr><th>Banda</th><th>Faixa</th><th>Alcance</th><th>Uso</th></tr>
           <tr><td>2m</td><td>144-148 MHz</td><td>Local (50-150km)</td><td>Repetidoras, contatos locais</td></tr>
@@ -1016,7 +1020,7 @@ Responda no idioma do usuario. Use markdown.</textarea>
           <tr><td>80m</td><td>3.5-4.0 MHz</td><td>Regional (500km+)</td><td>Noturno, redes de emergencia</td></tr>
         </table>
 
-        <h3 style="color:var(--accent);margin:16px 0 8px">📡 Frequencias de Chamada</h3>
+        <h3 style="color:var(--accent);margin:16px 0 8px" class="radio-section">📡 Frequencias de Chamada</h3>
         <table class="radio-table">
           <tr><th>Freq</th><th>Banda</th><th>Proposito</th></tr>
           <tr><td>145.500 MHz</td><td>2m FM</td><td>Chamada nacional (simplex)</td></tr>
@@ -1026,7 +1030,7 @@ Responda no idioma do usuario. Use markdown.</textarea>
           <tr><td>14.300 MHz</td><td>20m SSB</td><td>Rede de emergencia HF</td></tr>
         </table>
 
-        <h3 style="color:var(--accent);margin:16px 0 8px">📋 Codigos Q Essenciais</h3>
+        <h3 style="color:var(--accent);margin:16px 0 8px" class="radio-section">📋 Codigos Q Essenciais</h3>
         <table class="radio-table">
           <tr><th>Codigo</th><th>Significado</th></tr>
           <tr><td>QRZ</td><td>Quem esta me chamando?</td></tr>
@@ -1042,7 +1046,7 @@ Responda no idioma do usuario. Use markdown.</textarea>
           <tr><td>PAN-PAN</td><td>Urgencia — sem perigo imediato</td></tr>
         </table>
 
-        <h3 style="color:var(--accent);margin:16px 0 8px">💡 Dicas</h3>
+        <h3 style="color:var(--accent);margin:16px 0 8px" class="radio-section">💡 Dicas</h3>
         <ul style="color:var(--text);padding-left:20px;line-height:1.8">
           <li>Mantenha baterias carregadas e extras</li>
           <li>Fale devagar e repita informacoes criticas</li>

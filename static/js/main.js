@@ -37,6 +37,7 @@ import {
   streamFromAPI, addMsgDom, addStreamMsgDom, addMsgActions,
   scrollChat, getWelcomeHtml,
   showView, showChatView, showGuideView,
+  AI_MODES, getActiveMode, setAIMode, renderModeSelector, initModeSelector,
 } from './chat.js';
 
 // ─── Expose everything to window for onclick handlers ───────────────────────
@@ -78,6 +79,9 @@ const globals = {
   streamFromAPI, addMsgDom, addStreamMsgDom, addMsgActions,
   scrollChat, getWelcomeHtml,
   showView, showChatView, showGuideView,
+
+  // AI Modes
+  AI_MODES, getActiveMode, setAIMode, renderModeSelector, initModeSelector,
 };
 
 Object.entries(globals).forEach(([key, val]) => {
@@ -96,6 +100,7 @@ Object.defineProperty(window, 'searchIndex', { get: () => searchIndex, configura
 window.state = state;
 window.storage = storage;
 window.OS_APPS = OS_APPS;
+window.AI_MODES = AI_MODES;
 window._windows = _windows;
 window.LOADING_PHRASES = LOADING_PHRASES;
 window.guidesCache = guidesCache;
@@ -134,6 +139,7 @@ async function boot() {
   window.setupDragDrop?.();
   renderChatList();
   renderFavorites();
+  initModeSelector();
   window.renderSidebarCharacters?.();
 
   // Load sidebar apps list
