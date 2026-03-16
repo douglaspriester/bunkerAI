@@ -102,6 +102,7 @@ OLLAMA_BASE = os.getenv("OLLAMA_URL", "http://localhost:11434")
 LLAMA_CPP_URL = os.getenv("LLAMA_CPP_URL", "")  # e.g. "http://localhost:8070"
 LLAMA_CPP_MODEL = os.getenv("LLAMA_CPP_MODEL", "built-in")  # model name for display
 BACKEND = "ollama"  # will be set to "llama.cpp" if detected
+OFFLINE_MODE = False  # set via /api/config/offline — blocks edge-tts and online fallbacks
 GENERATED_DIR = Path("generated_apps")
 GENERATED_DIR.mkdir(exist_ok=True)
 TTS_DIR = Path("tts_cache")
@@ -467,6 +468,23 @@ def _chat_stream_llamacpp(payload: dict, timeout: float) -> StreamingResponse:
     return StreamingResponse(generate(), media_type="text/event-stream")
 
 
+# ─── Config ──────────────────────────────────────────────────────────────────
+
+@app.post("/api/config/offline")
+async def set_offline_mode(request: Request):
+    """Toggle offline mode — blocks edge-tts and online fallbacks."""
+    global OFFLINE_MODE
+    body = await request.json()
+    OFFLINE_MODE = bool(body.get("offline", False))
+    print(f"[CONFIG] Offline mode: {'ON' if OFFLINE_MODE else 'OFF'}")
+    return {"offline": OFFLINE_MODE}
+
+
+@app.get("/api/config/offline")
+async def get_offline_mode():
+    return {"offline": OFFLINE_MODE}
+
+
 # ─── Health / Models ─────────────────────────────────────────────────────────
 
 @app.get("/api/health")
@@ -520,6 +538,7 @@ async def health():
                 "piper_available": piper_ok,
                 "pyttsx3_available": pyttsx3_ok,
                 "piper_models": piper_models_status,
+                "offline_mode": OFFLINE_MODE,
             }
     except Exception:
         pass
@@ -565,6 +584,7 @@ async def health():
         "piper_available": piper_ok,
         "pyttsx3_available": pyttsx3_ok,
         "piper_models": piper_models_status,
+        "offline_mode": OFFLINE_MODE,
     }
 
 
@@ -663,7 +683,9 @@ async def tts(request: Request, background_tasks: BackgroundTasks):
         except Exception as e:
             print(f"[TTS] pyttsx3 error: {e}, falling back to edge-tts")
 
-    # 4. Fallback: edge-tts (requires internet)
+    # 4. Fallback: edge-tts (requires internet — blocked in offline mode)
+    if OFFLINE_MODE:
+        return JSONResponse({"error": "Modo offline ativo. Instale Kokoro TTS para voz offline.", "offline": True}, status_code=503)
     try:
         import edge_tts
         communicate = edge_tts.Communicate(text, voice)

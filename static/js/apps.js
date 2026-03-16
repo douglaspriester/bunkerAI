@@ -196,6 +196,47 @@ function updateGuideFavBtn() {
   }
 }
 
+// ─── Offline Mode ───────────────────────────────────────────────────────────
+function isOfflineMode() {
+  return localStorage.getItem("bunker_offline_mode") === "1";
+}
+
+function toggleOfflineMode(enabled) {
+  localStorage.setItem("bunker_offline_mode", enabled ? "1" : "0");
+  // Update UI
+  const desc = document.getElementById("offlineDesc");
+  if (desc) desc.textContent = enabled ? "ATIVO — zero conexoes externas" : "Bloqueia toda conexao externa";
+  // Update dots
+  document.querySelectorAll("#offlineDetail .offline-dot").forEach(d => {
+    d.className = "offline-dot " + (enabled ? "on" : "off");
+  });
+  // Notify server
+  fetch("/api/config/offline", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ offline: enabled }),
+  }).catch(() => {});
+  // Toast
+  if (typeof osToast === "function") {
+    osToast(enabled ? "Modo 100% offline ativado" : "Modo online restaurado", enabled ? "success" : "info");
+  }
+}
+
+function initOfflineToggle() {
+  const toggle = document.getElementById("offlineToggle");
+  if (toggle) {
+    toggle.checked = isOfflineMode();
+    // Update dots on load
+    if (isOfflineMode()) {
+      document.querySelectorAll("#offlineDetail .offline-dot").forEach(d => {
+        d.className = "offline-dot on";
+      });
+      const desc = document.getElementById("offlineDesc");
+      if (desc) desc.textContent = "ATIVO — zero conexoes externas";
+    }
+  }
+}
+
 // ─── Config Drawer ──────────────────────────────────────────────────────────
 function toggleConfig() {
   document.getElementById("configOverlay").classList.toggle("hidden");
@@ -204,6 +245,7 @@ function toggleConfig() {
   if (!document.getElementById("configDrawer").classList.contains("hidden")) {
     updateConfigStatus();
     checkKokoroStatus();
+    initOfflineToggle();
   }
 }
 
@@ -1440,10 +1482,10 @@ async function initMap() {
     const mapsResp = await fetch("/api/maps");
     const mapsData = await mapsResp.json();
     if (mapsData.maps && mapsData.maps.length > 0) {
-      // Load PMTiles JS library dynamically if not loaded
+      // Load PMTiles JS library dynamically if not loaded (local copies)
       if (typeof pmtiles === "undefined" && typeof protomapsL === "undefined") {
-        await loadScript("https://unpkg.com/pmtiles@4.4.0/dist/pmtiles.js");
-        await loadScript("https://unpkg.com/protomaps-leaflet@5.1.0/dist/protomaps-leaflet.js");
+        await loadScript("./lib/pmtiles.js");
+        await loadScript("./lib/protomaps-leaflet.js");
       }
 
       const pmFile = mapsData.maps[0];
@@ -1472,13 +1514,19 @@ async function initMap() {
     console.log("PMTiles check:", e.message);
   }
 
-  if (!usingOffline) {
-    // Online fallback: CartoDB Dark Matter
+  if (!usingOffline && !isOfflineMode()) {
+    // Online fallback: CartoDB Dark Matter (only if not in offline mode)
     L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
       attribution: '&copy; <a href="https://osm.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
       subdomains: "abcd",
       maxZoom: 19,
     }).addTo(map);
+  } else if (!usingOffline) {
+    // Offline mode without PMTiles — show empty map with message
+    const notice = document.getElementById("mapOfflineNotice");
+    if (notice) {
+      notice.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f5c542" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> <span>Modo offline — coloque um .pmtiles em static/maps/ para ver o mapa</span>';
+    }
   }
 
   // Update notice bar

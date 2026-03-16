@@ -14,10 +14,16 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Bunker OS — DON'T PANIC</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="./lib/leaflet.css" />
+  <script>
+    // Load Google Fonts only if online mode (not offline)
+    if (localStorage.getItem('bunker_offline_mode') !== '1') {
+      const fl = document.createElement('link');
+      fl.rel = 'stylesheet';
+      fl.href = 'https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Space+Grotesk:wght@400;500;600;700&display=swap';
+      document.head.appendChild(fl);
+    }
+  </script>
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
@@ -378,6 +384,26 @@ Responda no idioma do usuario. Use markdown.</textarea>
 
       <!-- ═══ TAB: Sistema ═══ -->
       <div class="config-tab-content" id="tab-system">
+
+        <div class="config-group">
+          <div class="config-group-label">Modo Offline</div>
+          <div class="config-toggle-row">
+            <label class="config-toggle" for="offlineToggle">
+              <input type="checkbox" id="offlineToggle" onchange="toggleOfflineMode(this.checked)" />
+              <span class="config-toggle-slider"></span>
+            </label>
+            <div class="config-toggle-info">
+              <span class="config-toggle-title">100% Offline</span>
+              <span class="config-toggle-desc" id="offlineDesc">Bloqueia toda conexao externa</span>
+            </div>
+          </div>
+          <div class="config-offline-detail" id="offlineDetail">
+            <div class="offline-item"><span class="offline-dot off"></span> Google Fonts → fontes do sistema</div>
+            <div class="offline-item"><span class="offline-dot off"></span> Edge TTS → Kokoro / pyttsx3</div>
+            <div class="offline-item"><span class="offline-dot off"></span> Tiles online → PMTiles local</div>
+            <div class="offline-item"><span class="offline-dot off"></span> CDN scripts → libs locais</div>
+          </div>
+        </div>
 
         <div class="config-group">
           <div class="config-group-label">Mapa Offline</div>
@@ -1446,7 +1472,7 @@ Responda no idioma do usuario. Use markdown.</textarea>
     </div>
   </div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="./lib/leaflet.js"></script>
   <script src="./lib/jszip.min.js"></script>
   <script src="./lib/epub.min.js"></script>
   <script src="./lib/minisearch.min.js"></script>
