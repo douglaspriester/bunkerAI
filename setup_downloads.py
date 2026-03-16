@@ -260,8 +260,11 @@ def download_js_libs() -> None:
 KIWIX_URL = "https://download.kiwix.org/release/kiwix-tools/kiwix-tools_win-x86_64-3.8.1.zip"
 KIWIX_EXE = ROOT / "tools" / "kiwix-serve.exe"
 
-ZIM_URL = "https://download.kiwix.org/zim/wikipedia/wikipedia_en_all_mini_2025-12.zim"
-ZIM_DEST = DATA / "zim" / "wikipedia_en_all_mini_2025-12.zim"
+# Wikipedia mini — ~400MB (all articles, no images)
+# Browse options at https://download.kiwix.org/zim/wikipedia/
+# Using "mini" variant: text-only, smallest useful version
+ZIM_URL = "https://download.kiwix.org/zim/wikipedia/wikipedia_en_all_mini_2024-10.zim"
+ZIM_DEST = DATA / "zim" / "wikipedia_en_all_mini.zim"
 
 
 def download_kiwix() -> None:
@@ -316,23 +319,34 @@ def download_zim() -> None:
     if not ok:
         warn("ZIM download failed — you can download it manually later")
 
-# ── PMTiles placeholder ──────────────────────────────────────────────────────
+# ── PMTiles map download ─────────────────────────────────────────────────────
 
-def setup_pmtiles_placeholder() -> None:
-    step("PMTiles map data")
+# Natural Earth low-res world basemap as PMTiles (~35 MB)
+# From protomaps.com — free for offline use
+PMTILES_URL = "https://build.protomaps.com/20230408.pmtiles"
+PMTILES_DEST = STATIC / "maps" / "world.pmtiles"
+
+# Alternative: much smaller Natural Earth vector tiles (~7 MB)
+PMTILES_NE_URL = "https://r2-public.protomaps.com/protomaps-sample-datasets/natural-earth.pmtiles"
+PMTILES_NE_DEST = STATIC / "maps" / "natural-earth.pmtiles"
+
+
+def download_pmtiles() -> None:
+    step("Downloading offline world map (PMTiles)")
     maps_dir = STATIC / "maps"
     maps_dir.mkdir(parents=True, exist_ok=True)
-    readme = maps_dir / "README.txt"
-    if not readme.exists():
-        readme.write_text(
-            "Place .pmtiles files here for offline map support.\n\n"
-            "Recommended: Brazil base map (protomaps.com or custom extract).\n"
-            "The server exposes files from this folder at /maps/<filename>.\n",
-            encoding="utf-8",
-        )
-        info("Created maps/README.txt placeholder")
+
+    # Try Natural Earth first (small, ~7 MB) — guaranteed to work offline
+    if PMTILES_NE_DEST.exists() and PMTILES_NE_DEST.stat().st_size > 100_000:
+        info("Natural Earth map already present, skipping")
+        return
+
+    ok = download_file(PMTILES_NE_URL, PMTILES_NE_DEST,
+                       "Natural Earth world map (PMTiles)", min_size=100_000)
+    if ok:
+        info("Mapa mundial offline pronto!")
     else:
-        info("maps/ directory ready")
+        warn("Falha ao baixar mapa. Coloque arquivos .pmtiles em static/maps/ manualmente.")
 
 # ── SQLite book catalog ──────────────────────────────────────────────────────
 
@@ -647,8 +661,8 @@ def main() -> None:
     # Pre-download default TTS voice
     download_piper_model()
 
-    # PMTiles placeholder
-    setup_pmtiles_placeholder()
+    # Download offline map
+    download_pmtiles()
 
     # Book catalog
     scan_and_catalog_books()

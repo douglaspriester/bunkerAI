@@ -326,7 +326,6 @@ function _triggerAppOpen(appId) {
 }
 
 function _wikiInit() {
-  // Same logic as openWikiPanel but without showView
   const frame = document.getElementById('wikiFrame');
   const statusEl = document.getElementById('wikiStatus');
   const offlineMsg = document.getElementById('wikiOfflineMsg');
@@ -335,15 +334,29 @@ function _wikiInit() {
   if (statusTxt) statusTxt.textContent = 'Verificando...';
   fetch('/api/kiwix/status').then(r => r.json()).then(d => {
     if (d.running) {
-      if (frame) frame.src = 'http://localhost:8889';
+      // Use proxy to avoid cross-origin iframe issues
+      if (frame) frame.src = '/api/kiwix/';
       if (offlineMsg) offlineMsg.classList.add('hidden');
       if (dot) { dot.classList.remove('sys-warn'); dot.classList.add('sys-ok'); }
       if (statusTxt) statusTxt.textContent = 'Online';
+    } else if (d.zim_files && d.zim_files.length > 0) {
+      // ZIM files exist but Kiwix not running — show helpful message
+      if (frame) frame.src = 'about:blank';
+      if (offlineMsg) {
+        offlineMsg.classList.remove('hidden');
+        offlineMsg.querySelector('p')?.replaceWith(
+          Object.assign(document.createElement('p'), {
+            textContent: `${d.zim_files.length} arquivo(s) ZIM encontrado(s). Reinicie para ativar.`
+          })
+        );
+      }
+      if (dot) { dot.classList.remove('sys-ok'); dot.classList.add('sys-warn'); }
+      if (statusTxt) statusTxt.textContent = 'Reinicie';
     } else {
       if (frame) frame.src = 'about:blank';
       if (offlineMsg) offlineMsg.classList.remove('hidden');
       if (dot) { dot.classList.remove('sys-ok'); dot.classList.add('sys-warn'); }
-      if (statusTxt) statusTxt.textContent = 'Indispon\u00EDvel';
+      if (statusTxt) statusTxt.textContent = 'Sem ZIM';
     }
   }).catch(() => {
     if (offlineMsg) offlineMsg.classList.remove('hidden');
@@ -3027,10 +3040,10 @@ async function initMap() {
     const mapsResp = await fetch("/api/maps");
     const mapsData = await mapsResp.json();
     if (mapsData.maps && mapsData.maps.length > 0) {
-      // Load PMTiles JS library dynamically if not loaded
+      // Load PMTiles JS library dynamically if not loaded (local copies)
       if (typeof pmtiles === "undefined" && typeof protomapsL === "undefined") {
-        await loadScript("https://unpkg.com/pmtiles@4.4.0/dist/pmtiles.js");
-        await loadScript("https://unpkg.com/protomaps-leaflet@5.1.0/dist/protomaps-leaflet.js");
+        await loadScript("./lib/pmtiles.js");
+        await loadScript("./lib/protomaps-leaflet.js");
       }
 
       const pmFile = mapsData.maps[0];

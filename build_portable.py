@@ -386,7 +386,7 @@ def build_portable(output_dir: Path, skip_model: bool = False, cpu_only: bool = 
             info(f)
 
     # Copy directories
-    app_dirs = ["static", "data"]
+    app_dirs = ["static", "data", "tools", "voice_models"]
     for d in app_dirs:
         src = ROOT / d
         if src.is_dir():

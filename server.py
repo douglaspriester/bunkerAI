@@ -72,6 +72,52 @@ async def _detect_backend():
     print("[LLM] Nenhum backend LLM detectado. Chat estara offline.")
 
 
+@app.on_event("startup")
+async def _auto_start_kiwix():
+    """Auto-start Kiwix server if ZIM files exist and it's not already running."""
+    import httpx as _hx
+
+    # Check if already running
+    try:
+        async with _hx.AsyncClient(timeout=2) as c:
+            r = await c.get("http://localhost:8889/")
+            if r.status_code == 200:
+                print("[WIKI] Kiwix ja rodando na porta 8889")
+                return
+    except Exception:
+        pass
+
+    # Find ZIM files
+    zim_dir = DATA_DIR / "zim"
+    zims = list(zim_dir.glob("*.zim")) if zim_dir.exists() else []
+    if not zims:
+        print("[WIKI] Nenhum arquivo ZIM encontrado")
+        return
+
+    # Find kiwix-serve binary
+    kiwix_exe = None
+    local_kiwix = Path("tools") / ("kiwix-serve.exe" if platform.system() == "Windows" else "kiwix-serve")
+    if local_kiwix.exists():
+        kiwix_exe = str(local_kiwix)
+    else:
+        kiwix_exe = shutil.which("kiwix-serve")
+
+    if not kiwix_exe:
+        print("[WIKI] kiwix-serve nao encontrado")
+        return
+
+    # Start Kiwix in background
+    try:
+        zim_args = [str(z) for z in zims]
+        subprocess.Popen(
+            [kiwix_exe, "--port", "8889"] + zim_args,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+        print(f"[WIKI] Kiwix iniciado com {len(zims)} arquivo(s) ZIM")
+    except Exception as e:
+        print(f"[WIKI] Falha ao iniciar Kiwix: {e}")
+
+
 # ─── Simple rate limiter ──────────────────────────────────────────────────────
 from collections import defaultdict
 _rate_buckets = defaultdict(list)  # { key: [timestamps] }
@@ -1540,6 +1586,23 @@ async def kiwix_status():
         pass
 
     return {"running": running, "port": 8889, "zim_files": zims}
+
+
+@app.get("/api/kiwix/{path:path}")
+async def kiwix_proxy(path: str, request: Request):
+    """Proxy requests to Kiwix server to avoid iframe cross-origin issues."""
+    try:
+        url = f"http://localhost:8889/{path}"
+        qs = str(request.query_params)
+        if qs:
+            url += f"?{qs}"
+        async with httpx.AsyncClient(timeout=10) as c:
+            r = await c.get(url)
+            content_type = r.headers.get("content-type", "text/html")
+            return Response(content=r.content, status_code=r.status_code,
+                          media_type=content_type)
+    except Exception:
+        return JSONResponse({"error": "Kiwix unavailable"}, status_code=503)
 
 
 # ─── Setup status ────────────────────────────────────────────────────────────

@@ -83,8 +83,42 @@ async function loadGuidesIndex() {
     const d = await r.json();
     setGuidesIndex(Array.isArray(d) ? d : (d.guides || []));
     renderSidebarGuides();
+    renderGuidesGrid();
     indexContent();
   } catch(e) { console.warn('Guides load failed:', e); }
+}
+
+function renderGuidesGrid() {
+  const content = document.getElementById('guideContent');
+  if (!content || state.activeGuide) return;
+  const guides = window.guidesIndex;
+  if (!guides || guides.length === 0) {
+    content.innerHTML = '<div class="panel-empty">Nenhum guia disponivel.</div>';
+    return;
+  }
+  const cats = {};
+  for (const g of guides) {
+    const cat = g.category || 'geral';
+    if (!cats[cat]) cats[cat] = [];
+    cats[cat].push(g);
+  }
+  const catLabels = { essencial:'Essencial', 'médico':'Médico', saúde:'Saúde', mobilidade:'Mobilidade',
+    comunicação:'Comunicação', segurança:'Segurança', infraestrutura:'Infraestrutura',
+    habilidades:'Habilidades', geral:'Geral' };
+  let html = '<div class="guides-grid">';
+  for (const [cat, items] of Object.entries(cats)) {
+    html += `<div class="guides-cat-title">${escapeHtml(catLabels[cat] || cat)}</div>`;
+    html += '<div class="guides-cat-items">';
+    for (const g of items) {
+      html += `<div class="guide-card" onclick="openGuide('${g.id}')">
+        <span class="guide-card-icon">${g.icon || '📖'}</span>
+        <span class="guide-card-title">${escapeHtml(g.title)}</span>
+      </div>`;
+    }
+    html += '</div>';
+  }
+  html += '</div>';
+  content.innerHTML = html;
 }
 
 function renderSidebarGuides() {
@@ -167,8 +201,12 @@ function closeGuide() {
   state.activeGuide = null;
   document.querySelectorAll(".nav-guide").forEach(el => el.classList.remove("active"));
   const win = Object.values(_windows).find(w => w.appId === 'guides');
-  if (win) closeWindow(win.winId);
-  else showChatView();
+  if (win) {
+    // Still in OS window — go back to grid instead of closing
+    renderGuidesGrid();
+  } else {
+    showChatView();
+  }
 }
 
 function toggleFavGuide() {
@@ -447,13 +485,7 @@ function updateVoiceStatus(d) {
 
 function openSetupModal() {
   const d = state._lastHealth || {};
-  // Temporarily clear dismissed flag for forced open, restore after build
-  const wasDismissed = localStorage.getItem("bunker_setup_dismissed");
-  localStorage.removeItem("bunker_setup_dismissed");
-  maybeShowSetupModal(d);
-  if (wasDismissed && wasDismissed !== "0") {
-    // Keep dismissed flag removed so modal stays open; user can re-check it
-  }
+  maybeShowSetupModal(d, true);
 }
 
 function updateSysStatusBar(d) {
@@ -473,8 +505,8 @@ function updateSysStatusBar(d) {
   }
 }
 
-function maybeShowSetupModal(d) {
-  if (localStorage.getItem("bunker_setup_dismissed") === "1") return;
+function maybeShowSetupModal(d, force = false) {
+  if (!force && localStorage.getItem("bunker_setup_dismissed") === "1") return;
 
   const piperModels = d.piper_models || {};
   const hasAnyPiper = Object.values(piperModels).some(m => m.downloaded);
@@ -482,7 +514,18 @@ function maybeShowSetupModal(d) {
 
   if (hasAnyPiper && whisperReady) return; // everything OK
 
-  // Build content
+  // Auto-trigger: show toast instead of blocking modal
+  if (!force) {
+    const missing = [];
+    if (!hasAnyPiper) missing.push("TTS offline");
+    if (!whisperReady) missing.push("STT offline");
+    if (typeof osToast === 'function') {
+      osToast(`⚙️ ${missing.join(' e ')} não configurado(s). Abra Configurações para ativar.`, 4000);
+    }
+    return;
+  }
+
+  // Build content (manual open from settings)
   let html = "";
 
   // TTS section — Piper models
@@ -1786,8 +1829,34 @@ async function loadProtocolsIndex() {
     const d = await r.json();
     setProtocolsIndex(Array.isArray(d) ? d : (d.protocols || []));
     renderSidebarProtocols();
+    renderProtocolsGrid();
     indexContent();
   } catch(e) { console.warn('Protocols load failed:', e); }
+}
+
+function renderProtocolsGrid() {
+  const content = document.getElementById('protocolContent');
+  if (!content || state.activeProtocol) return;
+  const protocols = window.protocolsIndex;
+  if (!protocols || protocols.length === 0) {
+    content.innerHTML = '<div class="panel-empty">Nenhum protocolo disponivel.</div>';
+    return;
+  }
+  const urgencyLabel = { critical: '🔴 Crítico', high: '🟠 Urgente', medium: '🟡 Médio' };
+  const urgencyOrder = { critical: 0, high: 1, medium: 2 };
+  const sorted = [...protocols].sort((a, b) => (urgencyOrder[a.urgency] || 9) - (urgencyOrder[b.urgency] || 9));
+  let html = '<div class="protocols-grid">';
+  for (const p of sorted) {
+    html += `<div class="protocol-card protocol-card-${p.urgency || 'medium'}" onclick="openProtocol('${p.id}')">
+      <div class="protocol-card-icon">${p.icon || '🚨'}</div>
+      <div class="protocol-card-info">
+        <div class="protocol-card-title">${escapeHtml(p.title)}</div>
+        <div class="protocol-card-urgency">${urgencyLabel[p.urgency] || p.urgency}</div>
+      </div>
+    </div>`;
+  }
+  html += '</div>';
+  content.innerHTML = html;
 }
 
 function renderSidebarProtocols() {
@@ -1866,8 +1935,12 @@ function closeProtocol() {
   state.activeProtocol = null;
   state.currentProtocol = null;
   const win = Object.values(_windows).find(w => w.appId === 'protocols');
-  if (win) closeWindow(win.winId);
-  else showChatView();
+  if (win) {
+    // Still in OS window — go back to grid instead of closing
+    renderProtocolsGrid();
+  } else {
+    showChatView();
+  }
 }
 
 // ─── Games (loaded from API) ────────────────────────────────────────────────

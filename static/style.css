@@ -2014,6 +2014,52 @@ body::after {
 }
 
 
+/* ─── Guides Grid (inside window) ──── */
+.guides-grid { padding: 16px; }
+.guides-cat-title {
+  font-size: 11px; font-family: var(--font-mono); text-transform: uppercase;
+  letter-spacing: 1px; color: var(--accent); margin: 16px 0 8px; padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.guides-cat-title:first-child { margin-top: 0; }
+.guides-cat-items {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px;
+}
+.guide-card {
+  display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
+  cursor: pointer; transition: all 0.15s var(--ease);
+}
+.guide-card:hover {
+  background: var(--surface-3); border-color: var(--accent); transform: translateY(-1px);
+  box-shadow: 0 2px 12px var(--accent-glow);
+}
+.guide-card-icon { font-size: 20px; flex-shrink: 0; }
+.guide-card-title { font-size: 13px; color: var(--text); line-height: 1.3; }
+
+/* ─── Protocols Grid (inside window) ──── */
+.protocols-grid { padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+.protocol-card {
+  display: flex; align-items: center; gap: 14px; padding: 14px 16px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
+  cursor: pointer; transition: all 0.15s var(--ease);
+}
+.protocol-card:hover {
+  background: var(--surface-3); transform: translateY(-1px);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+}
+.protocol-card-critical { border-left: 3px solid var(--danger); }
+.protocol-card-critical:hover { border-color: var(--danger); box-shadow: 0 2px 12px var(--danger-dim); }
+.protocol-card-high { border-left: 3px solid #ff9f0a; }
+.protocol-card-high:hover { border-color: #ff9f0a; }
+.protocol-card-medium { border-left: 3px solid var(--accent); }
+.protocol-card-medium:hover { border-color: var(--accent); box-shadow: 0 2px 12px var(--accent-glow); }
+.protocol-card-icon { font-size: 24px; flex-shrink: 0; }
+.protocol-card-info { flex: 1; min-width: 0; }
+.protocol-card-title { font-size: 14px; color: var(--text); font-weight: 500; }
+.protocol-card-urgency { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+
 /* ═══════════════════════════════════════════════════════════════
    SUPPLIES VIEW
    ═══════════════════════════════════════════════════════════════ */
