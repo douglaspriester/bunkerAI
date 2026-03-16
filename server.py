@@ -1581,9 +1581,13 @@ async def system_status():
     # psutil stats (optional — graceful degradation if not installed)
     cpu_pct = ram_pct = ram_used_mb = ram_total_mb = None
     disk_pct = disk_free_gb = disk_total_gb = None
+    cpu_count = None
+    net_ok = False
+    gpu_name = None
     try:
         import psutil
         cpu_pct = psutil.cpu_percent(interval=0.1)
+        cpu_count = psutil.cpu_count(logical=True)
         vm = psutil.virtual_memory()
         ram_pct = round(vm.percent, 1)
         ram_used_mb = round(vm.used / 1024 / 1024)
@@ -1593,6 +1597,23 @@ async def system_status():
         disk_free_gb = round(d.free / 1024 / 1024 / 1024, 1)
         disk_total_gb = round(d.total / 1024 / 1024 / 1024, 1)
     except ImportError:
+        pass
+
+    # Quick internet check (non-blocking, 2s timeout)
+    try:
+        s = socket.create_connection(("8.8.8.8", 53), timeout=2)
+        s.close()
+        net_ok = True
+    except Exception:
+        net_ok = False
+
+    # GPU detection via nvidia-smi
+    try:
+        r = subprocess.run(["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
+                          capture_output=True, text=True, timeout=3)
+        if r.returncode == 0 and r.stdout.strip():
+            gpu_name = r.stdout.strip().split("\n")[0]
+    except Exception:
         pass
 
     # Content summary
@@ -1608,16 +1629,22 @@ async def system_status():
     return {
         "ip": ip,
         "port": 8888,
+        "hostname": platform.node(),
         "uptime_sec": uptime_sec,
         "python": platform.python_version(),
         "os": f"{platform.system()} {platform.release()}",
+        "arch": platform.machine(),
         "cpu_pct": cpu_pct,
+        "cpu_count": cpu_count,
+        "gpu": gpu_name,
         "ram_pct": ram_pct,
         "ram_used_mb": ram_used_mb,
         "ram_total_mb": ram_total_mb,
         "disk_pct": disk_pct,
         "disk_free_gb": disk_free_gb,
         "disk_total_gb": disk_total_gb,
+        "internet": net_ok,
+        "offline_mode": OFFLINE_MODE,
         "content": content,
         "server_time": datetime.now().isoformat(),
     }
@@ -1850,12 +1877,25 @@ async def list_files(path: str = "."):
 
 
 @app.get("/api/files/read")
-async def read_file(path: str):
+async def read_file(path: str, raw: str = ""):
     target = (FILEMGR_ROOT / path).resolve()
     if not str(target).startswith(str(FILEMGR_ROOT.resolve())):
         return JSONResponse({"error": "Acesso negado"}, status_code=403)
     if not target.is_file():
         return JSONResponse({"error": "Arquivo nao encontrado"}, status_code=404)
+
+    # Raw mode: serve binary file directly (for media player)
+    if raw == "1":
+        media_types = {
+            ".mp4": "video/mp4", ".webm": "video/webm", ".mkv": "video/x-matroska",
+            ".avi": "video/x-msvideo", ".mp3": "audio/mpeg", ".ogg": "audio/ogg",
+            ".wav": "audio/wav", ".m4a": "audio/mp4", ".flac": "audio/flac",
+            ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+            ".gif": "image/gif", ".webp": "image/webp", ".pdf": "application/pdf",
+        }
+        ext = target.suffix.lower()
+        mt = media_types.get(ext, "application/octet-stream")
+        return FileResponse(target, media_type=mt)
 
     # Only allow reading text files
     text_exts = {".txt", ".md", ".py", ".js", ".css", ".html", ".json", ".yaml", ".yml",

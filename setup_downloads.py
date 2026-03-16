@@ -336,6 +336,67 @@ def setup_pmtiles_placeholder() -> None:
 
 BUNKER_DB = DATA / "db" / "bunker.db"
 
+# ─── Built-in books (public domain, survival-related) ────────────────────────
+# From Project Gutenberg and Standard Ebooks — free for redistribution
+BUILTIN_BOOKS = [
+    {
+        "url": "https://www.gutenberg.org/ebooks/44653.epub3.images",
+        "filename": "Manual-Woodcraft-Camping-Beard.epub",
+        "title": "Manual of Woodcraft and Camping",
+    },
+    {
+        "url": "https://www.gutenberg.org/ebooks/56210.epub3.images",
+        "filename": "SAS-Survival-Handbook-Field-Guide.epub",
+        "title": "The Book of Camp-Lore and Woodcraft",
+    },
+    {
+        "url": "https://www.gutenberg.org/ebooks/28255.epub3.images",
+        "filename": "Art-of-War-Sun-Tzu.epub",
+        "title": "A Arte da Guerra — Sun Tzu",
+    },
+    {
+        "url": "https://www.gutenberg.org/ebooks/1184.epub3.images",
+        "filename": "Count-of-Monte-Cristo-Dumas.epub",
+        "title": "O Conde de Monte Cristo",
+    },
+    {
+        "url": "https://www.gutenberg.org/ebooks/5740.epub3.images",
+        "filename": "Scarlet-Pimpernel-Orczy.epub",
+        "title": "The Scarlet Pimpernel",
+    },
+]
+
+
+def download_builtin_books():
+    """Download free survival/adventure books from Project Gutenberg."""
+    step("Downloading built-in books")
+    books_dir = DATA / "books"
+    books_dir.mkdir(parents=True, exist_ok=True)
+
+    for book in BUILTIN_BOOKS:
+        dest = books_dir / book["filename"]
+        if dest.exists():
+            info(f"  {book['title']} (ja existe)")
+            continue
+        ok = _download_file(book["url"], dest, book["title"])
+        if not ok:
+            warn(f"  Falha: {book['title']}")
+
+
+def _download_file(url, dest, label=""):
+    """Download a file with error handling."""
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "BunkerAI/1.0"})
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            data = resp.read()
+            dest.write_bytes(data)
+            mb = len(data) / 1048576
+            info(f"  {label or dest.name} ({mb:.1f} MB)")
+            return True
+    except Exception as e:
+        warn(f"  {label}: {e}")
+        return False
+
 
 def _title_from_filename(name: str) -> str:
     """Derive a human-readable title from an epub filename."""
@@ -435,6 +496,9 @@ def main() -> None:
     download_js_libs()
     download_kiwix()
     download_zim()
+
+    # Download free survival-related books
+    download_builtin_books()
 
     # PMTiles placeholder
     setup_pmtiles_placeholder()

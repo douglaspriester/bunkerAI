@@ -250,14 +250,7 @@ function toggleConfig() {
 }
 
 function switchConfigTab(btn) {
-  const tabId = btn.dataset.tab;
-  // Deactivate all tabs
-  document.querySelectorAll(".config-tab").forEach(t => t.classList.remove("active"));
-  document.querySelectorAll(".config-tab-content").forEach(c => c.classList.remove("active"));
-  // Activate clicked
-  btn.classList.add("active");
-  const content = document.getElementById(tabId);
-  if (content) content.classList.add("active");
+  // Legacy no-op — tabs removed, config is now single-scroll
 }
 
 function updateConfigStatus() {
@@ -2703,41 +2696,54 @@ async function sysmonRefresh() {
     const uptimeH = Math.floor(d.uptime_sec / 3600);
     const uptimeM = Math.floor((d.uptime_sec % 3600) / 60);
 
+    const netIcon = d.internet ? '🟢 Online' : '🔴 Offline';
+    const gpuText = d.gpu || 'Nenhuma detectada';
+    const cpuText = d.cpu_count ? `${d.cpu_pct}% (${d.cpu_count} cores)` : `${d.cpu_pct}%`;
+
     el.innerHTML = `
       <div class="sysmon-grid">
         <div class="sysmon-card">
-          <div class="sysmon-label">🖥️ Servidor</div>
-          <div class="sysmon-val">${d.ip || 'localhost'}:${d.port}</div>
-          <div class="sysmon-sub">Uptime: ${uptimeH}h ${uptimeM}m</div>
+          <div class="sysmon-label">🖥 Sistema</div>
+          <div class="sysmon-val">${d.hostname || 'bunker'}</div>
+          <div class="sysmon-sub">${d.os} · ${d.arch || ''} · Python ${d.python}</div>
+          <div class="sysmon-sub">IP: ${d.ip}:${d.port} · Uptime: ${uptimeH}h${uptimeM}m</div>
         </div>
         <div class="sysmon-card">
           <div class="sysmon-label">⚡ CPU</div>
-          <div class="sysmon-bar"><div class="sysmon-bar-fill ${d.cpu_pct > 80 ? 'danger' : d.cpu_pct > 50 ? 'warn' : 'ok'}" style="width:${d.cpu_pct}%"></div></div>
-          <div class="sysmon-sub">${d.cpu_pct}%</div>
+          <div class="sysmon-bar"><div class="sysmon-bar-fill ${d.cpu_pct > 80 ? 'danger' : d.cpu_pct > 50 ? 'warn' : 'ok'}" style="width:${d.cpu_pct || 0}%"></div></div>
+          <div class="sysmon-sub">${cpuText}</div>
         </div>
         <div class="sysmon-card">
           <div class="sysmon-label">🧠 RAM</div>
-          <div class="sysmon-bar"><div class="sysmon-bar-fill ${d.ram_pct > 85 ? 'danger' : d.ram_pct > 60 ? 'warn' : 'ok'}" style="width:${d.ram_pct}%"></div></div>
-          <div class="sysmon-sub">${d.ram_used_mb} / ${d.ram_total_mb} MB (${d.ram_pct}%)</div>
+          <div class="sysmon-bar"><div class="sysmon-bar-fill ${d.ram_pct > 85 ? 'danger' : d.ram_pct > 60 ? 'warn' : 'ok'}" style="width:${d.ram_pct || 0}%"></div></div>
+          <div class="sysmon-sub">${d.ram_used_mb || '?'} / ${d.ram_total_mb || '?'} MB (${d.ram_pct || '?'}%)</div>
         </div>
         <div class="sysmon-card">
           <div class="sysmon-label">💾 Disco</div>
-          <div class="sysmon-bar"><div class="sysmon-bar-fill ${d.disk_pct > 90 ? 'danger' : d.disk_pct > 70 ? 'warn' : 'ok'}" style="width:${d.disk_pct}%"></div></div>
-          <div class="sysmon-sub">${d.disk_free_gb} GB livre de ${d.disk_total_gb} GB (${d.disk_pct}%)</div>
+          <div class="sysmon-bar"><div class="sysmon-bar-fill ${d.disk_pct > 90 ? 'danger' : d.disk_pct > 70 ? 'warn' : 'ok'}" style="width:${d.disk_pct || 0}%"></div></div>
+          <div class="sysmon-sub">${d.disk_free_gb || '?'} GB livre de ${d.disk_total_gb || '?'} GB</div>
+        </div>
+        <div class="sysmon-card">
+          <div class="sysmon-label">🎮 GPU</div>
+          <div class="sysmon-sub">${gpuText}</div>
+        </div>
+        <div class="sysmon-card">
+          <div class="sysmon-label">🌐 Rede</div>
+          <div class="sysmon-sub">${netIcon}${d.offline_mode ? ' · Modo offline ativo' : ''}</div>
         </div>
         <div class="sysmon-card sysmon-wide">
-          <div class="sysmon-label">📊 Conteúdo</div>
+          <div class="sysmon-label">📊 Conteudo</div>
           <div class="sysmon-content-grid">
-            <span>📋 ${d.content?.guides || '?'} guias</span>
-            <span>🚨 ${d.content?.protocols || '?'} protocolos</span>
-            <span>📚 ${d.content?.books || '?'} livros</span>
-            <span>🎮 ${d.content?.games || '?'} jogos</span>
-            <span>📦 ${d.content?.supplies || '?'} itens</span>
-            <span>📓 ${d.content?.journal_entries || '?'} entradas</span>
+            <span>📋 ${d.content?.guides || 0} guias</span>
+            <span>🚨 ${d.content?.protocols || 0} protocolos</span>
+            <span>📚 ${d.content?.books || 0} livros</span>
+            <span>🎮 ${d.content?.games || 0} jogos</span>
+            <span>🗺 ${d.content?.maps || 0} mapas</span>
+            <span>🌐 ${d.content?.zim_files || 0} wikis</span>
           </div>
         </div>
       </div>
-      <div class="sysmon-footer">Atualização automática a cada 5s — ${d.server_time?.slice(11, 19) || ''}</div>`;
+      <div class="sysmon-footer">${d.server_time?.slice(11, 19) || ''} · auto-refresh 5s</div>`;
   } catch (e) {
     el.innerHTML = `<div class="guide-error">Erro ao carregar status: ${e.message}</div>`;
   }
@@ -3893,13 +3899,23 @@ function morseDecodeInput() {
   output.textContent = words.join(' ') || '...';
 }
 
+let _morseOscillators = [];
+let _morsePlaying = false;
+
 function morsePlayAudio() {
+  if (_morsePlaying) { morseStopAudio(); return; }
   const morse = document.getElementById('morseOutput')?.textContent || '';
   if (!morse || morse === '...') return;
   if (!_morseAudioCtx) _morseAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
   const ctx = _morseAudioCtx;
   const DOT = 0.08, DASH = 0.24, GAP = 0.08, LETTER_GAP = 0.24, WORD_GAP = 0.56;
   let time = ctx.currentTime + 0.1;
+  _morseOscillators = [];
+  _morsePlaying = true;
+
+  // Update button state
+  const btn = document.getElementById('morsePlayBtn');
+  if (btn) { btn.textContent = '⏹ Parar'; btn.classList.add('playing'); }
 
   for (const ch of morse) {
     if (ch === '·') {
@@ -3907,12 +3923,14 @@ function morsePlayAudio() {
       osc.connect(gain); gain.connect(ctx.destination);
       osc.frequency.value = 700; gain.gain.value = 0.3;
       osc.start(time); osc.stop(time + DOT);
+      _morseOscillators.push(osc);
       time += DOT + GAP;
     } else if (ch === '−') {
       const osc = ctx.createOscillator(); const gain = ctx.createGain();
       osc.connect(gain); gain.connect(ctx.destination);
       osc.frequency.value = 700; gain.gain.value = 0.3;
       osc.start(time); osc.stop(time + DASH);
+      _morseOscillators.push(osc);
       time += DASH + GAP;
     } else if (ch === '/') {
       time += WORD_GAP;
@@ -3920,7 +3938,20 @@ function morsePlayAudio() {
       time += LETTER_GAP;
     }
   }
+
+  // Auto-reset when done
+  const duration = (time - ctx.currentTime) * 1000;
+  setTimeout(() => { if (_morsePlaying) morseStopAudio(); }, duration + 100);
 }
+
+function morseStopAudio() {
+  _morsePlaying = false;
+  _morseOscillators.forEach(osc => { try { osc.stop(); } catch(e) {} });
+  _morseOscillators = [];
+  const btn = document.getElementById('morsePlayBtn');
+  if (btn) { btn.textContent = '🔊 Tocar'; btn.classList.remove('playing'); }
+}
+window.morseStopAudio = morseStopAudio;
 
 let _morseFlashing = false;
 function morseFlashSOS() {
@@ -4348,7 +4379,67 @@ function taskDelete(id) {
 window.taskDelete = taskDelete;
 
 
-// ─── Terminal ────────────────────────────────────────────────────────────────
+// ─── Media Player ────────────────────────────────────────────────────────────
+let _mediaFiles = [];
+
+function mediaInit() {
+  const listEl = document.getElementById('mediaList');
+  const playerEl = document.getElementById('mediaPlayer');
+  if (!listEl) return;
+
+  // Load media files from file manager API
+  fetch('/api/files?path=data/media')
+    .then(r => r.ok ? r.json() : { files: [] })
+    .then(data => {
+      _mediaFiles = (data.files || []).filter(f =>
+        /\.(mp4|webm|mp3|ogg|wav|m4a|flac|mkv|avi)$/i.test(f.name)
+      );
+      mediaRenderList();
+    })
+    .catch(() => { listEl.innerHTML = '<div class="media-empty">Coloque arquivos em <code>data/media/</code></div>'; });
+}
+window.mediaInit = mediaInit;
+
+function mediaRenderList() {
+  const listEl = document.getElementById('mediaList');
+  if (!listEl) return;
+  if (!_mediaFiles.length) {
+    listEl.innerHTML = '<div class="media-empty">Nenhuma midia encontrada.<br>Coloque arquivos de video/audio em <code>data/media/</code><br><br>Formatos: mp4, webm, mp3, ogg, wav, m4a, flac</div>';
+    return;
+  }
+  listEl.innerHTML = _mediaFiles.map((f, i) => {
+    const isVideo = /\.(mp4|webm|mkv|avi)$/i.test(f.name);
+    const icon = isVideo ? '🎬' : '🎵';
+    return `<div class="media-item" onclick="mediaPlay(${i})">${icon} ${escapeHtml(f.name)}</div>`;
+  }).join('');
+}
+
+function mediaPlay(idx) {
+  const f = _mediaFiles[idx];
+  if (!f) return;
+  const playerEl = document.getElementById('mediaPlayer');
+  const titleEl = document.getElementById('mediaTitle');
+  if (!playerEl) return;
+
+  const isVideo = /\.(mp4|webm|mkv|avi)$/i.test(f.name);
+  const src = `/api/files/read?path=${encodeURIComponent('data/media/' + f.name)}&raw=1`;
+
+  if (titleEl) titleEl.textContent = f.name;
+
+  if (isVideo) {
+    playerEl.innerHTML = `<video controls autoplay style="width:100%;max-height:360px;border-radius:8px;background:#000"><source src="${src}"></video>`;
+  } else {
+    playerEl.innerHTML = `<div class="media-audio-art">🎵</div><audio controls autoplay style="width:100%"><source src="${src}"></audio>`;
+  }
+
+  // Highlight active
+  document.querySelectorAll('.media-item').forEach((el, i) => {
+    el.classList.toggle('active', i === idx);
+  });
+}
+window.mediaPlay = mediaPlay;
+
+// ─── Terminal (hidden — power user only) ─────────────────────────────────────
 let _termHistory = [];
 let _termHistIdx = -1;
 
