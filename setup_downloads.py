@@ -13,6 +13,7 @@ Uses only Python stdlib (no third-party packages required).
 import json
 import os
 import sqlite3
+import subprocess
 import sys
 import time
 import urllib.error
@@ -321,14 +322,17 @@ def download_zim() -> None:
 
 # ── PMTiles map download ─────────────────────────────────────────────────────
 
-# Natural Earth low-res world basemap as PMTiles (~35 MB)
-# From protomaps.com — free for offline use
-PMTILES_URL = "https://build.protomaps.com/20230408.pmtiles"
+# Protomaps daily builds — full planet (~120GB) at build.protomaps.com/YYYYMMDD.pmtiles
+# We use the `pmtiles` CLI to extract a low-zoom subset (~60MB world, zoom 0-6)
+# If CLI is not available, we skip (user can manually place .pmtiles files)
 PMTILES_DEST = STATIC / "maps" / "world.pmtiles"
-
-# Alternative: much smaller Natural Earth vector tiles (~7 MB)
-PMTILES_NE_URL = "https://r2-public.protomaps.com/protomaps-sample-datasets/natural-earth.pmtiles"
-PMTILES_NE_DEST = STATIC / "maps" / "natural-earth.pmtiles"
+PMTILES_CLI_URLS = {
+    "win32": "https://github.com/protomaps/go-pmtiles/releases/latest/download/go-pmtiles_Windows_x86_64.zip",
+    "linux": "https://github.com/protomaps/go-pmtiles/releases/latest/download/go-pmtiles_Linux_x86_64.tar.gz",
+    "darwin": "https://github.com/protomaps/go-pmtiles/releases/latest/download/go-pmtiles_Darwin_arm64.tar.gz",
+}
+# Use a known good build date
+PMTILES_BUILD_URL = "https://build.protomaps.com/20260217.pmtiles"
 
 
 def download_pmtiles() -> None:
@@ -336,17 +340,105 @@ def download_pmtiles() -> None:
     maps_dir = STATIC / "maps"
     maps_dir.mkdir(parents=True, exist_ok=True)
 
-    # Try Natural Earth first (small, ~7 MB) — guaranteed to work offline
-    if PMTILES_NE_DEST.exists() and PMTILES_NE_DEST.stat().st_size > 100_000:
-        info("Natural Earth map already present, skipping")
+    # Check if any .pmtiles already exists
+    existing = list(maps_dir.glob("*.pmtiles"))
+    if existing and any(f.stat().st_size > 100_000 for f in existing):
+        info(f"Map file already present: {existing[0].name}, skipping")
         return
 
-    ok = download_file(PMTILES_NE_URL, PMTILES_NE_DEST,
-                       "Natural Earth world map (PMTiles)", min_size=100_000)
-    if ok:
-        info("Mapa mundial offline pronto!")
-    else:
-        warn("Falha ao baixar mapa. Coloque arquivos .pmtiles em static/maps/ manualmente.")
+    # Try to find or download pmtiles CLI
+    pmtiles_exe = _find_pmtiles_cli()
+    if not pmtiles_exe:
+        pmtiles_exe = _download_pmtiles_cli()
+
+    if pmtiles_exe:
+        # Extract low-zoom world map (~60 MB) via HTTP range requests
+        info("Extraindo mapa mundial zoom 0-6 (pode levar alguns minutos)...")
+        try:
+            result = subprocess.run(
+                [str(pmtiles_exe), "extract", PMTILES_BUILD_URL,
+                 str(PMTILES_DEST), "--maxzoom=6"],
+                capture_output=True, text=True, timeout=600,
+            )
+            if PMTILES_DEST.exists() and PMTILES_DEST.stat().st_size > 100_000:
+                size_mb = PMTILES_DEST.stat().st_size / (1024 * 1024)
+                info(f"Mapa mundial offline pronto! ({size_mb:.1f} MB)")
+                return
+            else:
+                warn(f"pmtiles extract falhou: {result.stderr[:200]}")
+        except (subprocess.TimeoutExpired, OSError) as e:
+            warn(f"pmtiles extract erro: {e}")
+
+    warn(
+        "Nao foi possivel baixar mapa automaticamente.\n"
+        "         Coloque arquivos .pmtiles em static/maps/ manualmente.\n"
+        "         Ou instale o CLI: https://github.com/protomaps/go-pmtiles/releases"
+    )
+
+
+def _find_pmtiles_cli():
+    """Check if pmtiles CLI is available on PATH or in tools/."""
+    import shutil as _sh
+    # Check PATH
+    found = _sh.which("pmtiles")
+    if found:
+        return found
+    # Check tools/ dir
+    ext = ".exe" if sys.platform == "win32" else ""
+    local = ROOT / "tools" / f"pmtiles{ext}"
+    if local.exists():
+        return str(local)
+    return None
+
+
+def _download_pmtiles_cli():
+    """Download pmtiles CLI binary for current platform."""
+    platform_key = "win32" if sys.platform == "win32" else ("darwin" if sys.platform == "darwin" else "linux")
+    url = PMTILES_CLI_URLS.get(platform_key)
+    if not url:
+        return None
+
+    ext = ".exe" if sys.platform == "win32" else ""
+    dest_bin = ROOT / "tools" / f"pmtiles{ext}"
+    if dest_bin.exists():
+        return str(dest_bin)
+
+    archive_name = url.split("/")[-1]
+    archive_path = ROOT / "tools" / archive_name
+    ok = download_file(url, archive_path, f"pmtiles CLI ({platform_key})", min_size=1000)
+    if not ok:
+        return None
+
+    try:
+        if archive_name.endswith(".zip"):
+            with zipfile.ZipFile(archive_path, "r") as zf:
+                for member in zf.namelist():
+                    if "pmtiles" in member.lower() and (member.endswith(".exe") or "/" not in member):
+                        with zf.open(member) as src, open(dest_bin, "wb") as dst:
+                            dst.write(src.read())
+                        break
+        elif archive_name.endswith(".tar.gz"):
+            import tarfile
+            with tarfile.open(archive_path, "r:gz") as tf:
+                for member in tf.getmembers():
+                    if "pmtiles" in member.name.lower() and member.isfile():
+                        f = tf.extractfile(member)
+                        if f:
+                            dest_bin.write_bytes(f.read())
+                        break
+            if dest_bin.exists() and sys.platform != "win32":
+                os.chmod(str(dest_bin), 0o755)
+
+        archive_path.unlink(missing_ok=True)
+
+        if dest_bin.exists() and dest_bin.stat().st_size > 1000:
+            info(f"pmtiles CLI instalado em tools/")
+            return str(dest_bin)
+    except Exception as e:
+        warn(f"Falha ao extrair pmtiles CLI: {e}")
+        archive_path.unlink(missing_ok=True)
+
+    return None
 
 # ── SQLite book catalog ──────────────────────────────────────────────────────
 
