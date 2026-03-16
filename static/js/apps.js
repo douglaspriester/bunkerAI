@@ -5017,6 +5017,123 @@ Object.defineProperty(window, '_notepadDirty', { get() { return _notepadDirty; }
 Object.defineProperty(window, '_notepadActiveId', { get() { return _notepadActiveId; }, configurable: true });
 Object.defineProperty(window, '_wordDirty', { get() { return _wordDirty; }, configurable: true });
 Object.defineProperty(window, '_wordActiveId', { get() { return _wordActiveId; }, configurable: true });
+// ═══ Survival Reference Database ═════════════════════════════════════════════
+const SURV_REF = [
+  { cat: '💧 Agua', items: [
+    { title: 'Fervura', text: 'Ferver por 1 minuto (3 min acima de 2000m). Metodo mais confiavel.' },
+    { title: 'Cloro (agua sanitaria)', text: '2 gotas de agua sanitaria (2.5% hipoclorito) por litro. Esperar 30 min. Odor leve de cloro = OK.' },
+    { title: 'SODIS (solar)', text: 'Garrafa PET transparente ao sol direto por 6h (2 dias se nublado). Funciona com UV.' },
+    { title: 'Filtro improvisado', text: 'Camadas de baixo p/ cima: cascalho grosso → cascalho fino → areia → carvao ativado → pano. Sempre ferver depois.' },
+    { title: 'Sinais de agua', text: 'Vegetacao verde, insetos em enxame, trilhas de animais convergindo, vales e depressoes.' },
+    { title: 'Condensacao', text: 'Saco plastico sobre galho com folhas verdes. Em poucas horas coleta agua por evapotranspiracao.' },
+  ]},
+  { cat: '🏥 Primeiros Socorros', items: [
+    { title: 'Hemorragia grave', text: 'Pressao direta com pano limpo. Nao remover — adicionar mais pano por cima. Torniquete 5-8cm acima da ferida so se pressao falhar. Anotar horario.' },
+    { title: 'RCP Adulto', text: '30 compressoes (5-6cm, 100-120/min) + 2 ventilacoes. Centro do peito, bracos retos. Nao parar ate socorro chegar.' },
+    { title: 'Fratura', text: 'Imobilizar ACIMA e ABAIXO da fratura. Tala improvisada: galhos retos + pano/fita. Nunca tentar "colocar no lugar".' },
+    { title: 'Queimadura', text: '1o grau: agua corrente fria 20 min. 2o grau: idem + cobrir com pano limpo umido. 3o grau: NAO colocar agua. Cobrir com pano seco limpo. Evacuar.' },
+    { title: 'Engasgo (Heimlich)', text: 'Atras da pessoa, punho fechado acima do umbigo, outra mao por cima. Puxar para dentro e para cima com forca. Repetir.' },
+    { title: 'Hipotermia', text: 'Remover roupas molhadas. Aquecer gradualmente: cobertores, contato corpo-a-corpo. Liquidos mornos (NAO quentes). NAO esfregar extremidades.' },
+    { title: 'Desidratacao', text: 'Soro caseiro: 1L agua + 6 colheres cha acucar + 1 colher cha sal. Beber aos poucos.' },
+  ]},
+  { cat: '🔥 Fogo', items: [
+    { title: 'Arco e broca', text: 'Madeira seca leve (hibisco, salgueiro). Broca gira em cavidade na base. Raspa incandescente cai na tinder. Soprar gentilmente.' },
+    { title: 'Lente solar', text: 'Lupa, fundo de garrafa com agua, oculos. Concentrar ponto de luz em tinder escuro. Funciona meio-dia.' },
+    { title: 'Bateria + palha de aco', text: 'Tocar polos da bateria (9V ideal) em la de aco fina. Inflama instantaneamente.' },
+    { title: 'Tinder (material inicial)', text: 'Fibra de coco, casca de betula, algodao, folhas secas trituradas, fungo seco, lint de roupa.' },
+    { title: 'Estrutura da fogueira', text: 'Base: tinder. Meio: gravetos finos (espessura de lapis). Topo: lenha grossa. Formato tepee ou log cabin.' },
+  ]},
+  { cat: '🏕️ Abrigo', items: [
+    { title: 'Regra dos 3', text: '3 min sem ar, 3 horas sem abrigo (clima extremo), 3 dias sem agua, 3 semanas sem comida.' },
+    { title: 'Lean-to', text: 'Viga apoiada em arvore a 45°. Galhos na lateral formando parede. Cobrir com folhas/musgos. Entrada oposta ao vento.' },
+    { title: 'Debris hut', text: 'Para 1 pessoa. Viga central na altura do quadril. Galhos em A dos lados. Cobrir com 30cm+ de folhas secas.' },
+    { title: 'Local ideal', text: 'Terreno elevado (evitar inundacao). Protecao contra vento. Perto de agua mas nao na margem. Longe de arvores mortas.' },
+    { title: 'Isolamento do solo', text: 'NUNCA dormir direto no chao. Usar galhos, folhas, mochilas. Solo rouba calor 25x mais rapido que ar.' },
+  ]},
+  { cat: '🧭 Navegacao', items: [
+    { title: 'Estrela Polar (Norte)', text: 'Encontre a Ursa Maior (concha). Prolongue 5x a distancia entre as 2 estrelas da borda. Aponta para Polaris = Norte.' },
+    { title: 'Cruzeiro do Sul', text: 'Prolongue o eixo maior do Cruzeiro 4.5x. Desse ponto, desca perpendicular ao horizonte = Sul.' },
+    { title: 'Metodo do relogio', text: 'Ponteiro das horas p/ sol. Bissetriz entre ponteiro e 12h = Norte (hemisferio sul: Sul).' },
+    { title: 'Sombra e pau', text: 'Pau vertical no chao. Marcar ponta da sombra. Esperar 15-30 min. Marcar novamente. Linha entre marcas = Leste-Oeste.' },
+    { title: 'Musgo', text: 'Musgo cresce no lado MAIS UMIDO (geralmente sul no hem. sul, norte no hem. norte). Nao e 100% confiavel — usar com outros metodos.' },
+  ]},
+  { cat: '🪢 Nos Essenciais', items: [
+    { title: 'Lais de guia (bowline)', text: 'Laco que nao aperta sob carga. Ideal para resgate. "Coelho sai da toca, da volta na arvore, volta pra toca."' },
+    { title: 'No de escota', text: 'Unir duas cordas de espessuras diferentes. Corda grossa faz U, fina passa por dentro, da volta e prende.' },
+    { title: 'Volta do fiel (clove hitch)', text: 'Prender corda em poste/galho. Duas voltas sobrepostas. Rapido mas pode deslizar — usar como auxiliar.' },
+    { title: 'No de prusik', text: 'Corda fina em corda grossa. Trava sob peso, desliza quando solto. Essencial para subir cordas.' },
+    { title: 'Volta redonda + cotes', text: 'Corda em poste: volta completa + 2 meios nos (cotes). Muito seguro, facil de desfazer.' },
+  ]},
+  { cat: '🌿 Plantas (Brasil)', items: [
+    { title: '✅ Palmito (Jucara/Acai)', text: 'Nucleo do caule de palmeiras. Cortar e comer cru ou cozido. Rico em fibras.' },
+    { title: '✅ Ora-pro-nobis', text: 'Folhas comestiveis cruas ou cozidas. 25% proteina (peso seco). Muito comum em cercos/muros.' },
+    { title: '✅ Taioba', text: 'Folhas COZIDAS (nunca cruas — oxalato). Parece inhame. Abundante em areas umidas.' },
+    { title: '✅ Banana (silvestre)', text: 'Fruto e coracao (flor). Folhas para cozinhar/embalar. Toda parte usavel.' },
+    { title: '⚠️ Mandioca BRAVA', text: 'TOXICA crua (cianeto). Exige processamento: ralar, prensar, torrar. Confundida com mansa.' },
+    { title: '❌ Comigo-ninguem-pode', text: 'TOXICA. Causa queimacao severa na boca/garganta. Cristais de oxalato. NAO tocar nos olhos.' },
+    { title: '❌ Mamona', text: 'Sementes contem ricina (letal). Folhas grandes e inconfundiveis. Evitar completamente.' },
+    { title: 'Regra geral', text: 'Na duvida: NAO coma. Teste universal: esfregue no pulso 15min → labio 15min → lingua 15min → mastigar/cuspir. Se irritar, descarte.' },
+  ]},
+  { cat: '📡 Sinais de Socorro', items: [
+    { title: 'SOS (Morse)', text: '··· −−− ··· (3 curtos, 3 longos, 3 curtos). Universal. Luz, som ou espelho.' },
+    { title: 'Triangulo', text: '3 fogueiras/luzes em triangulo equilatero. Sinal internacional de socorro.' },
+    { title: 'Espelho', text: 'Qualquer superficie reflexiva. Mirar entre os dedos em V apontando para aeronave. Flash repetido.' },
+    { title: 'MAYDAY', text: '"MAYDAY MAYDAY MAYDAY, aqui [nome], minha posicao e [coords/descricao], [situacao], [numero de pessoas]"' },
+    { title: 'Marcas no chao', text: 'V = preciso ajuda, X = preciso atendimento medico, I = preciso suprimentos, → = sigo nesta direcao. Letras de 3m+.' },
+  ]},
+];
+
+function survRefInit() {
+  const container = document.getElementById('survRefContent');
+  if (!container) return;
+  let html = '';
+  SURV_REF.forEach(section => {
+    html += `<div class="surv-section">
+      <h3 class="surv-cat-title">${section.cat}</h3>
+      <div class="surv-cards">`;
+    section.items.forEach(item => {
+      html += `<div class="surv-card">
+        <div class="surv-card-title">${item.title}</div>
+        <div class="surv-card-text">${item.text}</div>
+      </div>`;
+    });
+    html += '</div></div>';
+  });
+  container.innerHTML = html;
+}
+window.survRefInit = survRefInit;
+
+function survRefFilter(query) {
+  const q = query.toLowerCase().trim();
+  document.querySelectorAll('#survRefContent .surv-section').forEach(sec => {
+    const cards = sec.querySelectorAll('.surv-card');
+    let anyVisible = false;
+    cards.forEach(card => {
+      const match = !q || card.textContent.toLowerCase().includes(q);
+      card.style.display = match ? '' : 'none';
+      if (match) anyVisible = true;
+    });
+    sec.style.display = (!q || anyVisible) ? '' : 'none';
+  });
+}
+window.survRefFilter = survRefFilter;
+
+// ═══ SOS Widget ══════════════════════════════════════════════════════════════
+function toggleSosWidget() {
+  const panel = document.getElementById('sosPanel');
+  if (panel) panel.classList.toggle('hidden');
+}
+window.toggleSosWidget = toggleSosWidget;
+
+// Close SOS panel when clicking outside
+document.addEventListener('click', (e) => {
+  const widget = document.getElementById('sosWidget');
+  const panel = document.getElementById('sosPanel');
+  if (widget && panel && !widget.contains(e.target)) {
+    panel.classList.add('hidden');
+  }
+});
+
 // ═══ Radio Frequency Filter ═══════════════════════════════════════════════
 function radioFilter(query) {
   const container = document.getElementById('radioView');

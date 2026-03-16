@@ -2946,6 +2946,52 @@ body::after {
     #020609 !important;
 }
 
+/* ── SOS Emergency Widget ── */
+.sos-widget {
+  position: fixed; bottom: 52px; right: 12px; z-index: 9999;
+}
+.sos-toggle {
+  width: 48px; height: 48px; border-radius: 50%;
+  background: rgba(255,40,40,0.15); border: 2px solid #ff4444;
+  font-size: 22px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s; box-shadow: 0 0 12px rgba(255,40,40,0.3);
+  animation: sos-pulse 3s ease-in-out infinite;
+}
+.sos-toggle:hover {
+  background: rgba(255,40,40,0.3); transform: scale(1.1);
+  box-shadow: 0 0 20px rgba(255,40,40,0.5);
+}
+@keyframes sos-pulse {
+  0%, 100% { box-shadow: 0 0 12px rgba(255,40,40,0.3); }
+  50% { box-shadow: 0 0 20px rgba(255,40,40,0.5); }
+}
+.sos-panel {
+  position: absolute; bottom: 56px; right: 0;
+  width: 220px; background: rgba(10,14,18,0.97);
+  border: 1px solid #ff4444; border-radius: 8px;
+  padding: 10px; display: flex; flex-direction: column; gap: 6px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 24px rgba(255,40,40,0.15);
+}
+.sos-title {
+  font-family: var(--font-hud); font-size: 11px; font-weight: 700;
+  color: #ff4444; letter-spacing: 0.08em; padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255,68,68,0.2);
+}
+.sos-btn {
+  padding: 8px 10px; background: var(--surface);
+  border: 1px solid var(--border); color: var(--text);
+  font-size: 12px; font-family: var(--font-hud); cursor: pointer;
+  text-align: left; transition: all 0.15s; border-radius: 4px;
+}
+.sos-btn:hover { background: var(--surface-2); border-color: var(--accent); }
+.sos-btn.sos-critical {
+  border-color: rgba(255,68,68,0.3); background: rgba(255,40,40,0.06);
+  color: var(--text-bright); font-weight: 600;
+}
+.sos-btn.sos-critical:hover { border-color: #ff4444; background: rgba(255,40,40,0.12); }
+
 /* ── Desktop Icons Grid ── */
 .desktop-icons {
   flex: 1;
@@ -3908,6 +3954,29 @@ body {
 .phonetic-space { color: var(--text-muted); margin: 0 4px; }
 
 /* ═══ Radio Frequencies ═══ */
+/* ═══ Survival Reference ═══ */
+.surv-section { margin-bottom: 16px; }
+.surv-cat-title {
+  color: var(--accent); font-size: 14px; font-weight: 700;
+  font-family: var(--font-hud); margin-bottom: 8px;
+  padding-bottom: 4px; border-bottom: 1px solid var(--border);
+}
+.surv-cards { display: flex; flex-direction: column; gap: 6px; }
+.surv-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 4px; padding: 10px 12px;
+  transition: border-color 0.15s;
+}
+.surv-card:hover { border-color: var(--accent); }
+.surv-card-title {
+  font-weight: 700; color: var(--text-bright); font-size: 12px;
+  font-family: var(--font-hud); margin-bottom: 3px;
+}
+.surv-card-text {
+  font-size: 12px; color: var(--text); line-height: 1.6;
+  font-family: var(--font-mono);
+}
+
 .radio-search {
   width: 100%; padding: 8px 12px; margin-bottom: 12px;
   background: var(--surface); border: 1px solid var(--border);

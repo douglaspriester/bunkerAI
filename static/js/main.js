@@ -187,6 +187,7 @@ function wireAppCallbacks() {
     fileManager: () => window.fileManagerInit?.(),
     paint:      () => window.paintInit?.(),
     imagine:    () => window.imagineInit?.(),
+    survRef:    () => window.survRefInit?.(),
   };
   Object.entries(openMap).forEach(([appId, fn]) => registerAppOpen(appId, fn));
 

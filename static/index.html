@@ -44,6 +44,20 @@
   <!-- Desktop Icons Grid -->
   <div id="desktopIcons" class="desktop-icons"></div>
 
+  <!-- Emergency Quick Panel (desktop widget) -->
+  <div id="sosWidget" class="sos-widget">
+    <button class="sos-toggle" onclick="toggleSosWidget()" title="Painel de Emergencia">🆘</button>
+    <div class="sos-panel hidden" id="sosPanel">
+      <div class="sos-title">⚡ Acesso Rapido</div>
+      <button class="sos-btn sos-critical" onclick="openApp('chat');setAIMode('medical');setInput('Alguem esta sangrando muito, o que faco AGORA?')">🏥 Hemorragia</button>
+      <button class="sos-btn sos-critical" onclick="openApp('chat');setAIMode('medical');setInput('Preciso fazer RCP agora, me guie passo a passo')">💓 RCP</button>
+      <button class="sos-btn" onclick="openApp('chat');setAIMode('survival');setInput('Estou perdido sem agua nem comida, prioridades imediatas?')">🏕️ Perdido</button>
+      <button class="sos-btn" onclick="openApp('radio')">📻 Frequencias</button>
+      <button class="sos-btn" onclick="openApp('morse')">📡 SOS Morse</button>
+      <button class="sos-btn" onclick="openApp('map')">🗺️ Mapas</button>
+    </div>
+  </div>
+
   <!-- Windows Container -->
   <div id="windowsContainer" class="windows-container"></div>
 
@@ -1300,6 +1314,14 @@ Responda no idioma do usuario. Use markdown.</textarea>
           </div>
         </div>
         <div id="imagineHistory" style="display:flex;gap:8px;overflow-x:auto;padding:4px 0;min-height:60px;"></div>
+      </div>
+    </div>
+
+    <!-- ═══ Survival Reference ═══ -->
+    <div class="panel-view hidden" id="survRefView">
+      <div style="padding:14px;overflow-y:auto;height:100%;font-size:13px">
+        <input type="text" id="survRefSearch" class="radio-search" placeholder="Buscar: agua, fratura, fogo, nos..." oninput="survRefFilter(this.value)" />
+        <div id="survRefContent"></div>
       </div>
     </div>
 

@@ -317,6 +317,9 @@ export function setAIMode(modeId) {
   storage.set('aiMode', modeId);
   renderModeSelector();
   updateModeTag();
+  // Refresh welcome screen if visible
+  const welcome = document.getElementById('welcomeMsg');
+  if (welcome) welcome.outerHTML = getWelcomeHtml();
 }
 
 export function renderModeSelector() {
@@ -615,21 +618,69 @@ export function scrollChat() {
   if (c) c.scrollTop = c.scrollHeight;
 }
 
+const MODE_HINTS = {
+  general: [
+    { text: 'Purificar agua', prompt: 'Como purificar agua sem equipamento?' },
+    { text: 'A Grande Pergunta', prompt: 'Qual a resposta para a vida, o universo e tudo mais?' },
+    { text: 'Criar app', prompt: '/build Um dashboard de sobrevivencia com checklist, mapa e inventario' },
+    { text: 'Ligar webcam', action: 'activateWebcam()' },
+  ],
+  medical: [
+    { text: 'Parar hemorragia', prompt: 'Como parar uma hemorragia grave sem material hospitalar?' },
+    { text: 'Imobilizar fratura', prompt: 'Como imobilizar uma fratura exposta em campo?' },
+    { text: 'Queimadura grave', prompt: 'Tratamento de emergencia para queimadura de 2o e 3o grau' },
+    { text: 'RCP adulto', prompt: 'Procedimento completo de RCP em adulto sem desfibrilador' },
+  ],
+  survival: [
+    { text: 'Encontrar agua', prompt: 'Como encontrar e purificar agua na natureza?' },
+    { text: 'Abrigo improvisado', prompt: 'Como construir um abrigo de emergencia com materiais naturais?' },
+    { text: 'Fazer fogo', prompt: 'Metodos de fazer fogo sem fosforo ou isqueiro' },
+    { text: 'Plantas comestiveis', prompt: 'Quais plantas silvestres sao seguras para comer no Brasil?' },
+  ],
+  engineer: [
+    { text: 'Gerador improvisado', prompt: 'Como construir um gerador eletrico simples com materiais encontrados?' },
+    { text: 'Filtro de agua', prompt: 'Como construir um filtro de agua com areia, carvao e cascalho?' },
+    { text: 'Radio receptor', prompt: 'Como montar um radio receptor AM simples para captar sinais?' },
+    { text: 'Painel solar', prompt: 'Como montar um sistema basico de energia solar com bateria?' },
+  ],
+  defense: [
+    { text: 'Perimetro seguro', prompt: 'Como estabelecer um perimetro defensivo para um grupo pequeno?' },
+    { text: 'Rotas de fuga', prompt: 'Como planejar rotas de evasao e pontos de encontro?' },
+    { text: 'Camuflagem', prompt: 'Tecnicas de camuflagem e ocultacao em ambiente urbano e rural' },
+    { text: 'OPSEC basico', prompt: 'Guia de seguranca operacional (OPSEC) para comunicacoes em crise' },
+  ],
+  psych: [
+    { text: 'Ataque de panico', prompt: 'Como ajudar alguem tendo um ataque de panico severo?' },
+    { text: 'Crianca em choque', prompt: 'Como acalmar e estabilizar uma crianca em estado de choque emocional?' },
+    { text: 'Lideranca de crise', prompt: 'Como manter a coesao e moral de um grupo sob estresse extremo?' },
+    { text: 'Tecnica grounding', prompt: 'Ensine a tecnica 5-4-3-2-1 de grounding para ansiedade aguda' },
+  ],
+};
+
 export function getWelcomeHtml() {
+  const mode = AI_MODES[_activeMode];
+  const hints = MODE_HINTS[_activeMode] || MODE_HINTS.general;
+  const subtitle = _activeMode === 'general'
+    ? 'Seu guia local para o fim do mundo. Chat por texto, voz ou video. Gere apps com <code>/build</code>. Tudo offline, tudo seu.'
+    : `Modo <strong style="color:${mode.color}">${mode.icon} ${mode.label}</strong> ativo — pergunte qualquer coisa sobre ${mode.label.toLowerCase()}.`;
+
+  const hintBtns = hints.map(h =>
+    h.action
+      ? `<button class="hint" onclick="${h.action}">${h.text}</button>`
+      : `<button class="hint" onclick="setInput('${h.prompt.replace(/'/g, "\\'")}')">${h.text}</button>`
+  ).join('\n      ');
+
   return `<div class="welcome-msg" id="welcomeMsg">
     <svg width="48" height="48" viewBox="0 0 32 32" fill="none">
-      <rect width="32" height="32" rx="8" fill="var(--accent)"/>
+      <rect width="32" height="32" rx="8" fill="${_activeMode === 'general' ? 'var(--accent)' : mode.color}"/>
       <path d="M8 22V12l8-5 8 5v10l-8 5-8-5z" stroke="var(--bg)" stroke-width="2" fill="none"/>
       <circle cx="16" cy="16" r="3" fill="var(--bg)"/>
     </svg>
     <h2>Bunker AI</h2>
     <div class="dont-panic">DON'T PANIC</div>
-    <p>Seu guia local para o fim do mundo. Chat por texto, voz ou video. Gere apps com <code>/build</code>. Tudo offline, tudo seu.</p>
+    <p>${subtitle}</p>
     <div class="welcome-hints">
-      <button class="hint" onclick="setInput('Como purificar agua sem equipamento?')">Purificar agua</button>
-      <button class="hint" onclick="setInput('Qual a resposta para a vida, o universo e tudo mais?')">A Grande Pergunta</button>
-      <button class="hint" onclick="setInput('/build Um dashboard de sobrevivencia com checklist, mapa e inventario')">Criar app</button>
-      <button class="hint" onclick="activateWebcam()">Ligar webcam</button>
+      ${hintBtns}
     </div>
   </div>`;
 }
