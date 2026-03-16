@@ -45,6 +45,15 @@ LLAMA_CPP_URLS = {
 # API: https://googlechromelabs.github.io/chrome-for-testing/
 CHROME_TESTING_JSON = "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json"
 
+# stable-diffusion.cpp — image generation engine (optional)
+SD_CPP_TAG = "master-533-862a658"
+SD_CPP_URLS = {
+    "windows": f"https://github.com/leejet/stable-diffusion.cpp/releases/download/{SD_CPP_TAG}/sd-{SD_CPP_TAG}-bin-win-avx2-x64.zip",
+    "linux": f"https://github.com/leejet/stable-diffusion.cpp/releases/download/{SD_CPP_TAG}/sd-{SD_CPP_TAG}-bin-Linux-Ubuntu-24.04-x86_64.zip",
+}
+SD_MODEL_URL = "https://huggingface.co/second-state/stable-diffusion-v1-5-GGUF/resolve/main/stable-diffusion-v1-5-pruned-emaonly-Q8_0.gguf"
+SD_MODEL_FILE = "sd-v1.5-q8.gguf"
+
 # ─── Modelos built-in (UNCENSORED por padrao) ────────────────────────────────
 # Filosofia: Em cenarios de sobrevivencia, censura pode custar vidas.
 # Todos os modelos built-in sao uncensored ou sem filtros de seguranca.
@@ -153,7 +162,7 @@ def extract_zip(zip_path: Path, dest_dir: Path):
 
 # ── Build steps ───────────────────────────────────────────────────────────────
 
-def build_portable(output_dir: Path, skip_model: bool = False, cpu_only: bool = False, skip_chrome: bool = False):
+def build_portable(output_dir: Path, skip_model: bool = False, cpu_only: bool = False, skip_chrome: bool = False, skip_sd: bool = False):
     """Assemble the portable package."""
 
     print()
@@ -177,7 +186,7 @@ def build_portable(output_dir: Path, skip_model: bool = False, cpu_only: bool = 
     tmp_dir.mkdir(exist_ok=True)
 
     # ─── 1. Python embeddable ────────────────────────────────────────────────
-    step("1/6 — Python embeddable")
+    step("1/8 — Python embeddable")
 
     if os_name == "windows":
         python_zip = tmp_dir / "python-embed.zip"
@@ -217,7 +226,7 @@ def build_portable(output_dir: Path, skip_model: bool = False, cpu_only: bool = 
         info("Linux: usando Python do sistema (python3)")
 
     # ─── 2. llama.cpp server ─────────────────────────────────────────────────
-    step("2/6 — llama.cpp server")
+    step("2/8 — llama.cpp server")
 
     llama_url = LLAMA_CPP_URLS.get(os_name)
     if llama_url:
@@ -248,7 +257,7 @@ def build_portable(output_dir: Path, skip_model: bool = False, cpu_only: bool = 
         warn(f"Plataforma {os_name} nao suportada para download automatico")
 
     # ─── 3. Modelos GGUF ────────────────────────────────────────────────────
-    step("3/6 — Modelos LLM built-in")
+    step("3/8 — Modelos LLM built-in")
 
     models_dir = output_dir / "models"
     models_dir.mkdir(exist_ok=True)
@@ -286,7 +295,7 @@ def build_portable(output_dir: Path, skip_model: bool = False, cpu_only: bool = 
     (models_dir / "manifest.json").write_text(_json.dumps(manifest, indent=2, ensure_ascii=False))
 
     # ─── 4. Chromium portátil ─────────────────────────────────────────────
-    step("4/6 — Chromium portátil (browser embutido)")
+    step("4/8 — Chromium portátil (browser embutido)")
 
     chrome_dir = runtime_dir / "chrome"
     if skip_chrome:
@@ -329,8 +338,42 @@ def build_portable(output_dir: Path, skip_model: bool = False, cpu_only: bool = 
             warn(f"Erro ao obter Chrome portátil: {e}")
             warn("O app usará o browser do sistema como fallback")
 
-    # ─── 5. Copiar app ──────────────────────────────────────────────────────
-    step("5/6 — Copiando app Bunker AI")
+    # ─── 5. stable-diffusion.cpp (image generation) ─────────────────────────
+    step("5/8 — stable-diffusion.cpp (gerador de imagens)")
+
+    sd_dir = runtime_dir / "sd"
+    if skip_sd:
+        warn("Download do sd-server pulado (--skip-sd)")
+    else:
+        sd_url = SD_CPP_URLS.get(os_name)
+        if sd_url:
+            sd_zip = tmp_dir / "sd-cpp.zip"
+            if download(sd_url, sd_zip, f"sd-server ({SD_CPP_TAG})"):
+                extract_zip(sd_zip, sd_dir)
+                # Flatten subdirectory if needed
+                subdirs = [d for d in sd_dir.iterdir() if d.is_dir()]
+                if len(subdirs) == 1:
+                    subdir = subdirs[0]
+                    for item in subdir.iterdir():
+                        shutil.move(str(item), str(sd_dir / item.name))
+                    subdir.rmdir()
+                info("sd-server instalado")
+
+                # Download SD 1.5 Q8 model
+                sd_models_dir = sd_dir / "models"
+                sd_models_dir.mkdir(exist_ok=True)
+                sd_model_path = sd_models_dir / SD_MODEL_FILE
+                if not sd_model_path.exists():
+                    download(SD_MODEL_URL, sd_model_path, f"SD 1.5 Q8 (~1.76 GB)")
+                else:
+                    info(f"Modelo SD já existe: {SD_MODEL_FILE}")
+            else:
+                warn("Falha ao baixar sd-server")
+        else:
+            warn(f"sd-server não disponível para {os_name}")
+
+    # ─── 6. Copiar app ──────────────────────────────────────────────────────
+    step("6/8 — Copiando app Bunker AI")
 
     # Copy app files
     app_files = [
@@ -352,11 +395,11 @@ def build_portable(output_dir: Path, skip_model: bool = False, cpu_only: bool = 
             info(f"{d}/")
 
     # Create required dirs
-    for d in ["generated_apps", "tts_cache", "voice_models"]:
+    for d in ["generated_apps", "tts_cache", "voice_models", "generated_images"]:
         (output_dir / d).mkdir(exist_ok=True)
 
     # ─── 6. Criar launchers ─────────────────────────────────────────────────
-    step("6/6 — Criando launchers")
+    step("7/8 — Criando launchers")
 
     # Write INICIAR.bat
     iniciar_bat = output_dir / "INICIAR.bat"
@@ -370,6 +413,11 @@ def build_portable(output_dir: Path, skip_model: bool = False, cpu_only: bool = 
 
     # Write portable config marker
     (output_dir / ".portable").write_text("bunker-ai-portable\n")
+
+    # ─── 8. Run setup (download content) ────────────────────────────────────
+    step("8/8 — Conteúdo offline (livros, músicas, guias)")
+    info("O setup_downloads.py será executado na primeira inicialização")
+    info("Ou execute: python setup_downloads.py")
 
     # ─── Cleanup ────────────────────────────────────────────────────────────
     shutil.rmtree(tmp_dir, ignore_errors=True)
@@ -584,6 +632,19 @@ echo   Aperte Ctrl+C para parar
 echo ================================================================
 echo.
 
+REM ---- Iniciar sd-server (gerador de imagens) se disponivel ----
+if exist "runtime\sd\sd-server.exe" (
+    set "SD_MODEL="
+    for %%f in (runtime\sd\models\*.gguf) do (
+        if not defined SD_MODEL set "SD_MODEL=%%f"
+    )
+    if defined SD_MODEL (
+        echo [OK] Iniciando gerador de imagens...
+        start "" /b "runtime\sd\sd-server.exe" -m "!SD_MODEL!" --listen-port 7860 >nul 2>&1
+        echo [OK] sd-server em http://127.0.0.1:7860
+    )
+)
+
 REM ---- Abrir navegador ----
 REM Prioridade: Chromium portatil > browser do sistema
 set "CHROME_EXE="
@@ -717,6 +778,18 @@ echo "  Aperte Ctrl+C para parar"
 echo "══════════════════════════════════════════════════════════════"
 echo ""
 
+# ─── sd-server (image gen) ─────────────────────────
+if [ -x "runtime/sd/sd-server" ]; then
+    SD_MODEL=$(find runtime/sd/models/ -name "*.gguf" 2>/dev/null | head -1)
+    if [ -n "$SD_MODEL" ]; then
+        echo "[OK] Iniciando gerador de imagens..."
+        chmod +x runtime/sd/sd-server
+        runtime/sd/sd-server -m "$SD_MODEL" --listen-port 7860 &>/dev/null &
+        SD_PID=$!
+        echo "[OK] sd-server em http://127.0.0.1:7860"
+    fi
+fi
+
 # ─── Abrir navegador ─────────────────────────────────
 CHROME_EXE=""
 if [ -x "runtime/chrome/chrome" ]; then
@@ -739,6 +812,7 @@ $PYTHON_EXE -m uvicorn server:app --host 0.0.0.0 --port 8888
 
 # Cleanup
 [ -n "$LLAMA_PID" ] && kill $LLAMA_PID 2>/dev/null
+[ -n "$SD_PID" ] && kill $SD_PID 2>/dev/null
 """
 
 
@@ -754,8 +828,10 @@ if __name__ == "__main__":
                        help="Baixar apenas o modelo CPU (pendrive menor, ~1 GB)")
     parser.add_argument("--skip-chrome", action="store_true",
                        help="Pular download do Chromium portátil (usa browser do sistema)")
+    parser.add_argument("--skip-sd", action="store_true",
+                       help="Pular download do sd-server (gerador de imagens)")
     args = parser.parse_args()
 
     output = Path(args.output)
     build_portable(output, skip_model=args.skip_model, cpu_only=args.cpu_only,
-                   skip_chrome=args.skip_chrome)
+                   skip_chrome=args.skip_chrome, skip_sd=args.skip_sd)

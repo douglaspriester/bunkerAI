@@ -33,8 +33,10 @@ DIRS = [
     DATA / "protocols",
     DATA / "games",
     DATA / "books",
+    DATA / "media",
     DATA / "db",
     DATA / "zim",
+    ROOT / "voice_models",
     STATIC / "lib",
     ROOT / "tools",
 ]
@@ -509,6 +511,36 @@ def _download_file(url, dest, label=""):
         return False
 
 
+# ── Piper TTS model (pre-download) ──────────────────────────────────────────
+
+PIPER_HF_BASE = "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0"
+PIPER_DEFAULT_MODEL = {
+    "id": "pt_BR-faber-medium",
+    "lang": "pt", "lang_code": "pt_BR", "speaker": "faber", "quality": "medium",
+    "desc": "Português BR — Masculino (recomendado)", "size_mb": 63,
+}
+
+
+def download_piper_model():
+    """Pre-download the default Piper TTS voice model so the setup modal doesn't appear."""
+    step("Downloading default TTS voice model (Piper)")
+    voice_dir = ROOT / "voice_models"
+    voice_dir.mkdir(parents=True, exist_ok=True)
+
+    m = PIPER_DEFAULT_MODEL
+    onnx_file = voice_dir / f"{m['id']}.onnx"
+    json_file = voice_dir / f"{m['id']}.onnx.json"
+
+    base = f"{PIPER_HF_BASE}/{m['lang']}/{m['lang_code']}/{m['speaker']}/{m['quality']}"
+    onnx_url = f"{base}/{m['lang_code']}-{m['speaker']}-{m['quality']}.onnx"
+    json_url = f"{base}/{m['lang_code']}-{m['speaker']}-{m['quality']}.onnx.json"
+
+    # Download .onnx model (~63 MB)
+    download_file(onnx_url, onnx_file, f"Piper TTS — {m['desc']}", min_size=1000)
+    # Download .onnx.json config (tiny)
+    download_file(json_url, json_file, f"Piper TTS config", min_size=50)
+
+
 def _title_from_filename(name: str) -> str:
     """Derive a human-readable title from an epub filename."""
     stem = Path(name).stem
@@ -611,6 +643,9 @@ def main() -> None:
     # Download free survival-related books + music
     download_builtin_books()
     download_builtin_music()
+
+    # Pre-download default TTS voice
+    download_piper_model()
 
     # PMTiles placeholder
     setup_pmtiles_placeholder()

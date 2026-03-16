@@ -154,6 +154,8 @@ function wireAppCallbacks() {
   const openMap = {
     supplies:   () => window.loadSupplies?.(),
     books:      () => window.loadBooks?.(),
+    guides:     () => window.loadGuidesIndex?.(),
+    protocols:  () => window.loadProtocolsIndex?.(),
     games:      () => window.renderGamesGrid?.(),
     wiki:       () => window._wikiInit?.(),
     journal:    () => window._journalInit?.(),
@@ -178,6 +180,7 @@ function wireAppCallbacks() {
     tasks:      () => window.tasksInit?.(),
     fileManager: () => window.fileManagerInit?.(),
     paint:      () => window.paintInit?.(),
+    imagine:    () => window.imagineInit?.(),
   };
   Object.entries(openMap).forEach(([appId, fn]) => registerAppOpen(appId, fn));
 

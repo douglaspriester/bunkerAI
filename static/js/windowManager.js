@@ -35,6 +35,7 @@ export const OS_APPS = [
   { id: 'tasks',      name: 'Tarefas',       icon: '\u{1F4CC}', width: 600, height: 520, viewId: 'tasksView' },
   { id: 'fileManager', name: 'Arquivos',    icon: '\u{1F4C1}', width: 720, height: 500, viewId: 'fileManagerView' },
   { id: 'paint',      name: 'Paint',        icon: '\u{1F3A8}', width: 780, height: 560, viewId: 'paintView' },
+  { id: 'imagine',    name: 'Gerador IA',   icon: '\u{1F5BC}\uFE0F', width: 640, height: 520, viewId: 'imagineView' },
   { id: 'settings',   name: 'Configura\u00E7\u00F5es', icon: '\u2699\uFE0F', width: 560, height: 520, viewId: null },
 ];
 

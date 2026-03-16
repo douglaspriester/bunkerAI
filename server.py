@@ -1913,6 +1913,100 @@ async def read_file(path: str, raw: str = ""):
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
+# ─── Image Generation (stable-diffusion.cpp) ────────────────────────────────
+
+SD_SERVER_URL = os.getenv("SD_SERVER_URL", "http://127.0.0.1:7860")
+GENERATED_IMAGES_DIR = Path("generated_images")
+GENERATED_IMAGES_DIR.mkdir(exist_ok=True)
+
+
+@app.get("/api/imagine/status")
+async def imagine_status():
+    """Check if sd-server is running and reachable."""
+    try:
+        async with httpx.AsyncClient(timeout=3) as client:
+            resp = await client.get(f"{SD_SERVER_URL}/")
+            return {"available": resp.status_code == 200, "url": SD_SERVER_URL}
+    except Exception:
+        return {"available": False, "url": SD_SERVER_URL}
+
+
+@app.post("/api/imagine/generate")
+async def imagine_generate(request: Request):
+    """Generate an image via sd-server and return it."""
+    body = await request.json()
+    prompt = body.get("prompt", "")
+    steps = int(body.get("steps", 20))
+    width = int(body.get("width", 512))
+    height = int(body.get("height", 512))
+    cfg_scale = float(body.get("cfg_scale", 7.0))
+
+    if not prompt:
+        return JSONResponse({"error": "prompt is required"}, status_code=400)
+
+    # If using turbo model (1 step), cfg_scale should be 0
+    if steps <= 1:
+        cfg_scale = 0.0
+
+    try:
+        payload = {
+            "prompt": prompt,
+            "steps": steps,
+            "width": width,
+            "height": height,
+            "cfg_scale": cfg_scale,
+        }
+        async with httpx.AsyncClient(timeout=120) as client:
+            resp = await client.post(f"{SD_SERVER_URL}/v1/images/generations", json=payload)
+            if resp.status_code != 200:
+                return JSONResponse({"error": f"sd-server error: {resp.status_code}"}, status_code=502)
+
+            # sd-server returns JSON with base64 image data
+            data = resp.json()
+            if "data" in data and len(data["data"]) > 0:
+                img_b64 = data["data"][0].get("b64_json", "")
+                if img_b64:
+                    # Save to disk
+                    import base64, time as _time
+                    img_bytes = base64.b64decode(img_b64)
+                    fname = f"img_{int(_time.time())}_{hash(prompt) & 0xFFFF:04x}.png"
+                    fpath = GENERATED_IMAGES_DIR / fname
+                    fpath.write_bytes(img_bytes)
+                    return {"image": f"/api/imagine/view/{fname}", "filename": fname}
+
+            return JSONResponse({"error": "No image data in response"}, status_code=502)
+    except httpx.ConnectError:
+        return JSONResponse({
+            "error": "sd-server não está rodando. Inicie com: sd-server -m modelo.gguf --listen-port 7860"
+        }, status_code=503)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/api/imagine/view/{filename}")
+async def imagine_view(filename: str):
+    """Serve a generated image."""
+    safe = Path(filename).name  # prevent traversal
+    fpath = GENERATED_IMAGES_DIR / safe
+    if not fpath.exists():
+        return JSONResponse({"error": "not found"}, status_code=404)
+    return FileResponse(fpath, media_type="image/png")
+
+
+@app.get("/api/imagine/history")
+async def imagine_history():
+    """List previously generated images."""
+    images = []
+    if GENERATED_IMAGES_DIR.exists():
+        for f in sorted(GENERATED_IMAGES_DIR.glob("*.png"), key=lambda x: x.stat().st_mtime, reverse=True):
+            images.append({
+                "filename": f.name,
+                "url": f"/api/imagine/view/{f.name}",
+                "size_kb": f.stat().st_size // 1024,
+            })
+    return {"images": images[:50]}  # limit to 50
+
+
 # ─── Static ──────────────────────────────────────────────────────────────────
 
 app.mount("/", StaticFiles(directory="static", html=True), name="static")

@@ -4858,6 +4858,86 @@ function paintFloodFill(ctx, startX, startY, fillColor) {
 }
 
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// IMAGE GENERATOR (stable-diffusion.cpp via sd-server)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+let _imagineHistory = [];
+
+function imagineInit() {
+  // Check if sd-server is available
+  fetch("/api/imagine/status").then(r => r.json()).then(d => {
+    const st = document.getElementById("imagineStatus");
+    if (st) {
+      st.textContent = d.available ? "sd-server conectado" : "sd-server offline";
+      st.style.color = d.available ? "var(--green)" : "var(--text-muted)";
+    }
+  }).catch(() => {});
+  // Load history
+  imagineLoadHistory();
+}
+
+async function imagineGenerate() {
+  const prompt = document.getElementById("imaginePrompt")?.value?.trim();
+  if (!prompt) return;
+
+  const steps = parseInt(document.getElementById("imagineSteps")?.value || "20");
+  const size = parseInt(document.getElementById("imagineSize")?.value || "512");
+  const status = document.getElementById("imagineStatus");
+  const result = document.getElementById("imagineResult");
+
+  if (status) { status.textContent = "Gerando..."; status.style.color = "var(--accent)"; }
+  if (result) result.innerHTML = `<div style="text-align:center;color:var(--accent);">
+    <div style="font-size:32px;animation:media-pulse 1.5s infinite;">🎨</div>
+    <div style="font-size:12px;margin-top:8px;">Gerando imagem... (${steps} steps)</div>
+  </div>`;
+
+  try {
+    const resp = await fetch("/api/imagine/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt, steps, width: size, height: size }),
+    });
+    const data = await resp.json();
+    if (data.error) {
+      if (result) result.innerHTML = `<div style="text-align:center;color:var(--danger);font-size:13px;padding:20px;">
+        <div style="font-size:24px;margin-bottom:8px;">⚠</div>${data.error}
+      </div>`;
+      if (status) { status.textContent = "Erro"; status.style.color = "var(--danger)"; }
+      return;
+    }
+    if (data.image) {
+      if (result) result.innerHTML = `<img src="${data.image}" alt="${prompt}" style="max-width:100%;max-height:100%;object-fit:contain;cursor:pointer;" onclick="window.open('${data.image}','_blank')">`;
+      if (status) { status.textContent = "Pronto!"; status.style.color = "var(--green)"; }
+      imagineLoadHistory();
+    }
+  } catch (e) {
+    if (result) result.innerHTML = `<div style="text-align:center;color:var(--danger);font-size:13px;padding:20px;">
+      <div style="font-size:24px;margin-bottom:8px;">⚠</div>
+      sd-server não está rodando.<br>
+      <code style="font-size:11px;">sd-server -m modelo.gguf --listen-port 7860</code>
+    </div>`;
+    if (status) { status.textContent = "Offline"; status.style.color = "var(--danger)"; }
+  }
+}
+
+function imagineLoadHistory() {
+  fetch("/api/imagine/history").then(r => r.json()).then(d => {
+    const el = document.getElementById("imagineHistory");
+    if (!el) return;
+    if (!d.images || d.images.length === 0) {
+      el.innerHTML = "";
+      return;
+    }
+    el.innerHTML = d.images.slice(0, 20).map(img =>
+      `<img src="${img.url}" alt="${img.filename}" style="width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:pointer;flex-shrink:0;" onclick="document.getElementById('imagineResult').innerHTML='<img src=\\'${img.url}\\' style=\\'max-width:100%;max-height:100%;object-fit:contain;\\'>'">`
+    ).join("");
+  }).catch(() => {});
+}
+
+window.imagineInit = imagineInit;
+window.imagineGenerate = imagineGenerate;
+
 // ─── Expose mutable state to window for main.js close callbacks ─────────────
 // These use defineProperty so main.js always reads the current value.
 Object.defineProperty(window, '_notepadDirty', { get() { return _notepadDirty; }, configurable: true });
