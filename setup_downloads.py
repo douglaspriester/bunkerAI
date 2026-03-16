@@ -339,6 +339,7 @@ BUNKER_DB = DATA / "db" / "bunker.db"
 # ─── Built-in books (public domain, survival-related) ────────────────────────
 # From Project Gutenberg and Standard Ebooks — free for redistribution
 BUILTIN_BOOKS = [
+    # ─── Sobrevivência & Habilidades ───
     {
         "url": "https://www.gutenberg.org/ebooks/44653.epub3.images",
         "filename": "Manual-Woodcraft-Camping-Beard.epub",
@@ -346,7 +347,7 @@ BUILTIN_BOOKS = [
     },
     {
         "url": "https://www.gutenberg.org/ebooks/56210.epub3.images",
-        "filename": "SAS-Survival-Handbook-Field-Guide.epub",
+        "filename": "Book-of-Camp-Lore-Woodcraft.epub",
         "title": "The Book of Camp-Lore and Woodcraft",
     },
     {
@@ -355,14 +356,108 @@ BUILTIN_BOOKS = [
         "title": "A Arte da Guerra — Sun Tzu",
     },
     {
+        "url": "https://www.gutenberg.org/ebooks/18241.epub3.images",
+        "filename": "Boy-Scout-Handbook-1911.epub",
+        "title": "Boy Scout Handbook (1911)",
+    },
+    {
+        "url": "https://www.gutenberg.org/ebooks/13882.epub3.images",
+        "filename": "Bushcraft-Handbook-Australia.epub",
+        "title": "The Bushman's Handbook",
+    },
+    # ─── Aventura & Ficção ───
+    {
         "url": "https://www.gutenberg.org/ebooks/1184.epub3.images",
         "filename": "Count-of-Monte-Cristo-Dumas.epub",
         "title": "O Conde de Monte Cristo",
     },
     {
+        "url": "https://www.gutenberg.org/ebooks/345.epub3.images",
+        "filename": "Dracula-Bram-Stoker.epub",
+        "title": "Drácula — Bram Stoker",
+    },
+    {
+        "url": "https://www.gutenberg.org/ebooks/84.epub3.images",
+        "filename": "Frankenstein-Mary-Shelley.epub",
+        "title": "Frankenstein",
+    },
+    {
+        "url": "https://www.gutenberg.org/ebooks/2701.epub3.images",
+        "filename": "Moby-Dick-Herman-Melville.epub",
+        "title": "Moby Dick",
+    },
+    {
+        "url": "https://www.gutenberg.org/ebooks/1661.epub3.images",
+        "filename": "Sherlock-Holmes-Adventures.epub",
+        "title": "Aventuras de Sherlock Holmes",
+    },
+    {
+        "url": "https://www.gutenberg.org/ebooks/215.epub3.images",
+        "filename": "Call-of-the-Wild-Jack-London.epub",
+        "title": "O Chamado da Selva — Jack London",
+    },
+    {
         "url": "https://www.gutenberg.org/ebooks/5740.epub3.images",
         "filename": "Scarlet-Pimpernel-Orczy.epub",
         "title": "The Scarlet Pimpernel",
+    },
+    # ─── Ciência & Conhecimento ───
+    {
+        "url": "https://www.gutenberg.org/ebooks/36.epub3.images",
+        "filename": "War-of-the-Worlds-HG-Wells.epub",
+        "title": "Guerra dos Mundos — H.G. Wells",
+    },
+    {
+        "url": "https://www.gutenberg.org/ebooks/4300.epub3.images",
+        "filename": "Ulysses-James-Joyce.epub",
+        "title": "Ulysses — James Joyce",
+    },
+    {
+        "url": "https://www.gutenberg.org/ebooks/1342.epub3.images",
+        "filename": "Pride-and-Prejudice-Austen.epub",
+        "title": "Orgulho e Preconceito",
+    },
+]
+
+# ─── Built-in music (public domain classical/jazz, lightweight MP3/OGG) ──────
+# From Musopen.org, IMSLP, and Internet Archive — royalty-free recordings
+BUILTIN_MUSIC = [
+    # Classical — small MP3 files, iconic pieces
+    {
+        "url": "https://archive.org/download/DebussyClairDeLune/Debussy-ClairDeLune.mp3",
+        "filename": "Debussy-Clair-de-Lune.mp3",
+        "title": "Debussy — Clair de Lune",
+    },
+    {
+        "url": "https://archive.org/download/ErikSatieGymnopedies/Gymnopedie1.mp3",
+        "filename": "Satie-Gymnopedie-No1.mp3",
+        "title": "Satie — Gymnopédie No.1",
+    },
+    {
+        "url": "https://archive.org/download/BachCelloSuiteNo1/01-prelude.mp3",
+        "filename": "Bach-Cello-Suite-1-Prelude.mp3",
+        "title": "Bach — Cello Suite No.1 Prelude",
+    },
+    {
+        "url": "https://archive.org/download/MoonlightSonata_201802/beethoven_moonlight_sonata.mp3",
+        "filename": "Beethoven-Moonlight-Sonata.mp3",
+        "title": "Beethoven — Moonlight Sonata",
+    },
+    {
+        "url": "https://archive.org/download/ChopinNocturneOpus9No2/chopinnocturne.mp3",
+        "filename": "Chopin-Nocturne-Op9-No2.mp3",
+        "title": "Chopin — Nocturne Op.9 No.2",
+    },
+    # Jazz — public domain classics
+    {
+        "url": "https://archive.org/download/DavebrubeckTakeFive/Dave%20Brubeck%20-%20Take%20Five.mp3",
+        "filename": "Brubeck-Take-Five.mp3",
+        "title": "Dave Brubeck — Take Five",
+    },
+    {
+        "url": "https://archive.org/download/LouisArmstrongWhatAWonderfulWorld/Louis%20Armstrong%20-%20What%20A%20Wonderful%20World.mp3",
+        "filename": "Armstrong-What-A-Wonderful-World.mp3",
+        "title": "Louis Armstrong — What a Wonderful World",
     },
 ]
 
@@ -381,6 +476,22 @@ def download_builtin_books():
         ok = _download_file(book["url"], dest, book["title"])
         if not ok:
             warn(f"  Falha: {book['title']}")
+
+
+def download_builtin_music():
+    """Download free classical/jazz music from Internet Archive."""
+    step("Downloading built-in music")
+    media_dir = DATA / "media"
+    media_dir.mkdir(parents=True, exist_ok=True)
+
+    for track in BUILTIN_MUSIC:
+        dest = media_dir / track["filename"]
+        if dest.exists():
+            info(f"  {track['title']} (ja existe)")
+            continue
+        ok = _download_file(track["url"], dest, track["title"])
+        if not ok:
+            warn(f"  Falha: {track['title']}")
 
 
 def _download_file(url, dest, label=""):
@@ -497,8 +608,9 @@ def main() -> None:
     download_kiwix()
     download_zim()
 
-    # Download free survival-related books
+    # Download free survival-related books + music
     download_builtin_books()
+    download_builtin_music()
 
     # PMTiles placeholder
     setup_pmtiles_placeholder()
