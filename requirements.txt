@@ -1,0 +1,4 @@
+airllm>=2.11.0
+torch>=2.0.0
+transformers>=4.35.0
+bitsandbytes>=0.41.0
