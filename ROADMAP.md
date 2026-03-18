@@ -1,159 +1,226 @@
 # Bunker AI → Bunker OS — Roadmap
 
+> "In the beginning the Universe was created. This has made a lot of people very angry
+> and been widely regarded as a bad move." — Douglas Adams
+
 ## Visao Geral
 
 **Bunker OS** — Um sistema operacional compacto estilo desktop para sobrevivencia offline.
-Interface tipo OS com area de trabalho, janelas arrastáveis, barra de tarefas, relogio e apps.
+Interface tipo OS com area de trabalho, janelas arrastaveis, barra de tarefas, relogio e apps.
 Roda num PC com placa de video boa, sem internet, usando modelos locais via Ollama.
-
-## Fases Completadas
-- [x] Fase 1: Backend — Novos endpoints + SQLite + Kiwix
-- [x] Fase 2: Auto-Setup (start.bat + setup_downloads.py)
-- [x] Fase 3: Frontend — Guias Dinamicos + Protocolos + Busca
-- [x] Fase 4: Frontend — Tracker de Suprimentos + Diario (+ Relogio, Calendario, Status do Servidor)
-- [x] Fase 5: Frontend — Livros (epub.js reader) + Jogos (iframe) + Wikipedia (Kiwix)
-- [x] Fase 6: **Bunker OS — Desktop Environment**
-  - Area de trabalho com icones de apps (grid, double-click abre)
-  - Janelas arrastaveis/redimensionaveis com barra de titulo (minimizar, maximizar, fechar)
-  - Barra de tarefas inferior (relogio, status sistema, apps abertos, start menu)
-  - Window manager: z-index, foco, minimizar para taskbar, cascade positioning
-  - Todos os modulos existentes viram "apps" em janelas
-  - Start menu com lista de todos os apps
-
-## Em Andamento
-- [x] Fase 7: **Apps Nativos do Bunker OS** (Notepad, Word, Excel adicionados)
-  - 🤖 AI Chat (gemma3 / dolphin3)
-  - 📋 Guias de Sobrevivencia
-  - 🚨 Protocolos de Emergencia
-  - 📦 Tracker de Suprimentos
-  - 📓 Diario + Calendario + Relogio
-  - 📚 Leitor de Livros (epub.js)
-  - 🎮 Jogos (8 jogos HTML5)
-  - 🗺️ Mapas Offline (PMTiles)
-  - 🌐 Wikipedia Offline (Kiwix)
-  - 🔨 App Builder (code + preview)
-  - 📝 Bloco de Notas (simples, salva em SQLite)
-  - 📄 Word Simples (rich text, bold/italic/listas, salva HTML)
-  - 📊 Excel Simples (grid com formulas basicas, salva CSV/JSON)
-  - 🎭 Avatar Companion (Live2D)
-  - ⚙️ Configuracoes do Sistema
-- [x] Fase 8: App Builder Melhorado + Polish
-  - Apps salvos abrem em janelas OS (iframe dentro de window)
-  - Boot screen com animacao de inicializacao estilo BIOS
-  - Relogio do taskbar com segundos + tooltip de data
-  - Focus window ao clicar em qualquer parte da janela
-  - Right-click context menu no desktop (abrir apps, trocar wallpaper, fechar todas janelas)
-  - 5 wallpapers (default, starfield, grid, aurora, matrix) com persistencia em localStorage
-  - Atalhos de teclado: Ctrl+W fechar, Ctrl+M minimizar, Ctrl+Shift+N abrir notepad, Esc fechar menu
-  - Auto-save de editores (Notepad/Word/Excel) ao fechar janela
-  - Start menu com opcao Reiniciar + separador
-  - Duplo clique no relogio abre Diario, duplo clique no status abre Config
-  - Titulo dinamico do chat com nome do personagem ativo
-  - Toast notifications para auto-save e eventos do sistema
-  - Window snapping (arrastar para bordas = snap left/right/maximize)
-  - Alt+Tab para alternar entre janelas
-  - Organizar janelas em grid (tile windows)
-  - Start menu com busca de apps + Enter para abrir
-  - Animacao de shutdown com overlay
-  - Botao Desligar no start menu
-- [ ] Fase 9: Avatar Companion (Live2D)
-- [x] Fase 10: Conteudo Denso (15 guias, 10 protocolos) — COMPLETO
-- [x] Fase 11: **Modularizacao + UX** (ES Modules + Spotlight + Terminal + Paint + File Manager)
-  - Refatoracao de app.js monolitico em ES Modules (main.js, chat.js, state.js, apps.js, etc.)
-  - Spotlight / Command Palette (Ctrl+K) com busca de apps e acoes rapidas
-  - Terminal integrado com allowlist de comandos seguros
-  - File Manager com navegacao de diretorios e preview
-  - Paint com ferramentas de desenho (brush, eraser, line, rect, circle, fill)
-  - Agenda/Tasks com CRUD, prioridades e datas
-  - Drag-and-drop para reordenar icones do desktop
-  - Atalhos de teclado expandidos (F1, Ctrl+Shift+C, Ctrl+Shift+A)
-- [x] Fase 12: **Modo Portavel Pendrive + Dual Backend**
-  - build_portable.py monta pacote completo para pendrive
-  - Python embarcado + llama-server + modelos GGUF built-in
-  - Auto-deteccao GPU via nvidia-smi com offload automatico
-  - Dual backend: Ollama (primario) / llama.cpp (fallback portavel)
-  - Modelo CPU (Dolphin 1B uncensored) + GPU (Dolphin 8B uncensored + Gemma 3 4B multimodal)
-  - API /api/models/recommended com deteccao de hardware
-  - INICIAR.bat / INICIAR.sh para Windows e Linux
-- [x] Fase 13: **Uncensored + Kokoro TTS**
-  - Filosofia: modelos uncensored por padrao (censura pode custar vidas)
-  - Dolphin3 como modelo padrao de chat (substituiu gemma3:12b)
-  - Kokoro TTS (82M params, near-human) como engine TTS principal
-  - Cascade: Kokoro > Piper > pyttsx3 > edge-tts
-  - Vozes pt-BR, en-US, es com Kokoro (pm_alex, af_heart, etc.)
-  - Download de modelos Kokoro via /api/tts/kokoro/download
-  - Modelos built-in portaveis atualizados para Dolphin uncensored
-
-## Apps do Bunker OS
-
-### Core Apps (ja existem como modulos)
-| App | Icone | Funcionalidade | Status |
-|-----|-------|----------------|--------|
-| AI Chat | 🤖 | Chat com LLM local, visao, voz | ✅ Funcional |
-| Guias | 📋 | 15 guias de sobrevivencia | ✅ 15 escritos |
-| Protocolos | 🚨 | Arvores de decisao emergencia | ✅ 10 criados |
-| Suprimentos | 📦 | CRUD + dashboard + categorias | ✅ Funcional |
-| Diario | 📓 | Entries + calendario + status | ✅ Funcional |
-| Livros | 📚 | Leitor epub offline (epub.js) | ✅ Funcional |
-| Jogos | 🎮 | 8 jogos HTML5 self-contained | ✅ 8 criados |
-| Mapas | 🗺️ | PMTiles offline | ✅ Funcional |
-| Wikipedia | 🌐 | Kiwix iframe | ✅ Funcional |
-| Builder | 🔨 | Gera apps HTML com AI | ✅ Funcional |
-| Personagens | 🎭 | Character cards para AI | ✅ Funcional |
-| TTS | 🔊 | Text-to-speech config | ✅ Funcional |
-
-### Novos Apps (Bunker OS exclusivos)
-| App | Icone | Funcionalidade | Status |
-|-----|-------|----------------|--------|
-| Bloco de Notas | 📝 | Editor de texto puro, multiplas notas, SQLite | ✅ Funcional |
-| Word Simples | 📄 | Rich text: bold, italic, listas, headings, contenteditable | ✅ Funcional |
-| Excel Simples | 📊 | Grid 10x30, formulas SUM/AVG/COUNT/MIN/MAX/IF | ✅ Funcional |
-| Monitor Sistema | 💻 | CPU, RAM, disco, uptime, conteudo — auto-refresh 5s | ✅ Funcional |
-| Calculadora | 🖩 | Calculadora com teclado, ±, %, operacoes | ✅ Funcional |
-| Timer | ⏱️ | Cronometro + contagem regressiva + voltas | ✅ Funcional |
-| Conversor | 🔢 | Temperatura, distancia, peso, volume, velocidade | ✅ Funcional |
-| Checklists | ✅ | Listas com templates de sobrevivencia, progresso | ✅ Funcional |
-| Bussola | 🧭 | Bussola com sensor ou manual, direcoes cardeais | ✅ Funcional |
-| Codigo Morse | 📡 | Tradutor texto↔morse, audio, flash SOS, referencia | ✅ Funcional |
-| Frequencias Radio | 📻 | Emergencia, HAM, codigos Q, dicas | ✅ Funcional |
-| Fonetico NATO | 🎙️ | Tradutor A→Alpha, referencia completa | ✅ Funcional |
-| Sol / Lua | ☀️ | Nascer/por do sol, golden hour, fase da lua | ✅ Funcional |
-| Agua Segura | 💧 | Calculadora purificacao (cloro, iodo, fervura, SODIS) | ✅ Funcional |
-| Config Sistema | ⚙️ | Modelos, TTS, tema, sobre | ✅ Funcional (drawer) |
-
-### Arquitetura do Window Manager
-```
-Desktop (fullscreen)
-├── Wallpaper (CSS gradient ou imagem)
-├── App Icons (grid, double-click abre)
-├── Windows[] (draggable, resizable)
-│   ├── Title bar (icone + titulo + min/max/close)
-│   ├── Content (cada app renderiza aqui)
-│   └── Resize handle (canto inferior direito)
-└── Taskbar (bottom, fixed)
-    ├── Start/Launcher button
-    ├── Running apps (click = focus/minimize)
-    ├── System tray (status icons)
-    └── Clock (HH:MM:SS + data)
-```
 
 ---
 
-## Ideias Futuras
+## Fases Completadas
 
-### README/Manual.md para Auto-Compreensao do Modelo
-**Prioridade:** Media
-**Descricao:** Criar um `README/manual.md` MUITO bem detalhado, para que o proprio modelo de IA consiga entender como o Bunker AI funciona internamente.
+### Fase 1-5: Fundacao
+- [x] Backend FastAPI + SQLite + Kiwix integration
+- [x] Auto-Setup (start.bat/sh + setup_downloads.py)
+- [x] Frontend — Guias Dinamicos + Protocolos + Busca
+- [x] Tracker de Suprimentos + Diario + Calendario + Relogio
+- [x] Livros (epub.js) + Jogos (8 HTML5) + Wikipedia (Kiwix)
 
-### Integracao Nanoclaw + Lock por Pasta
-**Prioridade:** Baixa (exploratoria)
-**Descricao:** Integrar o nanoclaw com sistema de lock por pasta, para que o proprio modelo/agente consiga acessar seu codigo interno de forma controlada e segura.
+### Fase 6: Bunker OS — Desktop Environment
+- [x] Area de trabalho com icones (grid, double-click)
+- [x] Janelas arrastaveis/redimensionaveis com title bar
+- [x] Barra de tarefas (relogio, status, apps abertos, start menu)
+- [x] Window manager: z-index, foco, minimize, cascade
 
-**Requisitos:**
-- Sistema de permissoes por diretorio
-- Lock file para evitar conflitos de escrita
-- Log de todas as alteracoes feitas pelo agente
-- Rollback automatico se algo quebrar
-- Sandbox de testes antes de aplicar mudancas no codigo principal
+### Fase 7: Apps Nativos
+- [x] 30+ apps integrados (Notepad, Word, Excel, Calculator, Timer, etc.)
+- [x] Character system com personalidades e vozes
 
-**Nota:** Essa ideia depende do manual.md estar completo primeiro.
+### Fase 8: App Builder + Polish
+- [x] Boot screen BIOS, wallpapers, atalhos de teclado
+- [x] Window snapping, Alt+Tab, context menu, toast notifications
+- [x] Start menu com busca, shutdown animation
+
+### Fase 10: Conteudo Denso
+- [x] 15 guias de sobrevivencia ilustrados
+- [x] 11 protocolos de emergencia (arvores de decisao)
+- [x] 80 entradas de referencia rapida + SOS widget
+
+### Fase 11: Modularizacao + UX
+- [x] ES Modules (main.js, chat.js, state.js, apps.js, windowManager.js, markdown.js)
+- [x] Spotlight / Command Palette (Ctrl+K)
+- [x] Terminal, File Manager, Paint, Agenda/Tasks
+- [x] Drag-and-drop para icones do desktop
+
+### Fase 12: Modo Portavel Pendrive + Dual Backend
+- [x] build_portable.py — pacote completo para pendrive
+- [x] Python embarcado + llama-server + modelos GGUF
+- [x] Auto-deteccao GPU, dual backend (Ollama / llama.cpp)
+
+### Fase 13: Uncensored + Kokoro TTS
+- [x] Dolphin3 como modelo padrao (uncensored by default)
+- [x] Kokoro TTS (82M params, near-human) como engine principal
+- [x] Cascade: Kokoro > Piper > pyttsx3 > edge-tts
+- [x] Vozes pt-BR, en-US, es
+
+---
+
+## Em Andamento
+
+### Fase 14: O Guia — AI Companion
+
+> "The Hitchhiker's Guide to the Galaxy is a wholly remarkable book.
+> Perhaps the most remarkable... certainly the most successful book
+> ever to come out of the great publishing corporations of Ursa Minor."
+
+A ideia: transformar a IA do Bunker OS num **companion interativo** — tipo o proprio
+Guia do Mochileiro. Um dispositivo/entidade que voce consulta, que tem personalidade,
+que responde com contexto, que SABE coisas sobre sobrevivencia e te guia.
+
+Pense num cruzamento entre:
+- **O Guia** (Mochileiro das Galaxias) — enciclopedia interativa com personalidade
+- **Pokedex** (Pokemon) — interface compacta, scanner, banco de dados visual
+- **TARS** (Interstellar) — humor ajustavel, companionship, pragmatismo
+- **Pip-Boy** (Fallout) — wearable computer com stats, mapa, inventario
+- **Cortana/Jarvis** — assistente com voz e presenca visual
+
+#### UI do Companion
+
+**Conceito: "The Guide"**
+- Widget persistente no desktop (mini-window ou sidebar)
+- Avatar animado (Live2D ou sprite-based) com expressoes
+- Indicador de "humor" e "modo" visivel
+- Quick-access: perguntas rapidas sem abrir o chat completo
+- Notificacoes proativas ("Voce nao registrou agua hoje", "Fase da lua: cheia")
+- Scanner mode: apontar webcam e receber analise instantanea
+
+**Personalidades Pre-Built:**
+- 🌌 **Deep Thought** — filosofico, pausado, responde com profundidade
+- 🤖 **TARS** — sarcastico, pratico, humor ajustavel (1-100%)
+- 👩‍💻 **Mother** — maternal, protocolar, sistematico
+- 🔴 **HAL** — calmo, preciso, levemente inquietante
+- 🧠 **Ford Prefect** — aventureiro, improviso, "don't panic"
+- 🛡️ **Sobrevivente** — direto, sem frescura, foco em acao
+
+#### Implementacao Tecnica
+- [ ] Widget companion no desktop (mini-window sempre visivel)
+- [ ] Sistema de expressoes/emocoes (sprite sheets ou Live2D)
+- [ ] Notificacoes proativas baseadas em contexto
+- [ ] Scanner mode (webcam → analise rapida)
+- [ ] Quick-ask (pergunta sem abrir chat completo)
+- [ ] Indicador visual de modo/humor/personalidade ativa
+- [ ] Animacoes de idle, thinking, speaking, alert
+
+---
+
+## Proximas Fases
+
+### Fase 15: PWA + Offline Total
+- [ ] Service Worker para cache completo
+- [ ] Manifest.json para install como app
+- [ ] Sync em background quando internet disponivel
+- [ ] Push notifications locais (lembretes de agua, comida, check-ins)
+
+### Fase 16: RAG Local — Base de Conhecimento
+- [ ] Indexacao de todos os guias/protocolos como embeddings
+- [ ] Busca semantica offline (com modelo de embeddings local)
+- [ ] Upload de documentos proprios (PDF, TXT, EPUB)
+- [ ] A IA consulta a base antes de responder
+- [ ] Citacoes com link para o guia/protocolo fonte
+
+### Fase 17: Mesh Network + P2P
+- [ ] Comunicacao entre instancias do Bunker OS via rede local
+- [ ] Compartilhamento de suprimentos/status entre bunkers
+- [ ] Chat P2P entre sobreviventes
+- [ ] Integracao com Meshtastic/LoRa (MESH-API)
+
+### Fase 18: Manual de Auto-Compreensao
+- [ ] manual.md detalhado para o modelo entender o proprio sistema
+- [ ] API de introspecção para a IA consultar seu proprio codigo
+- [ ] Contexto automatico sobre estado do sistema nas respostas
+
+### Fase 19: Nanoclaw — Self-Modification
+- [ ] Agente que modifica o proprio codigo de forma controlada
+- [ ] Lock por pasta/arquivo para seguranca
+- [ ] Sandbox de testes antes de aplicar mudancas
+- [ ] Rollback automatico se algo quebrar
+- [ ] Log de todas alteracoes feitas pelo agente
+
+---
+
+## Apps do Bunker OS
+
+### Core Apps
+| App | Icone | Status |
+|-----|-------|--------|
+| AI Chat | 🤖 | ✅ Funcional |
+| Guias | 📋 | ✅ 15 escritos |
+| Protocolos | 🚨 | ✅ 11 criados |
+| Suprimentos | 📦 | ✅ Funcional |
+| Diario | 📓 | ✅ Funcional |
+| Livros | 📚 | ✅ Funcional |
+| Jogos | 🎮 | ✅ 8 criados |
+| Mapas | 🗺️ | ✅ Funcional |
+| Wikipedia | 🌐 | ✅ Funcional |
+| Builder | 🔨 | ✅ Funcional |
+| Personagens | 🎭 | ✅ Funcional |
+| Referencia | 📖 | ✅ 80 entradas |
+
+### Utilitarios
+| App | Icone | Status |
+|-----|-------|--------|
+| Bloco de Notas | 📝 | ✅ Funcional |
+| Word | 📄 | ✅ Funcional |
+| Excel | 📊 | ✅ Funcional |
+| Monitor | 💻 | ✅ Funcional |
+| Calculadora | 🖩 | ✅ Funcional |
+| Timer | ⏱️ | ✅ Funcional |
+| Conversor | 🔢 | ✅ Funcional |
+| Checklists | ✅ | ✅ Funcional |
+| Bussola | 🧭 | ✅ Funcional |
+| Morse | 📡 | ✅ Funcional |
+| Radio | 📻 | ✅ Funcional |
+| NATO | 🎙️ | ✅ Funcional |
+| Sol/Lua | ☀️ | ✅ Funcional |
+| Agua Segura | 💧 | ✅ Funcional |
+| Agenda | 📋 | ✅ Funcional |
+| File Manager | 💾 | ✅ Funcional |
+| Paint | 🎨 | ✅ Funcional |
+| Terminal | 📻 | ✅ Funcional |
+
+---
+
+## Projetos de Referencia no GitHub
+
+### Ollama UIs
+- **Open WebUI** (open-webui/open-webui) — 127k+ stars, a referencia em UI para Ollama
+- **Lobe Chat** (lobehub/lobe-chat) — UI bonita com plugins e PWA
+- **Ollama GUI** (HelgeSverre/ollama-gui) — interface leve e clean
+
+### Offline-First AI
+- **LocalAI** (mudler/LocalAI) — alternativa open-source ao OpenAI, sem GPU
+- **ToolNeuron** (Siddhesh2377/ToolNeuron) — AI on-device Android com RAG, TTS/STT
+- **SOLA** (FlorSanders/Smart_Offline_LLM_Assistant) — assistente offline-first com voz
+- **Local-Talking-LLM** (vndee/local-talking-llm) — LLM com voz estilo Jarvis
+- **Leon** (leon-ai/leon) — assistente pessoal open-source
+
+### Emergencia & Sobrevivencia
+- **SafeGuardian-LLM** (Ashoka74/SafeGuardian-LLM) — plataforma de resposta emergencial com IA
+- **awesome-disastertech** (DisasterTechCrew/awesome-disastertech) — curadoria de projetos de emergencia
+- **MESH-API** — Off-Grid AI com LoRa mesh, GPS alerts via SMS
+
+### Potencial para Integracao
+- **Meshtastic** — comunicacao LoRa mesh off-grid (Fase 17)
+- **Kiwix** — Wikipedia offline (ja integrado)
+- **epub.js** — leitor EPUB (ja integrado)
+- **Kokoro** — TTS near-human (ja integrado)
+
+---
+
+## Filosofia
+
+> "Em cenarios de sobrevivencia, censura pode custar vidas."
+
+- **Uncensored by default** — Dolphin3 sem filtros
+- **Offline-first** — tudo funciona sem internet
+- **Privacy by design** — zero telemetria, zero cloud
+- **Sci-fi soul** — a interface tem alma, nao e so ferramenta
+- **DON'T PANIC** — a IA te acalma enquanto te ajuda
+
+---
+
+*"So long, and thanks for all the fish." — Bunker AI v3*
