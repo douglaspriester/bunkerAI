@@ -4,6 +4,7 @@
 export const state = {
   models: [],
   visionModels: [],
+  autoModels: {},       // { chat, vision, code, brain } — auto-selected by server
   chats: {},          // { id: { title, messages: [] } }
   activeChatId: null,
   isStreaming: false,

@@ -150,10 +150,10 @@ export function updateModeTag() {
 
   if (text.startsWith("/build")) {
     tag.textContent = "BUILD"; tag.style.background = "rgba(200, 80, 255, 0.12)"; tag.style.color = "#c850ff";
-    hint.innerHTML = 'Gerando app com <code>qwen2.5-coder:14b</code>';
+    hint.innerHTML = `Gerando app com <code>${(state.autoModels||{}).code || document.getElementById("builderModel")?.value || 'auto'}</code>`;
   } else if (text.startsWith("/brain")) {
     tag.textContent = "CEREBRO"; tag.style.background = "rgba(255, 60, 60, 0.12)"; tag.style.color = "#ff4444";
-    hint.innerHTML = 'Modo sem filtros &mdash; <code>dolphin3</code> sem amarras';
+    hint.innerHTML = `Modo sem filtros &mdash; <code>${(state.autoModels||{}).brain || document.getElementById("brainModel")?.value || 'auto'}</code> sem amarras`;
   } else if (state.webcamActive) {
     tag.textContent = "VIDEO"; tag.style.background = "rgba(99, 145, 255, 0.12)"; tag.style.color = "#6391ff";
     hint.textContent = "Webcam ativa \u2014 sua mensagem analisa o frame atual";
@@ -369,7 +369,7 @@ async function handleBrain(text) {
   chat.messages.push({ role: "user", content: text, badge: "brain" });
   saveChats();
 
-  const model = document.getElementById("brainModel").value || "dolphin3";
+  const model = document.getElementById("brainModel").value || (state.autoModels||{}).brain || "";
   const brainSystem = document.getElementById("brainPrompt").value;
   const apiMessages = chat.messages.map(m => ({ role: m.role, content: m.content }));
   const { el, contentEl } = addStreamMsgDom("brain");
@@ -454,6 +454,7 @@ function setStopMode(on) {
 
 export async function streamFromAPI(url, body, contentEl) {
   let full = "";
+  let stats = null;
   const controller = new AbortController();
   state.abortController = controller;
   setStopMode(true);
@@ -482,13 +483,14 @@ export async function streamFromAPI(url, body, contentEl) {
               contentEl.textContent = full;
               scrollChat();
             }
+            if (data.stats) stats = data.stats;
           } catch {}
         }
       }
     }
   } catch (e) {
     if (e.name !== "AbortError") {
-      contentEl.textContent = `Erro: ${e.message}. Verifique se Ollama esta rodando (ollama serve).`;
+      contentEl.textContent = `Erro: ${e.message}. Verifique se o servidor de IA esta rodando.`;
     }
   }
 
@@ -499,6 +501,21 @@ export async function streamFromAPI(url, body, contentEl) {
   if (dots) dots.remove();
 
   if (full) contentEl.innerHTML = markdownToHtml(full) + (controller.signal.aborted ? ' <em class="stream-stopped">[interrompido]</em>' : "");
+
+  // Show model stats footer
+  if (stats && contentEl.parentElement) {
+    const parts = [];
+    if (stats.model) parts.push(stats.model);
+    if (stats.tok_s) parts.push(`${stats.tok_s} tok/s`);
+    if (stats.tokens) parts.push(`${stats.tokens} tokens`);
+    if (stats.total_s) parts.push(`${stats.total_s}s`);
+    if (parts.length) {
+      const footer = document.createElement("div");
+      footer.className = "msg-stats";
+      footer.textContent = parts.join(" · ");
+      contentEl.parentElement.appendChild(footer);
+    }
+  }
 
   return full;
 }

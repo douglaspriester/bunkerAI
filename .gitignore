@@ -9,4 +9,5 @@ static/maps/*.pmtiles
 .claude/
 data/db/
 models/*.gguf
+!models/qwen2.5-0.5b-instruct-q4_k_m.gguf
 bin/
