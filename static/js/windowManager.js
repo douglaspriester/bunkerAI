@@ -606,7 +606,7 @@ export function restoreSession() {
       }
     }
   } catch {}
-  openApp('chat');
+  // Default: show desktop only (no apps auto-opened on first boot)
 }
 
 let _sessionSaveTimeout = null;

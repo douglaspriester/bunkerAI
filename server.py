@@ -18,6 +18,7 @@ import platform
 import socket
 from datetime import datetime, date
 from pathlib import Path
+from typing import Optional
 
 SERVER_START_TIME = time.time()
 
@@ -37,7 +38,7 @@ app = FastAPI(title="Bunker AI")
 
 @app.on_event("startup")
 async def _detect_backend():
-    """Auto-detect LLM backend: Ollama or llama.cpp."""
+    """Auto-detect LLM backend: Ollama or llama.cpp. Auto-pull base model if none available."""
     global BACKEND, LLAMA_CPP_URL
     import httpx as _hx
 
@@ -47,8 +48,14 @@ async def _detect_backend():
             r = await c.get(f"{OLLAMA_BASE}/api/tags")
             if r.status_code == 200:
                 models = r.json().get("models", [])
+                names = [m["name"] for m in models]
                 BACKEND = "ollama"
-                print(f"[LLM] Backend: Ollama ({len(models)} modelos)")
+                print(f"[LLM] Backend: Ollama ({len(names)} modelos)")
+                if names:
+                    _resolve_all_models(names)
+                else:
+                    # No models at all — schedule auto-pull of a base model
+                    asyncio.create_task(_auto_pull_base_model())
                 return
     except Exception:
         pass
@@ -64,12 +71,290 @@ async def _detect_backend():
                 if r.status_code == 200:
                     BACKEND = "llama.cpp"
                     LLAMA_CPP_URL = url
+                    data = r.json()
+                    mods = data.get("data", [])
+                    names = [m.get("id", LLAMA_CPP_MODEL) for m in mods] if mods else [LLAMA_CPP_MODEL]
+                    _resolve_all_models(names)
                     print(f"[LLM] Backend: llama.cpp em {url}")
                     return
         except Exception:
             pass
 
-    print("[LLM] Nenhum backend LLM detectado. Chat estara offline.")
+    # Try to auto-start llama-server with local GGUF models
+    gguf_files = sorted(Path("models").glob("*.gguf")) if Path("models").exists() else []
+    if gguf_files:
+        started = await _auto_start_llama_server(gguf_files[0])
+        if started:
+            return
+
+    # No backend and no local models — try to auto-download a GGUF
+    print("[LLM] Nenhum backend LLM detectado.")
+    asyncio.create_task(_auto_download_gguf())
+
+
+# ─── Auto-start embedded llama-server (via llama-cpp-python pip package) ──────
+
+async def _wait_for_server(url: str, timeout: int = 15) -> bool:
+    """Wait for a server to respond at url. Returns True if up."""
+    import httpx as _hx
+    for _ in range(timeout):
+        await asyncio.sleep(1)
+        try:
+            async with _hx.AsyncClient(timeout=2) as c:
+                r = await c.get(url)
+                if r.status_code == 200:
+                    return True
+        except Exception:
+            pass
+    return False
+
+
+async def _auto_start_llama_server(gguf_path: Path) -> bool:
+    """Start llama.cpp server using llama-cpp-python (pip) or standalone binary."""
+    global BACKEND, LLAMA_CPP_URL
+    import sys
+
+    port = 8070
+    has_gpu, vram = _detect_gpu()
+    ctx = 4096 if has_gpu and vram >= 6000 else 2048
+    gpu_layers = "-1" if has_gpu else "0"
+
+    # Strategy 1: llama-cpp-python (embedded via pip — no external binary needed)
+    try:
+        import llama_cpp  # noqa: F401
+        python_bin = sys.executable
+        cmd = [
+            python_bin, "-m", "llama_cpp.server",
+            "--model", str(gguf_path),
+            "--port", str(port),
+            "--host", "0.0.0.0",
+            "--n_ctx", str(ctx),
+            "--n_gpu_layers", gpu_layers,
+        ]
+        print(f"[LLM] Iniciando llama-cpp-python server com {gguf_path.name} (porta {port})...")
+        subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+        if await _wait_for_server(f"http://localhost:{port}/v1/models"):
+            BACKEND = "llama.cpp"
+            LLAMA_CPP_URL = f"http://localhost:{port}"
+            _resolve_all_models([gguf_path.stem])
+            print(f"[LLM] Backend: llama-cpp-python ({gguf_path.name})")
+            return True
+
+        print("[LLM] llama-cpp-python server nao iniciou a tempo.")
+    except ImportError:
+        print("[LLM] llama-cpp-python nao instalado, tentando binario standalone...")
+    except Exception as e:
+        print(f"[LLM] Erro llama-cpp-python: {e}")
+
+    # Strategy 2: Standalone llama-server binary (runtime/llama/ or PATH)
+    server_bin = None
+    for name in ["llama-server", "llama-server.exe"]:
+        candidate = Path("runtime/llama") / name
+        if candidate.exists():
+            server_bin = str(candidate)
+            break
+    if not server_bin:
+        server_bin = shutil.which("llama-server") or shutil.which("llama-cpp-server")
+
+    if not server_bin:
+        print(f"[LLM] GGUF encontrado ({gguf_path.name}) mas nenhum servidor llama disponivel.")
+        print("[LLM] Instale: pip install llama-cpp-python")
+        return False
+
+    try:
+        cmd = [server_bin, "-m", str(gguf_path), "--port", str(port), "-c", str(ctx),
+               "--host", "0.0.0.0", "-ngl", gpu_layers]
+        print(f"[LLM] Iniciando llama-server binario com {gguf_path.name} (porta {port})...")
+        subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+        if await _wait_for_server(f"http://localhost:{port}/v1/models"):
+            BACKEND = "llama.cpp"
+            LLAMA_CPP_URL = f"http://localhost:{port}"
+            _resolve_all_models([gguf_path.stem])
+            print(f"[LLM] Backend: llama-server binario ({gguf_path.name})")
+            return True
+
+        print("[LLM] llama-server binario nao iniciou a tempo.")
+    except Exception as e:
+        print(f"[LLM] Erro llama-server binario: {e}")
+
+    return False
+
+
+# ─── GPU Detection Helper ────────────────────────────────────────────────────
+
+def _detect_gpu() -> tuple[bool, int]:
+    """Detect GPU and return (has_gpu, vram_mb)."""
+    try:
+        result = subprocess.run(
+            ["nvidia-smi", "--query-gpu=memory.total", "--format=csv,noheader,nounits"],
+            capture_output=True, text=True, timeout=3,
+        )
+        if result.returncode == 0:
+            vram = int(result.stdout.strip().split("\n")[0])
+            return True, vram
+    except Exception:
+        pass
+    return False, 0
+
+
+def _detect_ram_mb() -> int:
+    """Detect available system RAM in MB."""
+    try:
+        import psutil
+        return int(psutil.virtual_memory().total / (1024 * 1024))
+    except Exception:
+        pass
+    # Fallback: read /proc/meminfo on Linux
+    try:
+        with open("/proc/meminfo") as f:
+            for line in f:
+                if line.startswith("MemTotal:"):
+                    return int(line.split()[1]) // 1024
+    except Exception:
+        pass
+    return 0
+
+
+# ─── Base model to auto-pull when Ollama has zero models ─────────────────────
+
+async def _auto_pull_base_model():
+    """Auto-pull a base model if Ollama is running but has no models."""
+    import httpx as _hx
+
+    has_gpu, vram = _detect_gpu()
+
+    # Pick model based on hardware — uncensored preferred
+    if has_gpu and vram >= 6000:
+        model = "dolphin3:8b"       # 4.9 GB, uncensored, GPU 6GB+
+    elif has_gpu and vram >= 4000:
+        model = "dolphin3:latest"   # uncensored, GPU 4GB+
+    elif has_gpu and vram >= 2000:
+        model = "dolphin-phi:2.7b"  # uncensored, compact GPU
+    else:
+        model = "dolphin-phi:2.7b"  # uncensored, CPU-friendly
+
+    print(f"[LLM] Nenhum modelo. Baixando modelo base: {model} (GPU: {f'{vram}MB' if has_gpu else 'nao'})...")
+
+    try:
+        async with _hx.AsyncClient(timeout=httpx.Timeout(3600.0)) as c:
+            async with c.stream("POST", f"{OLLAMA_BASE}/api/pull",
+                                json={"name": model, "stream": True}) as resp:
+                last_pct = -1
+                async for line in resp.aiter_lines():
+                    if not line.strip():
+                        continue
+                    try:
+                        data = json.loads(line)
+                        total = data.get("total", 0)
+                        completed = data.get("completed", 0)
+                        if total > 0:
+                            pct = int(completed * 100 / total)
+                            if pct != last_pct and pct % 10 == 0:
+                                print(f"[LLM] Baixando {model}: {pct}%")
+                                last_pct = pct
+                        if data.get("status") == "success":
+                            print(f"[LLM] Modelo {model} baixado com sucesso!")
+                            r2 = await c.get(f"{OLLAMA_BASE}/api/tags")
+                            names = [m["name"] for m in r2.json().get("models", [])]
+                            _resolve_all_models(names)
+                    except (json.JSONDecodeError, KeyError):
+                        pass
+    except Exception as e:
+        print(f"[LLM] Erro ao baixar modelo base: {e}")
+
+
+# ─── Auto-download GGUF when no Ollama and no models ─────────────────────────
+# Status dict visible to frontend via /api/health
+_auto_download_status: dict = {}  # { "status": "downloading", "model": "...", "percent": 0 }
+
+
+async def _auto_download_gguf():
+    """Auto-download a GGUF model when no Ollama and no local models exist."""
+    global _auto_download_status
+    import urllib.request
+
+    has_gpu, vram = _detect_gpu()
+    ram_mb = _detect_ram_mb()
+
+    # Pick the right model from GGUF_REGISTRY based on hardware
+    # Wait for GGUF_REGISTRY to be available (defined later in file)
+    await asyncio.sleep(1)
+
+    # Uncensored first — Dolphin always preferred
+    # GGUF models need ~2x their file size in RAM to load
+    if ram_mb > 0 and ram_mb < 2000:
+        # Extremely low RAM — emergency model only
+        target_id = "qwen25-0.5b-emergency"     # 0.4 GB, needs ~1 GB RAM
+        print(f"[LLM] RAM muito baixa ({ram_mb}MB) — usando modelo de emergencia")
+    elif ram_mb > 0 and ram_mb < 3000:
+        # Low RAM — use small model
+        target_id = "qwen25-1.5b-cpu"           # 1.1 GB, needs ~2.5 GB RAM
+        print(f"[LLM] RAM baixa ({ram_mb}MB) — usando modelo leve")
+    elif has_gpu and vram >= 6000 and ram_mb >= 8000:
+        target_id = "dolphin-8b-gpu"             # 4.9 GB, uncensored, GPU 6GB+
+    elif has_gpu and vram >= 3000:
+        target_id = "dolphin3-3b-uncensored"     # 2.0 GB, uncensored, GPU 3GB+
+    else:
+        target_id = "dolphin3-3b-uncensored"     # 2.0 GB, uncensored, CPU ok
+
+    model = next((m for m in GGUF_REGISTRY if m["id"] == target_id), None)
+    if not model:
+        print("[LLM] Nenhum modelo no registro GGUF.")
+        return
+
+    filepath = MODELS_DIR / model["filename"]
+    if filepath.exists() and filepath.stat().st_size > model["size_gb"] * 0.9 * 1024**3:
+        print(f"[LLM] GGUF ja existe: {filepath.name}")
+        # Try to start it
+        await _auto_start_llama_server(filepath)
+        return
+
+    print(f"[LLM] Baixando modelo GGUF: {model['name']} ({model['size_gb']} GB)...")
+    print(f"[LLM] Hardware: GPU={'sim ' + str(vram) + 'MB' if has_gpu else 'nao'}")
+    _auto_download_status = {
+        "status": "downloading",
+        "model": model["name"],
+        "model_id": target_id,
+        "percent": 0,
+        "size_gb": model["size_gb"],
+    }
+
+    try:
+        req = urllib.request.Request(model["url"], headers={"User-Agent": "BunkerAI/4.0"})
+        with urllib.request.urlopen(req, timeout=3600) as resp:
+            total = int(resp.headers.get("Content-Length", 0))
+            downloaded = 0
+            chunk_size = 1024 * 512
+
+            with open(filepath, "wb") as f:
+                last_time = time.time()
+                last_pct = -1
+                while True:
+                    chunk = resp.read(chunk_size)
+                    if not chunk:
+                        break
+                    f.write(chunk)
+                    downloaded += len(chunk)
+                    if total > 0:
+                        pct = int(downloaded * 100 / total)
+                        _auto_download_status["percent"] = pct
+                        if pct != last_pct and pct % 10 == 0:
+                            print(f"[LLM] Baixando GGUF: {pct}%")
+                            last_pct = pct
+
+        print(f"[LLM] GGUF {model['name']} baixado com sucesso!")
+        _auto_download_status = {"status": "complete", "model": model["name"], "percent": 100}
+
+        # Try to start llama-server with the downloaded model
+        await _auto_start_llama_server(filepath)
+
+    except Exception as e:
+        print(f"[LLM] Erro ao baixar GGUF: {e}")
+        _auto_download_status = {"status": "error", "model": model["name"], "error": str(e)}
+        if filepath.exists() and filepath.stat().st_size < 1000:
+            filepath.unlink()
 
 
 @app.on_event("startup")
@@ -149,6 +434,73 @@ LLAMA_CPP_URL = os.getenv("LLAMA_CPP_URL", "")  # e.g. "http://localhost:8070"
 LLAMA_CPP_MODEL = os.getenv("LLAMA_CPP_MODEL", "built-in")  # model name for display
 BACKEND = "ollama"  # will be set to "llama.cpp" if detected
 OFFLINE_MODE = False  # set via /api/config/offline — blocks edge-tts and online fallbacks
+
+# ─── Smart Model Auto-Selection ──────────────────────────────────────────────
+# Instead of hardcoding model names, detect what's available and pick the best.
+# Each role has a priority list of preferred model name fragments.
+# The first available match wins. If nothing matches, use any available model.
+
+MODEL_ROLES = {
+    "chat": {
+        "prefer": [
+            "dolphin3", "dolphin", "abliterated", "uncensored",
+            "nous-hermes", "wizard-vicuna", "samantha", "neural-chat",
+            "llama3", "gemma3", "mistral", "qwen2.5", "phi4", "deepseek",
+        ],
+    },
+    "vision": {
+        "prefer": [
+            "llava-dolphin", "llava-uncensored",
+            "gemma3", "llava", "bakllava", "moondream", "minicpm",
+            "llama3.2-vision", "granite-vision",
+        ],
+    },
+    "code": {
+        "prefer": [
+            "dolphin-coder", "dolphin3",
+            "qwen2.5-coder", "coder", "codellama", "deepseek-coder", "starcoder",
+            "dolphin", "abliterated",
+        ],
+    },
+    "brain": {
+        "prefer": [
+            "dolphin3", "dolphin", "abliterated", "uncensored",
+            "nous-hermes", "wizard-vicuna", "samantha",
+            "llama3", "mistral", "gemma3", "qwen2.5",
+        ],
+    },
+}
+
+# Resolved at runtime by _detect_backend / health
+_auto_models: dict = {}  # { "chat": "modelname", "vision": "modelname", ... }
+
+
+def _pick_best_model(available: list[str], role: str) -> str:
+    """Pick the best available model for a given role."""
+    prefs = MODEL_ROLES.get(role, MODEL_ROLES["chat"])["prefer"]
+    # Try each preferred fragment in priority order
+    for pref in prefs:
+        for m in available:
+            if pref in m.lower():
+                return m
+    # Nothing matched — return first available model
+    return available[0] if available else ""
+
+
+def _resolve_all_models(available: list[str]):
+    """Resolve best model for each role from available list."""
+    global _auto_models
+    for role in MODEL_ROLES:
+        _auto_models[role] = _pick_best_model(available, role)
+    print(f"[LLM] Auto-select: chat={_auto_models.get('chat')}, vision={_auto_models.get('vision')}, "
+          f"code={_auto_models.get('code')}, brain={_auto_models.get('brain')}")
+
+
+def get_model(role: str, requested: str = "") -> str:
+    """Get model for a role: use requested if provided, else auto-selected, else first available."""
+    if requested:
+        return requested
+    return _auto_models.get(role, "")
 GENERATED_DIR = Path("generated_apps")
 GENERATED_DIR.mkdir(exist_ok=True)
 TTS_DIR = Path("tts_cache")
@@ -271,7 +623,7 @@ def check_pyttsx3():
     return _pyttsx3_available
 
 
-async def _tts_pyttsx3(text: str, filepath: Path, voice_id: str = None) -> Path | None:
+async def _tts_pyttsx3(text: str, filepath: Path, voice_id: str = None) -> Optional[Path]:
     """Generate audio with pyttsx3 (OS TTS engine — Windows SAPI5/macOS/Linux)"""
     import concurrent.futures
     try:
@@ -391,7 +743,7 @@ def _get_kokoro():
     return _kokoro_instance if _kokoro_instance is not False else None
 
 
-async def _tts_kokoro(text: str, filepath: Path, voice: str) -> Path | None:
+async def _tts_kokoro(text: str, filepath: Path, voice: str) -> Optional[Path]:
     """Generate audio with Kokoro TTS (best offline quality, 82M model)"""
     import concurrent.futures
 
@@ -442,6 +794,20 @@ async def _tts_kokoro(text: str, filepath: Path, voice: str) -> Path | None:
 
 def _chat_stream(payload: dict, timeout: float = 300.0) -> StreamingResponse:
     """Stream chat tokens as SSE — supports Ollama and llama.cpp backends."""
+    # No model available — return friendly error
+    if not payload.get("model"):
+        status = _auto_download_status
+        if status.get("status") == "downloading":
+            msg = f"Modelo sendo baixado ({status.get('model', '?')}: {status.get('percent', 0)}%). Aguarde..."
+        elif BACKEND == "none" or not BACKEND:
+            msg = "Nenhum modelo de IA disponivel. Baixe um modelo em Configuracoes > Modelos IA."
+        else:
+            msg = "Nenhum modelo selecionado. Escolha um modelo no painel lateral."
+
+        async def _err():
+            yield f"data: {json.dumps({'token': msg})}\n\n"
+        return StreamingResponse(_err(), media_type="text/event-stream")
+
     if BACKEND == "llama.cpp" and LLAMA_CPP_URL:
         return _chat_stream_llamacpp(payload, timeout)
     return _chat_stream_ollama(payload, timeout)
@@ -461,7 +827,21 @@ def _chat_stream_ollama(payload: dict, timeout: float) -> StreamingResponse:
                         if token:
                             yield f"data: {json.dumps({'token': token})}\n\n"
                         if chunk.get("done"):
-                            yield f"data: {json.dumps({'done': True})}\n\n"
+                            # Extract performance metrics from Ollama's final chunk
+                            stats = {}
+                            stats["model"] = chunk.get("model", payload.get("model", ""))
+                            eval_count = chunk.get("eval_count", 0)
+                            eval_duration = chunk.get("eval_duration", 0)  # nanoseconds
+                            prompt_eval_count = chunk.get("prompt_eval_count", 0)
+                            total_duration = chunk.get("total_duration", 0)
+                            if eval_duration > 0 and eval_count > 0:
+                                stats["tokens"] = eval_count
+                                stats["tok_s"] = round(eval_count / (eval_duration / 1e9), 1)
+                            if prompt_eval_count:
+                                stats["prompt_tokens"] = prompt_eval_count
+                            if total_duration > 0:
+                                stats["total_s"] = round(total_duration / 1e9, 1)
+                            yield f"data: {json.dumps({'done': True, 'stats': stats})}\n\n"
                     except json.JSONDecodeError:
                         pass
     return StreamingResponse(generate(), media_type="text/event-stream")
@@ -570,12 +950,16 @@ async def health():
                 "llama3.2-vision", "granite3", "granite-vision"
             ])]
             BACKEND = "ollama"
+            # Re-resolve models on every health check (models may have been added/removed)
+            if names:
+                _resolve_all_models(names)
             return {
                 "status": "online",
                 "backend": "ollama",
                 "ollama": OLLAMA_BASE,
                 "models": names,
                 "vision_models": vision,
+                "auto_models": dict(_auto_models),
                 "stt": "whisper" if whisper_ok else "browser",
                 "tts": tts_engine,
                 "stt_ready": whisper_ok,
@@ -622,6 +1006,7 @@ async def health():
         "backend": "none",
         "models": [],
         "vision_models": [],
+        "auto_download": dict(_auto_download_status) if _auto_download_status else None,
         "stt": "browser",
         "tts": tts_engine,
         "stt_ready": False,
@@ -742,7 +1127,7 @@ async def tts(request: Request, background_tasks: BackgroundTasks):
         return JSONResponse({"error": str(e), "hint": "edge-tts precisa de internet"}, status_code=500)
 
 
-async def _tts_piper(text: str, filepath: Path, voice: str) -> Path | None:
+async def _tts_piper(text: str, filepath: Path, voice: str) -> Optional[Path]:
     """Generate audio with Piper TTS (offline) using local .onnx model"""
     # Map edge-tts voice names to piper model IDs
     piper_voice_map = {
@@ -1000,7 +1385,7 @@ async def chat(request: Request):
     if _check_rate_limit("chat", request.client.host if request.client else "local"):
         return JSONResponse({"error": "Limite de taxa excedido. Aguarde."}, status_code=429)
     body = await request.json()
-    model = body.get("model", "dolphin3")
+    model = get_model("chat", body.get("model", ""))
     messages = body.get("messages", [])
     system = body.get("system", "")
 
@@ -1018,7 +1403,7 @@ async def vision(request: Request):
     body = await request.json()
     img_b64 = body.get("image", "")
     prompt = body.get("prompt", "Descreva o que voce ve nesta imagem.")
-    model = body.get("model", "llava-llama3:8b")  # needs multimodal model for vision
+    model = get_model("vision", body.get("model", ""))
     messages = body.get("messages", [])
 
     if "," in img_b64:
@@ -1034,14 +1419,14 @@ async def vision(request: Request):
 async def vision_upload(
     image: UploadFile = File(...),
     prompt: str = Form("Descreva esta imagem em detalhes."),
-    model: str = Form("llava-llama3:8b"),
+    model: str = Form(""),
 ):
     import base64
     img_bytes = await image.read()
     img_b64 = base64.b64encode(img_bytes).decode()
 
     return _chat_stream({
-        "model": model,
+        "model": get_model("vision", model),
         "messages": [{"role": "user", "content": prompt, "images": [img_b64]}],
         "stream": True,
     })
@@ -1053,7 +1438,7 @@ async def vision_upload(
 async def build_app(request: Request):
     body = await request.json()
     prompt = body.get("prompt", "")
-    model = body.get("model", "qwen2.5-coder:14b")
+    model = get_model("code", body.get("model", ""))
 
     system_prompt = """Voce e um engenheiro frontend expert. Quando o usuario descrever um app ou site,
 gere um arquivo HTML COMPLETO e funcional com CSS e JavaScript inline.
@@ -1268,28 +1653,30 @@ MODELS_DIR.mkdir(exist_ok=True)
 
 # Registry of known downloadable models
 GGUF_REGISTRY = [
+    # ── Uncensored models (priority) ──
     {
-        "id": "qwen25-1.5b-cpu",
-        "name": "Qwen 2.5 1.5B (CPU)",
-        "filename": "qwen2.5-1.5b-instruct-q4_k_m.gguf",
-        "url": "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf",
-        "size_gb": 1.1,
+        "id": "dolphin3-3b-uncensored",
+        "name": "Dolphin 3.0 3B Uncensored (CPU/GPU)",
+        "filename": "dolphin-3.0-llama3.2-3b-Q4_K_M.gguf",
+        "url": "https://huggingface.co/bartowski/dolphin-3.0-llama3.2-3b-GGUF/resolve/main/dolphin-3.0-llama3.2-3b-Q4_K_M.gguf",
+        "size_gb": 2.0,
         "type": "cpu",
-        "desc": "Modelo leve e rapido. Roda em qualquer PC sem GPU.",
-        "uncensored": False,
-        "tags": ["chat", "cpu", "leve"],
+        "desc": "Uncensored leve. Roda em CPU ou GPU 3GB+. Ideal para sobrevivencia.",
+        "uncensored": True,
+        "tags": ["chat", "uncensored", "cpu", "leve", "principal"],
     },
     {
         "id": "dolphin-8b-gpu",
-        "name": "Dolphin 8B (GPU)",
+        "name": "Dolphin 8B Uncensored (GPU)",
         "filename": "dolphin-2.9.4-llama3.1-8b-Q4_K_M.gguf",
         "url": "https://huggingface.co/bartowski/dolphin-2.9.4-llama3.1-8b-GGUF/resolve/main/dolphin-2.9.4-llama3.1-8b-Q4_K_M.gguf",
         "size_gb": 4.9,
         "type": "gpu",
-        "desc": "Modelo principal uncensored. GPU 6GB+ VRAM.",
+        "desc": "Uncensored completo. GPU 6GB+ VRAM. Melhor qualidade.",
         "uncensored": True,
-        "tags": ["chat", "gpu", "principal"],
+        "tags": ["chat", "uncensored", "gpu", "completo"],
     },
+    # ── Vision model ──
     {
         "id": "gemma3-4b-vision",
         "name": "Gemma 3 4B (Vision)",
@@ -1301,7 +1688,34 @@ GGUF_REGISTRY = [
         "uncensored": False,
         "tags": ["vision", "multimodal", "gpu"],
     },
+    # ── Fallback CPU ──
+    {
+        "id": "qwen25-1.5b-cpu",
+        "name": "Qwen 2.5 1.5B (CPU)",
+        "filename": "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+        "url": "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf",
+        "size_gb": 1.1,
+        "type": "cpu",
+        "desc": "Modelo leve. Roda em qualquer PC sem GPU.",
+        "uncensored": False,
+        "tags": ["chat", "cpu", "leve"],
+    },
+    # ── Emergency model (always available) ──
+    {
+        "id": "qwen25-0.5b-emergency",
+        "name": "Qwen 2.5 0.5B (Emergencia)",
+        "filename": "qwen2.5-0.5b-instruct-q4_k_m.gguf",
+        "url": "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf",
+        "size_gb": 0.4,
+        "type": "cpu",
+        "desc": "Modelo de emergencia (~400MB). Multilingual. Sempre incluso.",
+        "uncensored": False,
+        "tags": ["chat", "cpu", "emergencia", "sempre-incluso"],
+    },
 ]
+
+# The emergency model ID — always downloaded during install
+EMERGENCY_MODEL_ID = "qwen25-0.5b-emergency"
 
 # Track active downloads
 _active_downloads: dict = {}

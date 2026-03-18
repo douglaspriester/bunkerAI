@@ -662,6 +662,17 @@ body::after {
   padding-left: 12px;
 }
 
+/* ── Model stats footer ── */
+.msg-stats {
+  font-size: 10px;
+  color: var(--text-muted);
+  opacity: 0.6;
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+}
+.msg-stats:hover { opacity: 1; }
+
 /* ── Image attachment ── */
 .msg-image {
   max-width: 280px; max-height: 200px;
@@ -2995,12 +3006,12 @@ body::after {
 /* ── Desktop Icons Grid ── */
 .desktop-icons {
   flex: 1;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, 90px);
-  grid-template-rows: repeat(auto-fill, 100px);
+  display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;
+  align-content: flex-start;
   gap: 8px;
   padding: 20px 24px;
-  align-content: start;
   overflow: hidden;
   z-index: 1;
 }
@@ -3009,6 +3020,7 @@ body::after {
   display: flex; flex-direction: column;
   align-items: center; justify-content: flex-start;
   gap: 6px;
+  width: 86px;
   padding: 10px 4px 8px;
   border-radius: var(--radius-lg);
   cursor: pointer;
@@ -3440,11 +3452,10 @@ body::after {
 /* ═══ RESPONSIVE: Window adjustments ═══ */
 @media (max-width: 768px) {
   .desktop-icons {
-    grid-template-columns: repeat(auto-fill, 76px);
-    grid-template-rows: repeat(auto-fill, 90px);
     gap: 4px;
     padding: 12px;
   }
+  .desktop-icon { width: 72px; }
   .desktop-icon-img { font-size: 26px; }
   .desktop-icon-label { font-size: 10px; max-width: 68px; }
 

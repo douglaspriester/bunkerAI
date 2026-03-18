@@ -420,6 +420,7 @@ async function checkHealth() {
       if (tbDot) { tbDot.classList.remove('sys-warn'); tbDot.classList.add('sys-ok'); }
       state.models = d.models;
       state.visionModels = d.vision_models;
+      state.autoModels = d.auto_models || {};
       populateModels();
 
       // Voice engine status from backend
@@ -437,9 +438,19 @@ async function checkHealth() {
       }
     } else {
       if (dot) dot.className = "status-dot offline";
-      if (txt) txt.textContent = "Ollama offline";
       const tbDot = document.getElementById('taskbarStatusDot');
       if (tbDot) { tbDot.classList.remove('sys-ok'); tbDot.classList.add('sys-warn'); }
+      // Show auto-download status if backend is downloading a model
+      if (d.auto_download && d.auto_download.status === "downloading") {
+        if (txt) txt.textContent = `Baixando ${d.auto_download.model}... ${d.auto_download.percent}%`;
+        // Re-check in 3s to update progress
+        setTimeout(checkHealth, 3000);
+      } else if (d.auto_download && d.auto_download.status === "complete") {
+        if (txt) txt.textContent = `Modelo pronto — reiniciando...`;
+        setTimeout(checkHealth, 2000);
+      } else {
+        if (txt) txt.textContent = "IA offline — abra Modelos IA";
+      }
     }
   } catch {
     if (dot) dot.className = "status-dot offline";
@@ -714,20 +725,20 @@ async function checkMapStatus() {
 }
 
 function populateModels() {
-  const fill = (id, list, preferred) => {
+  const auto = state.autoModels || {};
+  const fill = (id, list, autoModel) => {
     const el = document.getElementById(id);
     if (!el || !list.length) return;
-    const sorted = [...list].sort((a, b) => {
-      const aP = preferred.some(p => a.includes(p)) ? -1 : 0;
-      const bP = preferred.some(p => b.includes(p)) ? -1 : 0;
-      return aP - bP;
-    });
+    // Put auto-selected model first, then the rest
+    const sorted = autoModel
+      ? [autoModel, ...list.filter(m => m !== autoModel)]
+      : [...list];
     el.innerHTML = sorted.map(m => `<option value="${m}">${m}</option>`).join("");
   };
-  fill("chatModel", state.models, ["dolphin3", "dolphin"]);
-  fill("visionModel", state.visionModels.length ? state.visionModels : state.models, ["llava", "gemma3"]);
-  fill("builderModel", state.models, ["qwen2.5-coder", "coder"]);
-  fill("brainModel", state.models, ["dolphin3", "dolphin"]);
+  fill("chatModel", state.models, auto.chat);
+  fill("visionModel", state.visionModels.length ? state.visionModels : state.models, auto.vision);
+  fill("builderModel", state.models, auto.code);
+  fill("brainModel", state.models, auto.brain);
 }
 
 // ─── Navigation ─────────────────────────────────────────────────────────────
