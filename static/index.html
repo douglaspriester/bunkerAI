@@ -1325,6 +1325,23 @@ Responda no idioma do usuario. Use markdown.</textarea>
       </div>
     </div>
 
+    <!-- ═══ Model Manager ═══ -->
+    <div class="panel-view hidden" id="modelMgrView">
+      <div style="padding:14px;overflow-y:auto;height:100%;display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div class="config-section-title" style="margin:0">Modelos de IA</div>
+          <button class="btn-action" onclick="modelMgrRefresh()" style="font-size:11px;padding:4px 10px">Atualizar</button>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);font-family:var(--font-mono)">
+          Modelos GGUF locais para modo 100% offline (llama.cpp).
+          <span id="modelMgrDir" style="opacity:0.5"></span>
+        </div>
+        <div id="modelMgrList" style="display:flex;flex-direction:column;gap:8px">
+          <div class="panel-empty">Carregando...</div>
+        </div>
+      </div>
+    </div>
+
   </main>
 
   </div><!-- /desktop -->

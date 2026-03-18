@@ -1261,6 +1261,198 @@ async def recommended_models():
     }
 
 
+# ─── Local GGUF Model Manager ─────────────────────────────────────────────────
+
+MODELS_DIR = Path("models")
+MODELS_DIR.mkdir(exist_ok=True)
+
+# Registry of known downloadable models
+GGUF_REGISTRY = [
+    {
+        "id": "qwen25-1.5b-cpu",
+        "name": "Qwen 2.5 1.5B (CPU)",
+        "filename": "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+        "url": "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf",
+        "size_gb": 1.1,
+        "type": "cpu",
+        "desc": "Modelo leve e rapido. Roda em qualquer PC sem GPU.",
+        "uncensored": False,
+        "tags": ["chat", "cpu", "leve"],
+    },
+    {
+        "id": "dolphin-8b-gpu",
+        "name": "Dolphin 8B (GPU)",
+        "filename": "dolphin-2.9.4-llama3.1-8b-Q4_K_M.gguf",
+        "url": "https://huggingface.co/bartowski/dolphin-2.9.4-llama3.1-8b-GGUF/resolve/main/dolphin-2.9.4-llama3.1-8b-Q4_K_M.gguf",
+        "size_gb": 4.9,
+        "type": "gpu",
+        "desc": "Modelo principal uncensored. GPU 6GB+ VRAM.",
+        "uncensored": True,
+        "tags": ["chat", "gpu", "principal"],
+    },
+    {
+        "id": "gemma3-4b-vision",
+        "name": "Gemma 3 4B (Vision)",
+        "filename": "gemma-3-4b-it-Q4_K_M.gguf",
+        "url": "https://huggingface.co/bartowski/google_gemma-3-4b-it-GGUF/resolve/main/google_gemma-3-4b-it-Q4_K_M.gguf",
+        "size_gb": 3.0,
+        "type": "gpu",
+        "desc": "Multimodal com visao (webcam/scanner). GPU 4GB+.",
+        "uncensored": False,
+        "tags": ["vision", "multimodal", "gpu"],
+    },
+]
+
+# Track active downloads
+_active_downloads: dict = {}
+
+
+@app.get("/api/models/local")
+async def list_local_models():
+    """List locally downloaded GGUF models + their status."""
+    result = []
+    for model in GGUF_REGISTRY:
+        filepath = MODELS_DIR / model["filename"]
+        downloaded = filepath.exists()
+        size_on_disk = filepath.stat().st_size if downloaded else 0
+        expected_size = int(model["size_gb"] * 1024 * 1024 * 1024)
+        complete = downloaded and size_on_disk > expected_size * 0.9  # 90% tolerance
+
+        result.append({
+            **model,
+            "downloaded": complete,
+            "partial": downloaded and not complete,
+            "size_on_disk": size_on_disk,
+            "path": str(filepath) if complete else None,
+            "downloading": model["id"] in _active_downloads,
+        })
+
+    # Also check for any extra GGUF files in models/
+    known_files = {m["filename"] for m in GGUF_REGISTRY}
+    for f in MODELS_DIR.glob("*.gguf"):
+        if f.name not in known_files:
+            result.append({
+                "id": f.stem,
+                "name": f.stem,
+                "filename": f.name,
+                "size_gb": round(f.stat().st_size / (1024**3), 1),
+                "type": "unknown",
+                "desc": "Modelo GGUF adicionado manualmente",
+                "uncensored": False,
+                "tags": ["custom"],
+                "downloaded": True,
+                "partial": False,
+                "size_on_disk": f.stat().st_size,
+                "path": str(f),
+                "downloading": False,
+            })
+
+    return {"models": result, "models_dir": str(MODELS_DIR.resolve())}
+
+
+@app.post("/api/models/local/download")
+async def download_local_model(request: Request, background_tasks: BackgroundTasks):
+    """Start downloading a GGUF model in the background."""
+    body = await request.json()
+    model_id = body.get("model_id", "")
+
+    model = next((m for m in GGUF_REGISTRY if m["id"] == model_id), None)
+    if not model:
+        return JSONResponse({"error": f"Modelo '{model_id}' nao encontrado"}, 404)
+
+    filepath = MODELS_DIR / model["filename"]
+    if filepath.exists() and filepath.stat().st_size > model["size_gb"] * 0.9 * 1024**3:
+        return {"status": "already_downloaded", "path": str(filepath)}
+
+    if model_id in _active_downloads:
+        return {"status": "already_downloading", "progress": _active_downloads[model_id]}
+
+    _active_downloads[model_id] = {"percent": 0, "downloaded": 0, "total": 0, "speed": ""}
+    background_tasks.add_task(_download_gguf, model)
+    return {"status": "started", "model_id": model_id}
+
+
+@app.get("/api/models/local/progress/{model_id}")
+async def download_progress(model_id: str):
+    """Check download progress for a model."""
+    if model_id in _active_downloads:
+        return {"status": "downloading", **_active_downloads[model_id]}
+
+    model = next((m for m in GGUF_REGISTRY if m["id"] == model_id), None)
+    if model:
+        filepath = MODELS_DIR / model["filename"]
+        if filepath.exists() and filepath.stat().st_size > model["size_gb"] * 0.9 * 1024**3:
+            return {"status": "complete", "percent": 100}
+
+    return {"status": "idle", "percent": 0}
+
+
+async def _download_gguf(model: dict):
+    """Background task to download a GGUF model."""
+    import urllib.request
+
+    filepath = MODELS_DIR / model["filename"]
+    model_id = model["id"]
+    url = model["url"]
+
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "BunkerAI/4.0"})
+        with urllib.request.urlopen(req, timeout=3600) as resp:
+            total = int(resp.headers.get("Content-Length", 0))
+            _active_downloads[model_id]["total"] = total
+            downloaded = 0
+            chunk_size = 1024 * 512  # 512KB chunks
+
+            with open(filepath, "wb") as f:
+                last_time = time.time()
+                last_bytes = 0
+                while True:
+                    chunk = resp.read(chunk_size)
+                    if not chunk:
+                        break
+                    f.write(chunk)
+                    downloaded += len(chunk)
+
+                    now = time.time()
+                    elapsed = now - last_time
+                    if elapsed > 0.5:
+                        speed = (downloaded - last_bytes) / elapsed
+                        speed_str = f"{speed / (1024*1024):.1f} MB/s" if speed > 1024*1024 else f"{speed / 1024:.0f} KB/s"
+                        _active_downloads[model_id].update({
+                            "percent": round(downloaded / total * 100, 1) if total else 0,
+                            "downloaded": downloaded,
+                            "speed": speed_str,
+                        })
+                        last_time = now
+                        last_bytes = downloaded
+
+        _active_downloads[model_id]["percent"] = 100
+        print(f"[MODEL] {model['name']} downloaded: {filepath}")
+    except Exception as e:
+        _active_downloads[model_id]["error"] = str(e)
+        print(f"[MODEL] Download failed for {model['name']}: {e}")
+        if filepath.exists() and filepath.stat().st_size < 1000:
+            filepath.unlink()
+    finally:
+        # Keep in _active_downloads for 30s so UI can see completion
+        await asyncio.sleep(30)
+        _active_downloads.pop(model_id, None)
+
+
+@app.delete("/api/models/local/{model_id}")
+async def delete_local_model(model_id: str):
+    """Delete a locally downloaded GGUF model."""
+    model = next((m for m in GGUF_REGISTRY if m["id"] == model_id), None)
+    if not model:
+        return JSONResponse({"error": "Modelo nao encontrado"}, 404)
+
+    filepath = MODELS_DIR / model["filename"]
+    if filepath.exists():
+        filepath.unlink()
+        return {"status": "deleted", "model_id": model_id}
+    return {"status": "not_found"}
+
+
 # ─── SQLite setup ────────────────────────────────────────────────────────────
 
 def _init_db():

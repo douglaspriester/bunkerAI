@@ -37,6 +37,7 @@ export const OS_APPS = [
   { id: 'paint',      name: 'Paint',        icon: '\u{1F3A8}', width: 780, height: 560, viewId: 'paintView' },
   { id: 'imagine',    name: 'Gerador IA',   icon: '\u{1F5BC}\uFE0F', width: 640, height: 520, viewId: 'imagineView' },
   { id: 'survRef',    name: 'Refer\u00EAncia', icon: '\u{1F4D6}', width: 650, height: 520, viewId: 'survRefView' },
+  { id: 'modelMgr',  name: 'Modelos IA', icon: '\u{1F9E0}', width: 600, height: 520, viewId: 'modelMgrView' },
   { id: 'settings',   name: 'Configura\u00E7\u00F5es', icon: '\u2699\uFE0F', width: 560, height: 520, viewId: null },
 ];
 

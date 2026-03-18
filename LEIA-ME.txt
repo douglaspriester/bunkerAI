@@ -1,0 +1,60 @@
+═══════════════════════════════════════════════════════════════
+  BUNKER AI — Sistema Operacional de Sobrevivencia com IA Local
+  100% Offline · DON'T PANIC
+═══════════════════════════════════════════════════════════════
+
+ESTRUTURA DA PASTA:
+═══════════════════
+  BunkerAI/
+  ├── INICIAR.command    ← Mac: duplo-clique aqui
+  ├── INICIAR.bat        ← Windows: duplo-clique aqui
+  ├── LEIA-ME.txt        ← Voce esta aqui
+  └── app/               ← Arquivos do sistema
+      ├── server.py
+      ├── static/
+      ├── data/
+      └── venv/
+
+REQUISITOS (instalar UMA VEZ com internet):
+═══════════════════════════════════════════
+  1. Python 3.10+       → https://python.org
+  2. Ollama             → https://ollama.ai
+  3. Modelo de IA       → No terminal: ollama pull dolphin3
+
+  Apos isso, tudo funciona 100% offline para sempre.
+
+COMO USAR:
+══════════
+  Mac:     Duplo-clique em INICIAR.command
+  Windows: Duplo-clique em INICIAR.bat
+  Linux:   No terminal: cd app && bash start.sh
+
+  O browser abre automaticamente em http://localhost:8888
+
+PARA DISTRIBUIR (pendrive/HD externo):
+══════════════════════════════════════
+  1. Copie esta pasta inteira para o pendrive
+  2. No computador destino, instale Python + Ollama
+  3. Rode: ollama pull dolphin3
+  4. Duplo-clique em INICIAR
+
+  A primeira execucao cria o ambiente virtual automaticamente.
+  Depois disso, tudo roda sem internet.
+
+MODELOS RECOMENDADOS:
+════════════════════
+  ollama pull dolphin3           Chat principal (uncensored, ~5GB)
+  ollama pull gemma3:4b          Visao + webcam (compacto, ~3GB)
+  ollama pull qwen2.5-coder:7b  Gerador de apps (~5GB)
+
+ATALHOS NO APP:
+══════════════
+  Ctrl+K     Busca rapida (Spotlight)
+  Alt+Tab    Alternar janelas
+  F1         Atalhos
+  F2         Menu Iniciar
+
+SUPORTE:
+═══════
+  GitHub: github.com/douglaspriester/bunkerAI
+═══════════════════════════════════════════════════════════════

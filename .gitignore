@@ -7,3 +7,6 @@ tts_cache/
 generated_apps/
 static/maps/*.pmtiles
 .claude/
+data/db/
+models/*.gguf
+bin/

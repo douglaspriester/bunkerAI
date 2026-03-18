@@ -4486,3 +4486,474 @@ body {
   .media-player-area { min-height: 180px; }
   .guide-body { flex-direction: column !important; }
 }
+
+/* ═══ The Guide — AI Companion Widget Styles (Phase 14) ═══ */
+/* "DON'T PANIC" — in large, friendly letters */
+
+/* ── Widget Container (bottom-right, above taskbar, left of SOS) ── */
+.guide-widget {
+  position: fixed;
+  bottom: 52px;
+  right: 70px;
+  z-index: 9997;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0;
+  transition: all 0.3s var(--ease);
+  pointer-events: none;
+}
+.guide-widget > * { pointer-events: auto; }
+.guide-widget.guide-hidden { display: none; }
+
+/* ── Collapsed Bubble ── */
+.guide-bubble {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  cursor: pointer;
+  transition: transform 0.2s var(--ease);
+  filter: drop-shadow(0 0 8px rgba(0,212,255,0.2));
+}
+.guide-bubble:hover {
+  transform: scale(1.08);
+  filter: drop-shadow(0 0 14px rgba(0,212,255,0.35));
+}
+.guide-bubble-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  border: 2px solid var(--bg);
+  z-index: 2;
+  transition: background 0.3s;
+}
+
+/* ── Avatar Face ── */
+.guide-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  overflow: hidden;
+}
+.guide-avatar-face {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: rgba(0,212,255,0.06);
+  border: 2px solid var(--guide-color, var(--accent));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+.guide-avatar-face:hover {
+  box-shadow: 0 0 16px color-mix(in srgb, var(--guide-color, var(--accent)) 30%, transparent);
+}
+.guide-avatar-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1;
+  color: var(--guide-color, var(--accent));
+}
+.guide-eyes {
+  font-size: 10px;
+  letter-spacing: 2px;
+  transition: all 0.3s;
+}
+.guide-mouth {
+  font-size: 8px;
+  letter-spacing: 1px;
+  opacity: 0.7;
+  transition: all 0.3s;
+}
+.guide-avatar-label {
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  font-size: 12px;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6));
+}
+
+/* ── Mood Animations ── */
+.guide-avatar.mood-thinking .guide-eyes {
+  animation: guide-blink 1.5s ease-in-out infinite;
+}
+.guide-avatar.mood-happy .guide-avatar-face {
+  box-shadow: 0 0 12px color-mix(in srgb, var(--guide-color, var(--accent)) 30%, transparent);
+}
+.guide-avatar.mood-alert .guide-avatar-face {
+  border-color: var(--danger);
+  animation: guide-alert-pulse 0.8s ease-in-out infinite;
+}
+.guide-avatar.mood-sleeping .guide-eyes {
+  animation: guide-sleep 3s ease-in-out infinite;
+}
+.guide-avatar.mood-talking .guide-mouth {
+  animation: guide-talk 0.4s ease-in-out infinite;
+}
+@keyframes guide-blink {
+  0%, 90%, 100% { opacity: 1; }
+  95% { opacity: 0.1; }
+}
+@keyframes guide-alert-pulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(255,26,71,0.3); }
+  50% { box-shadow: 0 0 18px rgba(255,26,71,0.5); }
+}
+@keyframes guide-sleep {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.8; }
+}
+@keyframes guide-talk {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(1.4); }
+}
+
+/* ── Expanded Panel ── */
+.guide-panel {
+  display: none;
+  width: 320px;
+  background: rgba(4,10,16,0.97);
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius-xl);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 1px var(--accent), inset 0 1px 0 rgba(0,212,255,0.06);
+  overflow: hidden;
+  margin-bottom: 8px;
+  animation: guide-panel-in 0.25s var(--ease);
+  position: relative;
+}
+.guide-widget.expanded .guide-panel { display: flex; flex-direction: column; }
+.guide-widget.expanded .guide-bubble { display: none; }
+
+@keyframes guide-panel-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── Panel Header ── */
+.guide-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(0,212,255,0.03);
+}
+.guide-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-hud);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.guide-panel-icon { font-size: 16px; }
+.guide-panel-sub {
+  font-family: var(--font-body);
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.guide-panel-controls { display: flex; gap: 4px; }
+.guide-ctrl-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+.guide-ctrl-btn:hover {
+  background: var(--surface-2);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── Mode Indicator ── */
+.guide-mode-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 11px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.guide-mode-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: guide-mode-glow 3s ease-in-out infinite;
+}
+@keyframes guide-mode-glow {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; box-shadow: 0 0 6px currentColor; }
+}
+.guide-mode-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text);
+}
+.guide-mode-personality {
+  margin-left: auto;
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+/* ── Speech Bubble ── */
+.guide-speech {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.guide-speech-text {
+  font-size: 12px;
+  color: var(--text-bright);
+  line-height: 1.5;
+  font-family: var(--font-mono);
+  min-height: 36px;
+  max-height: 120px;
+  overflow-y: auto;
+  word-break: break-word;
+}
+
+/* ── Quick Ask ── */
+.guide-quick-ask {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.guide-quick-input-wrap {
+  display: flex;
+  gap: 6px;
+}
+.guide-quick-input {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-bright);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 7px 10px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.guide-quick-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(0,212,255,0.08);
+}
+.guide-quick-input::placeholder {
+  color: var(--text-muted);
+  font-style: italic;
+}
+.guide-quick-send {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius);
+  background: var(--accent-dim);
+  border: 1px solid rgba(0,212,255,0.2);
+  color: var(--accent);
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+.guide-quick-send:hover {
+  background: rgba(0,212,255,0.15);
+  border-color: var(--accent);
+}
+
+/* ── Quick Actions Grid ── */
+.guide-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.guide-action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.guide-action-btn span {
+  font-size: 9px;
+  font-family: var(--font-hud);
+  letter-spacing: 0.03em;
+  opacity: 0.7;
+}
+.guide-action-btn:hover {
+  background: var(--surface-2);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+.guide-action-btn:active { transform: translateY(0); }
+
+/* ── Scanner Row ── */
+.guide-scanner-row {
+  padding: 6px 12px 10px;
+}
+.guide-scanner-btn {
+  width: 100%;
+  padding: 7px;
+  background: var(--surface);
+  border: 1px solid rgba(0,212,255,0.15);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: var(--font-hud);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.05em;
+}
+.guide-scanner-btn:hover {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── Personality Picker ── */
+.guide-personality-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px 12px 10px;
+  border-top: 1px solid var(--border-subtle);
+  animation: guide-panel-in 0.2s var(--ease);
+}
+.guide-personality-picker.hidden { display: none; }
+.guide-pers-btn {
+  flex: 1 1 calc(50% - 2px);
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.guide-pers-btn span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+.guide-pers-btn:hover {
+  border-color: var(--pers-color, var(--accent));
+  background: rgba(0,212,255,0.04);
+}
+.guide-pers-btn.active {
+  border-color: var(--pers-color, var(--accent));
+  background: color-mix(in srgb, var(--pers-color, var(--accent)) 8%, transparent);
+  color: var(--text-bright);
+}
+
+/* ── Floating Toast (proactive tips) ── */
+.guide-toast {
+  position: absolute;
+  bottom: 60px;
+  right: 0;
+  width: 280px;
+  padding: 10px 14px;
+  background: rgba(4,10,16,0.95);
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius-lg);
+  color: var(--text-bright);
+  font-size: 11px;
+  font-family: var(--font-mono);
+  line-height: 1.5;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.3s, transform 0.3s var(--ease);
+  pointer-events: none;
+}
+.guide-toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ── DON'T PANIC scanline ── */
+.guide-panel::before {
+  content: "DON'T PANIC";
+  position: absolute;
+  top: -1px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-hud);
+  font-size: 7px;
+  letter-spacing: 0.2em;
+  color: var(--accent);
+  opacity: 0.25;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ── Responsive ── */
+@media (max-width: 600px) {
+  .guide-widget {
+    bottom: 52px;
+    right: 8px;
+  }
+  .guide-panel {
+    width: calc(100vw - 16px);
+    max-width: 320px;
+  }
+}
+
+/* ── Model Manager ── */
+.model-progress-bar {
+  width: 100%;
+  height: 6px;
+  background: var(--surface-2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.model-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--green));
+  border-radius: 3px;
+  transition: width 0.5s var(--ease);
+}

@@ -40,6 +40,10 @@ import {
   AI_MODES, getActiveMode, setAIMode, renderModeSelector, initModeSelector,
 } from './chat.js';
 
+import {
+  initGuideCompanion, guideOnModeChange,
+} from './guide-companion.js';
+
 // ─── Expose everything to window for onclick handlers ───────────────────────
 // This is the bridge between ES modules and inline HTML onclick attributes.
 // As we incrementally refactor HTML to use addEventListener, these can be removed.
@@ -79,6 +83,9 @@ const globals = {
   streamFromAPI, addMsgDom, addStreamMsgDom, addMsgActions,
   scrollChat, getWelcomeHtml,
   showView, showChatView, showGuideView,
+
+  // Guide Companion
+  initGuideCompanion, guideOnModeChange,
 
   // AI Modes
   AI_MODES, getActiveMode, setAIMode, renderModeSelector, initModeSelector,
@@ -140,6 +147,7 @@ async function boot() {
   renderChatList();
   renderFavorites();
   initModeSelector();
+  initGuideCompanion();
   window.renderSidebarCharacters?.();
 
   // Load sidebar apps list
@@ -188,6 +196,7 @@ function wireAppCallbacks() {
     paint:      () => window.paintInit?.(),
     imagine:    () => window.imagineInit?.(),
     survRef:    () => window.survRefInit?.(),
+    modelMgr:   () => window.modelMgrInit?.(),
   };
   Object.entries(openMap).forEach(([appId, fn]) => registerAppOpen(appId, fn));
 
