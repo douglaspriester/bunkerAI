@@ -154,7 +154,7 @@ async function boot() {
   renderChatList();
   renderFavorites();
   initModeSelector();
-  initGuideCompanion();
+  // initGuideCompanion(); // Disabled — replaced by 3D Companion (Atlas)
   window.renderSidebarCharacters?.();
 
   // Load sidebar apps list
