@@ -44,6 +44,10 @@ import {
   initGuideCompanion, guideOnModeChange,
 } from './guide-companion.js';
 
+import {
+  initCompanion, companionSend, resizeCompanion, destroyCompanion,
+} from './companion.js';
+
 // ─── Expose everything to window for onclick handlers ───────────────────────
 // This is the bridge between ES modules and inline HTML onclick attributes.
 // As we incrementally refactor HTML to use addEventListener, these can be removed.
@@ -87,6 +91,9 @@ const globals = {
   // Guide Companion
   initGuideCompanion, guideOnModeChange,
 
+  // 3D Companion
+  initCompanion, companionSend, resizeCompanion, destroyCompanion,
+
   // AI Modes
   AI_MODES, getActiveMode, setAIMode, renderModeSelector, initModeSelector,
 };
@@ -119,7 +126,7 @@ window.guidesCache = guidesCache;
 function loadAppsScript() {
   return new Promise((resolve, reject) => {
     const s = document.createElement('script');
-    s.src = './js/apps.js';
+    s.src = './js/apps.js?v=' + Date.now();
     s.onload = resolve;
     s.onerror = () => reject(new Error('Failed to load apps.js'));
     document.head.appendChild(s);
@@ -197,6 +204,7 @@ function wireAppCallbacks() {
     imagine:    () => window.imagineInit?.(),
     survRef:    () => window.survRefInit?.(),
     modelMgr:   () => window.modelMgrInit?.(),
+    companion:  () => initCompanion(),
   };
   Object.entries(openMap).forEach(([appId, fn]) => registerAppOpen(appId, fn));
 
@@ -230,7 +238,20 @@ function wireAppCallbacks() {
     const frame = document.getElementById('gameFrame');
     if (frame) frame.src = 'about:blank';
   });
+  registerAppClose('companion', () => {
+    destroyCompanion();
+  });
 }
+
+// Global helper for companion chat input
+window.companionSendMsg = function(text) {
+  const input = document.getElementById('companionInput');
+  const msg = text || (input && input.value.trim()) || '';
+  if (msg) {
+    companionSend(msg);
+    if (input) input.value = '';
+  }
+};
 
 // ─── Init ───────────────────────────────────────────────────────────────────
 // ES modules are deferred, so DOM is already parsed when this runs.

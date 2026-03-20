@@ -74,7 +74,7 @@ const PERSONALITIES = {
 // ─── Proactive Tips by AI Mode ───────────────────────────────────────────────
 const PROACTIVE_TIPS = {
   general: [
-    'Voce sabia? Pressione Ctrl+K para abrir o Spotlight e buscar qualquer coisa.',
+    'Ctrl+K abre a busca rapida.',
     'Dica: Use /build no chat para criar apps HTML com IA.',
     'Alt+Tab alterna entre janelas abertas.',
     'Dica: duplo-clique em um icone do desktop para abrir o app.',

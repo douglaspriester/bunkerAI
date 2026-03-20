@@ -521,14 +521,15 @@ function maybeShowSetupModal(d, force = false) {
 
   const piperModels = d.piper_models || {};
   const hasAnyPiper = Object.values(piperModels).some(m => m.downloaded);
+  const hasTTSOffline = !!d.tts_offline; // Kokoro, Piper, or pyttsx3
   const whisperReady = !!d.stt_ready;
 
-  if (hasAnyPiper && whisperReady) return; // everything OK
+  if (hasTTSOffline && whisperReady) return; // everything OK
 
   // Auto-trigger: show toast instead of blocking modal
   if (!force) {
     const missing = [];
-    if (!hasAnyPiper) missing.push("TTS offline");
+    if (!hasTTSOffline) missing.push("TTS offline");
     if (!whisperReady) missing.push("STT offline");
     if (typeof osToast === 'function') {
       osToast(`⚙️ ${missing.join(' e ')} não configurado(s). Abra Configurações para ativar.`, 4000);
@@ -862,7 +863,7 @@ function startListeningWhisper() {
         const d = await r.json();
         if (d.text && d.text.trim()) {
           document.getElementById("chatInput").value = d.text;
-          sendVoice(d.text);
+          document.getElementById("chatInput").focus();
         } else if (d.use_browser) {
           // Fallback to browser STT
           state.sttEngine = "browser";
@@ -925,7 +926,7 @@ function startListeningBrowser() {
     btn.classList.remove("recording");
     if (state.isListening && finalTranscript) {
       document.getElementById("chatInput").value = finalTranscript;
-      sendVoice(finalTranscript);
+      document.getElementById("chatInput").focus();
     }
     state.isListening = false;
   };
@@ -1971,16 +1972,24 @@ function renderGamesGrid() {
   const grid = document.getElementById('gamesGrid');
   if (!grid) return;
   if (window.gamesIndex.length === 0) {
-    grid.innerHTML = '<div class="panel-empty">Nenhum jogo dispon\u00EDvel.</div>';
+    grid.innerHTML = '<div class="panel-empty">Nenhum jogo disponivel.<br><span style="font-size:11px;opacity:0.6">Adicione ROMs em static/games/ ou jogos HTML em data/games/</span></div>';
     return;
   }
   const emojis = { snake: '🐍', tetris: '🧱', '2048': '🔢', minesweeper: '💣', sudoku: '🔲', solitaire: '🃏', chess: '♟️', checkers: '⚫' };
-  grid.innerHTML = window.gamesIndex.map(g => `
-    <div class="game-card" onclick="openGame('${escapeHtml(g.id || g.name)}')">
-      <div class="game-card-icon">${emojis[g.id || g.name] || '🎮'}</div>
+  const sysLabels = { nes: 'NES', snes: 'SNES', gb: 'GB/GBC', gba: 'GBA', genesis: 'Genesis' };
+  const sysColors = { nes: '#e74c3c', snes: '#9b59b6', gb: '#2ecc71', gba: '#3498db', genesis: '#e67e22' };
+  grid.innerHTML = window.gamesIndex.map(g => {
+    const id = g.id || g.name;
+    const isRom = g.type === 'rom';
+    const icon = isRom ? '🎮' : (emojis[id] || '🎮');
+    const badge = isRom && g.system ? `<div class="game-card-badge" style="background:${sysColors[g.system] || 'var(--accent)'}">${sysLabels[g.system] || g.system.toUpperCase()}</div>` : '';
+    return `<div class="game-card" onclick="openGame('${escapeHtml(id)}')">
+      <div class="game-card-icon">${icon}</div>
       <div class="game-card-name">${escapeHtml(g.title || g.name)}</div>
+      ${badge}
       ${g.desc ? `<div class="game-card-desc">${escapeHtml(g.desc)}</div>` : ''}
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function openGame(name) {
@@ -1988,13 +1997,24 @@ function openGame(name) {
   const frame = document.getElementById('gameFrame');
   const titleEl = document.getElementById('gameTitle');
   const game = window.gamesIndex.find(g => (g.id || g.name) === name);
-  if (titleEl) titleEl.textContent = game?.title || name;
-  if (frame) frame.src = `/api/games/${encodeURIComponent(name)}`;
+  if (titleEl) titleEl.textContent = game?.title || game?.name || name;
+
+  // ROM-based game: use EmulatorJS player
+  if (game && game.type === 'rom' && name.startsWith('rom:')) {
+    const parts = name.split(':');
+    const sys = parts[1];
+    const romFile = parts.slice(2).join(':');
+    if (frame) frame.src = `/api/games/rom-player?system=${encodeURIComponent(sys)}&rom=${encodeURIComponent(romFile)}`;
+  } else {
+    // HTML game
+    if (frame) frame.src = `/api/games/${encodeURIComponent(name)}`;
+  }
+
   // Update window title
   const win = Object.values(_windows).find(w => w.appId === 'gamePlay');
   if (win) {
     const titleSpan = win.element.querySelector('.os-window-title');
-    if (titleSpan) titleSpan.textContent = game?.title || name;
+    if (titleSpan) titleSpan.textContent = game?.title || game?.name || name;
   }
 }
 
@@ -2344,6 +2364,8 @@ async function openJournalPanel() {
   openApp('journal');
 }
 
+window._journalInit = loadJournal;
+
 async function loadJournal() {
   const content = document.getElementById('journalContent');
   if (!content) return;
@@ -2596,6 +2618,31 @@ function renderJournalEditor() {
   // Textarea
   html += `<textarea id="journalText" class="journal-textarea" placeholder="Como foi seu dia no bunker...">${escapeHtml(entry?.content || '')}</textarea>`;
 
+  // Audio recording + voice-to-text
+  html += '<div class="journal-audio-row">';
+  html += '<button class="btn-sm journal-audio-btn" id="journalRecordBtn" onclick="toggleJournalAudio()" title="Gravar audio">🎤 Gravar</button>';
+  html += '<button class="btn-sm" id="journalDictateBtn" onclick="toggleJournalDictate()" title="Falar para texto — transcreve sua voz direto no diario">🗣️ Ditar</button>';
+  html += '<span class="journal-audio-status" id="journalAudioStatus"></span>';
+  html += '</div>';
+  // Audio entries
+  const audioEntries = (entry?.audio || []);
+  if (audioEntries.length > 0) {
+    html += '<div class="journal-audio-list">';
+    for (let i = 0; i < audioEntries.length; i++) {
+      const hasTranscript = audioEntries[i].transcript;
+      html += `<div class="journal-audio-item">
+        <audio controls src="${audioEntries[i].url}" style="height:32px;flex:1"></audio>
+        <span style="font-size:10px;color:var(--text-muted)">${audioEntries[i].time || ''}</span>
+        <button class="btn-sm" onclick="transcribeJournalAudio(${i})" title="Transcrever audio para texto" id="journalTranscribeBtn${i}">${hasTranscript ? '✓' : '📝'}</button>
+        <button class="btn-sm" onclick="removeJournalAudio(${i})" title="Remover">✕</button>
+      </div>`;
+      if (hasTranscript) {
+        html += `<div class="journal-audio-transcript">${escapeHtml(audioEntries[i].transcript)}</div>`;
+      }
+    }
+    html += '</div>';
+  }
+
   // Save row
   html += '<div class="journal-save-row">';
   html += '<span class="journal-saved" id="journalSaved">✓ Salvo</span>';
@@ -2678,6 +2725,354 @@ async function saveJournal() {
       setTimeout(() => indicator.classList.remove('show'), 2000);
     }
   } catch(e) { alert('Erro: ' + e.message); }
+}
+
+// ─── Journal Audio Recording ────────────────────────────────────────────────
+
+let _journalRecording = null;
+
+function toggleJournalAudio() {
+  if (_journalRecording) {
+    // Stop recording
+    const btn = document.getElementById('journalRecordBtn');
+    const status = document.getElementById('journalAudioStatus');
+    if (btn) btn.textContent = '🎤 Gravar Audio';
+    if (status) status.textContent = 'Salvando...';
+
+    _journalRecording.stop().then(blob => {
+      _journalRecording = null;
+      if (!blob || blob.size < 100) {
+        if (status) status.textContent = '';
+        return;
+      }
+
+      // Save audio blob as data URL in journal entry
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const entry = _journalEntries.find(e => e.date === _journalCurrentDate);
+        const audioItem = {
+          url: reader.result,
+          time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        };
+        if (entry) {
+          if (!entry.audio) entry.audio = [];
+          entry.audio.push(audioItem);
+        } else {
+          _journalEntries.push({ date: _journalCurrentDate, content: '', mood: null, audio: [audioItem] });
+          _journalEntries.sort((a, b) => b.date.localeCompare(a.date));
+        }
+        // Save to localStorage
+        try { localStorage.setItem('bunker_journal_audio_' + _journalCurrentDate, JSON.stringify(entry?.audio || [audioItem])); } catch {}
+        if (status) status.textContent = '✓ Audio salvo';
+        setTimeout(() => { if (status) status.textContent = ''; }, 2000);
+        renderJournalEditor();
+      };
+      reader.readAsDataURL(blob);
+    });
+  } else {
+    // Start recording
+    const btn = document.getElementById('journalRecordBtn');
+    const status = document.getElementById('journalAudioStatus');
+    if (btn) btn.textContent = '⏹ Parar';
+    if (status) status.textContent = '🔴 Gravando...';
+
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+      const recorder = new MediaRecorder(stream, {
+        mimeType: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4'
+      });
+      const chunks = [];
+      recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+      recorder.onstop = () => {
+        stream.getTracks().forEach(t => t.stop());
+        _journalRecording._blob = new Blob(chunks, { type: recorder.mimeType });
+      };
+      _journalRecording = {
+        stop: () => {
+          if (recorder.state === 'recording') recorder.stop();
+          return new Promise(resolve => {
+            recorder.addEventListener('stop', () => resolve(_journalRecording._blob), { once: true });
+            if (recorder.state !== 'recording') resolve(_journalRecording._blob);
+          });
+        },
+        _blob: null,
+      };
+      recorder.start();
+    }).catch(() => {
+      if (btn) btn.textContent = '🎤 Gravar Audio';
+      if (status) status.textContent = 'Microfone negado';
+      _journalRecording = null;
+    });
+  }
+}
+
+function removeJournalAudio(idx) {
+  const entry = _journalEntries.find(e => e.date === _journalCurrentDate);
+  if (entry && entry.audio) {
+    entry.audio.splice(idx, 1);
+    try { localStorage.setItem('bunker_journal_audio_' + _journalCurrentDate, JSON.stringify(entry.audio)); } catch {}
+    renderJournalEditor();
+  }
+}
+
+async function transcribeJournalAudio(idx) {
+  const entry = _journalEntries.find(e => e.date === _journalCurrentDate);
+  if (!entry || !entry.audio || !entry.audio[idx]) return;
+
+  const btn = document.getElementById('journalTranscribeBtn' + idx);
+  if (btn) btn.textContent = '⏳';
+
+  try {
+    // Convert data URL back to blob
+    const dataUrl = entry.audio[idx].url;
+    const resp = await fetch(dataUrl);
+    const blob = await resp.blob();
+
+    const fd = new FormData();
+    fd.append('audio', blob, 'journal_audio.webm');
+    fd.append('language', 'pt');
+
+    const r = await fetch('/api/stt', { method: 'POST', body: fd });
+    const d = await r.json();
+
+    if (d.text && d.text.trim()) {
+      entry.audio[idx].transcript = d.text.trim();
+      try { localStorage.setItem('bunker_journal_audio_' + _journalCurrentDate, JSON.stringify(entry.audio)); } catch {}
+
+      // Also append to journal text
+      const textarea = document.getElementById('journalText');
+      if (textarea) {
+        const sep = textarea.value.trim() ? '\n\n' : '';
+        textarea.value += sep + '🎤 ' + d.text.trim();
+      }
+
+      renderJournalEditor();
+    } else {
+      if (btn) btn.textContent = '❌';
+      setTimeout(() => { if (btn) btn.textContent = '📝'; }, 2000);
+    }
+  } catch (e) {
+    if (btn) btn.textContent = '❌';
+    setTimeout(() => { if (btn) btn.textContent = '📝'; }, 2000);
+  }
+}
+
+// Voice-to-text dictation (speak directly into journal textarea)
+let _journalDictating = false;
+let _journalDictateRecorder = null;
+
+function toggleJournalDictate() {
+  if (_journalDictating) {
+    _stopJournalDictate();
+  } else {
+    _startJournalDictate();
+  }
+}
+
+function _startJournalDictate() {
+  const btn = document.getElementById('journalDictateBtn');
+  const status = document.getElementById('journalAudioStatus');
+  _journalDictating = true;
+
+  if (state.sttEngine === 'whisper') {
+    // Record with MediaRecorder → send to Whisper
+    if (btn) { btn.textContent = '⏹ Parar'; btn.classList.add('recording'); }
+    if (status) status.textContent = '🔴 Ditando...';
+    const chunks = [];
+
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+      const recorder = new MediaRecorder(stream, {
+        mimeType: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4'
+      });
+      _journalDictateRecorder = recorder;
+
+      recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+      recorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        if (btn) { btn.textContent = '🗣️ Ditar'; btn.classList.remove('recording'); }
+        if (status) status.textContent = 'Transcrevendo...';
+        _journalDictating = false;
+        _journalDictateRecorder = null;
+
+        if (chunks.length === 0) { if (status) status.textContent = ''; return; }
+        const blob = new Blob(chunks, { type: recorder.mimeType });
+        const fd = new FormData();
+        fd.append('audio', blob, 'dictation.webm');
+        fd.append('language', 'pt');
+
+        try {
+          const r = await fetch('/api/stt', { method: 'POST', body: fd });
+          const d = await r.json();
+          if (d.text && d.text.trim()) {
+            const textarea = document.getElementById('journalText');
+            if (textarea) {
+              const sep = textarea.value.trim() ? ' ' : '';
+              textarea.value += sep + d.text.trim();
+            }
+            if (status) status.textContent = '✓ Texto adicionado';
+          } else {
+            if (status) status.textContent = 'Nao entendi';
+          }
+          setTimeout(() => { if (status) status.textContent = ''; }, 2000);
+        } catch {
+          if (status) status.textContent = 'Erro na transcricao';
+          setTimeout(() => { if (status) status.textContent = ''; }, 2000);
+        }
+      };
+      recorder.start();
+    }).catch(() => {
+      if (btn) { btn.textContent = '🗣️ Ditar'; btn.classList.remove('recording'); }
+      if (status) status.textContent = 'Microfone negado';
+      _journalDictating = false;
+    });
+
+  } else {
+    // Browser Web Speech API — real-time dictation
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      if (status) status.textContent = 'Sem suporte a voz';
+      _journalDictating = false;
+      return;
+    }
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recog = new SR();
+    recog.lang = 'pt-BR';
+    recog.continuous = true;
+    recog.interimResults = true;
+    _journalDictateRecorder = recog;
+
+    if (btn) { btn.textContent = '⏹ Parar'; btn.classList.add('recording'); }
+    if (status) status.textContent = '🔴 Ditando...';
+
+    let finalText = '';
+    recog.onresult = e => {
+      let interim = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) finalText += e.results[i][0].transcript;
+        else interim += e.results[i][0].transcript;
+      }
+      if (status) status.textContent = '🔴 ' + (interim || 'Ouvindo...');
+    };
+    recog.onend = () => {
+      if (btn) { btn.textContent = '🗣️ Ditar'; btn.classList.remove('recording'); }
+      _journalDictating = false;
+      _journalDictateRecorder = null;
+      if (finalText.trim()) {
+        const textarea = document.getElementById('journalText');
+        if (textarea) {
+          const sep = textarea.value.trim() ? ' ' : '';
+          textarea.value += sep + finalText.trim();
+        }
+        if (status) status.textContent = '✓ Texto adicionado';
+      } else {
+        if (status) status.textContent = '';
+      }
+      setTimeout(() => { if (status) status.textContent = ''; }, 2000);
+    };
+    recog.onerror = () => {
+      if (btn) { btn.textContent = '🗣️ Ditar'; btn.classList.remove('recording'); }
+      if (status) status.textContent = '';
+      _journalDictating = false;
+      _journalDictateRecorder = null;
+    };
+    recog.start();
+  }
+}
+
+function _stopJournalDictate() {
+  _journalDictating = false;
+  if (_journalDictateRecorder) {
+    _journalDictateRecorder.stop();
+    _journalDictateRecorder = null;
+  }
+}
+
+// ─── Companion Voice Input ──────────────────────────────────────────────────
+
+let _companionRecorder = null;
+let _companionAudioChunks = [];
+
+function companionStartVoice() {
+  const btn = document.getElementById('companionMicBtn');
+  if (btn) btn.classList.add('recording');
+  _companionAudioChunks = [];
+
+  if (state.sttEngine === 'whisper') {
+    // Record via MediaRecorder → send to /api/stt
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+      _companionRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      _companionRecorder.ondataavailable = e => { if (e.data.size > 0) _companionAudioChunks.push(e.data); };
+      _companionRecorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        if (btn) btn.classList.remove('recording');
+        if (_companionAudioChunks.length === 0) return;
+
+        const blob = new Blob(_companionAudioChunks, { type: 'audio/webm' });
+        const fd = new FormData();
+        fd.append('audio', blob, 'recording.webm');
+        fd.append('language', 'pt');
+
+        const input = document.getElementById('companionInput');
+        if (input) input.value = 'Transcrevendo...';
+
+        try {
+          const r = await fetch('/api/stt', { method: 'POST', body: fd });
+          const d = await r.json();
+          if (d.text && d.text.trim()) {
+            if (input) { input.value = d.text.trim(); input.focus(); }
+          } else {
+            if (input) input.value = '';
+          }
+        } catch {
+          if (input) input.value = '';
+        }
+      };
+      _companionRecorder.start();
+    }).catch(() => {
+      if (btn) btn.classList.remove('recording');
+    });
+  } else {
+    // Browser Web Speech API
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      if (btn) btn.classList.remove('recording');
+      return;
+    }
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recog = new SR();
+    recog.lang = 'pt-BR';
+    recog.continuous = true;
+    recog.interimResults = true;
+    _companionRecorder = recog;
+    let finalText = '';
+
+    recog.onresult = e => {
+      let interim = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) finalText += e.results[i][0].transcript;
+        else interim += e.results[i][0].transcript;
+      }
+      const input = document.getElementById('companionInput');
+      if (input) input.value = finalText + interim;
+    };
+    recog.onend = () => {
+      if (btn) btn.classList.remove('recording');
+      if (finalText.trim()) {
+        const input = document.getElementById('companionInput');
+        if (input) { input.value = finalText.trim(); input.focus(); }
+      }
+      _companionRecorder = null;
+    };
+    recog.onerror = () => {
+      if (btn) btn.classList.remove('recording');
+      _companionRecorder = null;
+    };
+    recog.start();
+  }
+}
+
+function companionStopVoice() {
+  if (_companionRecorder) {
+    if (_companionRecorder.stop) _companionRecorder.stop();
+    _companionRecorder = null;
+  }
 }
 
 // ─── MiniSearch (global search) ─────────────────────────────────────────────

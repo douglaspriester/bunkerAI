@@ -11,3 +11,7 @@ data/db/
 models/*.gguf
 !models/qwen2.5-0.5b-instruct-q4_k_m.gguf
 bin/
+kokoro_models/
+voice_models/
+*.wav
+*.mp3

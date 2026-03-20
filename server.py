@@ -631,26 +631,42 @@ async def _tts_pyttsx3(text: str, filepath: Path, voice_id: str = None) -> Optio
         wav_path = filepath.with_suffix(".wav")
 
         def _synth():
-            engine = pyttsx3.init()
-            voices = engine.getProperty("voices")
-            if voice_id:
-                for v in voices:
-                    if voice_id in str(v.id) or voice_id.lower() in v.name.lower():
-                        engine.setProperty("voice", v.id)
-                        break
-            else:
-                # Prefer Portuguese if available
-                pt = next((v for v in voices if any(
-                    x in v.name.lower() for x in ["portuguese", "brasil", "brazil", "zira", "heloisa", "pt"]
-                )), None)
-                if pt:
-                    engine.setProperty("voice", pt.id)
-            engine.setProperty("rate", 175)
-            engine.setProperty("volume", 0.9)
-            engine.save_to_file(text, str(wav_path))
-            engine.runAndWait()
-            engine.stop()
-            return wav_path.exists() and wav_path.stat().st_size > 100
+            # Windows COM threading requires CoInitialize in worker threads
+            try:
+                import pythoncom
+                pythoncom.CoInitialize()
+            except ImportError:
+                pass
+            try:
+                engine = pyttsx3.init()
+                voices = engine.getProperty("voices")
+                if voice_id:
+                    for v in voices:
+                        if voice_id in str(v.id) or voice_id.lower() in v.name.lower():
+                            engine.setProperty("voice", v.id)
+                            break
+                else:
+                    # Prefer Portuguese if available
+                    pt = next((v for v in voices if any(
+                        x in v.name.lower() for x in ["portuguese", "brasil", "brazil", "zira", "heloisa", "pt"]
+                    )), None)
+                    if pt:
+                        engine.setProperty("voice", pt.id)
+                engine.setProperty("rate", 175)
+                engine.setProperty("volume", 0.9)
+                engine.save_to_file(text, str(wav_path))
+                engine.runAndWait()
+                engine.stop()
+                return wav_path.exists() and wav_path.stat().st_size > 100
+            except Exception as inner_e:
+                print(f"[TTS] pyttsx3 synth error: {inner_e}")
+                return False
+            finally:
+                try:
+                    import pythoncom
+                    pythoncom.CoUninitialize()
+                except (ImportError, Exception):
+                    pass
 
         loop = asyncio.get_event_loop()
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
@@ -658,18 +674,24 @@ async def _tts_pyttsx3(text: str, filepath: Path, voice_id: str = None) -> Optio
 
         if ok and wav_path.exists():
             if shutil.which("ffmpeg"):
-                proc = await asyncio.create_subprocess_exec(
-                    "ffmpeg", "-y", "-i", str(wav_path), "-q:a", "4", str(filepath),
-                    stdout=asyncio.subprocess.DEVNULL,
-                    stderr=asyncio.subprocess.DEVNULL,
-                )
-                await proc.wait()
-                wav_path.unlink(missing_ok=True)
-                return filepath if filepath.exists() else None
+                try:
+                    proc = await asyncio.create_subprocess_exec(
+                        "ffmpeg", "-y", "-i", str(wav_path), "-q:a", "4", str(filepath),
+                        stdout=asyncio.subprocess.DEVNULL,
+                        stderr=asyncio.subprocess.DEVNULL,
+                    )
+                    await proc.wait()
+                    wav_path.unlink(missing_ok=True)
+                    return filepath if filepath.exists() else None
+                except (NotImplementedError, OSError):
+                    # asyncio subprocess not supported (Windows ProactorEventLoop)
+                    return wav_path
             else:
                 return wav_path  # serve WAV directly
     except Exception as e:
-        print(f"[TTS] pyttsx3 error: {e}")
+        import traceback
+        print(f"[TTS] pyttsx3 error: {type(e).__name__}: {e}")
+        traceback.print_exc()
     return None
 
 
@@ -775,18 +797,21 @@ async def _tts_kokoro(text: str, filepath: Path, voice: str) -> Optional[Path]:
         if result and result.exists():
             # Convert to mp3 if ffmpeg available
             if shutil.which("ffmpeg"):
-                mp3_proc = await asyncio.create_subprocess_exec(
-                    "ffmpeg", "-y", "-i", str(wav_path), "-q:a", "4", str(filepath),
-                    stdout=asyncio.subprocess.DEVNULL,
-                    stderr=asyncio.subprocess.DEVNULL,
-                )
-                await mp3_proc.wait()
-                wav_path.unlink(missing_ok=True)
-                return filepath if filepath.exists() else None
+                try:
+                    mp3_proc = await asyncio.create_subprocess_exec(
+                        "ffmpeg", "-y", "-i", str(wav_path), "-q:a", "4", str(filepath),
+                        stdout=asyncio.subprocess.DEVNULL,
+                        stderr=asyncio.subprocess.DEVNULL,
+                    )
+                    await mp3_proc.wait()
+                    wav_path.unlink(missing_ok=True)
+                    return filepath if filepath.exists() else None
+                except (NotImplementedError, OSError):
+                    return wav_path  # serve WAV on Windows ProactorEventLoop
             else:
                 return wav_path
     except Exception as e:
-        print(f"[TTS] Kokoro error: {e}")
+        print(f"[TTS] Kokoro error: {type(e).__name__}: {e}")
     return None
 
 
@@ -1115,16 +1140,20 @@ async def tts(request: Request, background_tasks: BackgroundTasks):
             print(f"[TTS] pyttsx3 error: {e}, falling back to edge-tts")
 
     # 4. Fallback: edge-tts (requires internet — blocked in offline mode)
-    if OFFLINE_MODE:
-        return JSONResponse({"error": "Modo offline ativo. Instale Kokoro TTS para voz offline.", "offline": True}, status_code=503)
-    try:
-        import edge_tts
-        communicate = edge_tts.Communicate(text, voice)
-        await communicate.save(str(filepath))
-        background_tasks.add_task(os.unlink, str(filepath))
-        return FileResponse(str(filepath), media_type="audio/mpeg", filename=filename)
-    except Exception as e:
-        return JSONResponse({"error": str(e), "hint": "edge-tts precisa de internet"}, status_code=500)
+    # Only use edge-tts if engine is "auto" or "edge-tts" explicitly
+    if engine in ("auto", "edge-tts"):
+        if OFFLINE_MODE:
+            return JSONResponse({"error": "Modo offline ativo. Instale Kokoro TTS para voz offline.", "offline": True}, status_code=503)
+        try:
+            import edge_tts
+            communicate = edge_tts.Communicate(text, voice)
+            await communicate.save(str(filepath))
+            background_tasks.add_task(os.unlink, str(filepath))
+            return FileResponse(str(filepath), media_type="audio/mpeg", filename=filename)
+        except Exception as e:
+            return JSONResponse({"error": str(e), "hint": "edge-tts precisa de internet"}, status_code=500)
+
+    return JSONResponse({"error": f"Engine '{engine}' nao disponivel", "available": "kokoro, piper, pyttsx3, edge-tts"}, status_code=503)
 
 
 async def _tts_piper(text: str, filepath: Path, voice: str) -> Optional[Path]:
@@ -2119,16 +2148,89 @@ async def update_book_progress(book_id: int, request: Request):
 
 # ─── Games API ───────────────────────────────────────────────────────────────
 
+# ROM catalog from static/games/catalog.json
+ROMS_DIR = Path("static") / "games"
+
+# Emulator core mapping (EmulatorJS core names)
+_EMU_CORES = {
+    "nes": "fceumm", "snes": "snes9x", "gb": "gambatte",
+    "gba": "mgba", "genesis": "genesis_plus_gx",
+}
+_EMU_EXTENSIONS = {
+    "nes": [".nes"], "snes": [".smc", ".sfc"], "gb": [".gb", ".gbc"],
+    "gba": [".gba"], "genesis": [".md", ".gen"],
+}
+
+
 @app.get("/api/games")
 async def list_games():
-    """List available games"""
+    """List available games (HTML + ROM-based)"""
+    games = []
+    # 1. HTML games from data/games/
     idx = GAMES_DIR / "_index.json"
     if idx.exists():
-        return JSONResponse(json.loads(idx.read_text(encoding="utf-8")))
-    games = []
-    for f in sorted(GAMES_DIR.glob("*.html")):
-        games.append({"id": f.stem, "name": f.stem.replace("-", " ").title(), "file": f.name})
+        data = json.loads(idx.read_text(encoding="utf-8"))
+        if isinstance(data, list):
+            games.extend(data)
+    else:
+        for f in sorted(GAMES_DIR.glob("*.html")):
+            games.append({"id": f.stem, "name": f.stem.replace("-", " ").title(), "file": f.name, "type": "html"})
+
+    # 2. ROM games from static/games/<system>/
+    for sys_id, exts in _EMU_EXTENSIONS.items():
+        sys_dir = ROMS_DIR / sys_id
+        if not sys_dir.is_dir():
+            continue
+        for ext in exts:
+            for rom in sorted(sys_dir.glob(f"*{ext}")):
+                title = rom.stem.replace("-", " ").replace("_", " ").title()
+                games.append({
+                    "id": f"rom:{sys_id}:{rom.name}",
+                    "name": title,
+                    "title": title,
+                    "system": sys_id,
+                    "type": "rom",
+                    "core": _EMU_CORES.get(sys_id, sys_id),
+                })
     return games
+
+
+@app.get("/api/games/rom-player")
+async def rom_player(system: str, rom: str):
+    """Generate an EmulatorJS player page for a given ROM"""
+    safe_sys = Path(system).name
+    safe_rom = Path(rom).name
+    rom_path = ROMS_DIR / safe_sys / safe_rom
+    if not rom_path.exists():
+        return JSONResponse({"error": "ROM not found"}, status_code=404)
+    core = _EMU_CORES.get(safe_sys, safe_sys)
+    title = safe_rom.rsplit(".", 1)[0].replace("-", " ").replace("_", " ").title()
+    # Use local emulator if cores exist, otherwise CDN
+    local_cores = ROMS_DIR.parent / "emulator" / "cores"
+    if local_cores.is_dir() and any(local_cores.iterdir()):
+        ejs_data = "/emulator/"
+        ejs_loader = "/emulator/loader.js"
+    else:
+        ejs_data = "https://cdn.emulatorjs.org/stable/data/"
+        ejs_loader = "https://cdn.emulatorjs.org/stable/data/loader.js"
+    html = f"""<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8"><title>{title}</title>
+<style>body{{margin:0;background:#000;overflow:hidden}}#game{{width:100vw;height:100vh}}</style>
+</head><body>
+<div id="game"></div>
+<script>
+  EJS_player = '#game';
+  EJS_gameUrl = '/games/{safe_sys}/{safe_rom}';
+  EJS_core = '{core}';
+  EJS_pathtodata = '{ejs_data}';
+  EJS_startOnLoaded = true;
+  EJS_color = '#1a73e8';
+  EJS_backgroundBlur = true;
+</script>
+<script src="{ejs_loader}"></script>
+</body></html>"""
+    return HTMLResponse(html)
 
 
 @app.get("/api/games/{name}")
@@ -2676,6 +2778,17 @@ async def imagine_history():
     return {"images": images[:50]}  # limit to 50
 
 
-# ─── Static ──────────────────────────────────────────────────────────────────
+# ─── Static (with no-cache for JS/CSS to avoid stale code) ──────────────────
 
+from starlette.middleware.base import BaseHTTPMiddleware
+
+class NoCacheJSMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        path = request.url.path
+        if path.endswith(('.js', '.css', '.html')) or path == '/':
+            response.headers['Cache-Control'] = 'no-cache, must-revalidate'
+        return response
+
+app.add_middleware(NoCacheJSMiddleware)
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
