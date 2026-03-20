@@ -485,6 +485,10 @@ Responda no idioma do usuario. Use markdown.</textarea>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14H7L5 6m5 0V4a1 1 0 011-1h2a1 1 0 011 1v2"/></svg>
             Limpar
           </button>
+          <button class="map-tool-btn" id="btnMapDownload" onclick="toggleMapDownloadPanel()" title="Baixar mais mapas">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Mapas
+          </button>
         </div>
       </div>
       <!-- Marker category bar (visible when marker mode active) -->
@@ -498,6 +502,16 @@ Responda no idioma do usuario. Use markdown.</textarea>
         <button class="map-cat-btn" data-cat="medical" onclick="setMarkerCategory('medical')">🏥</button>
         <button class="map-cat-btn" data-cat="supply" onclick="setMarkerCategory('supply')">📦</button>
         <button class="map-cat-btn" data-cat="route" onclick="setMarkerCategory('route')">🚶</button>
+      </div>
+      <!-- Map download panel (toggled by Mapas button) -->
+      <div class="map-download-panel hidden" id="mapDownloadPanel">
+        <div class="map-dl-panel-header">
+          <span>Baixar Mapas Offline</span>
+          <button class="btn-close-sm" onclick="toggleMapDownloadPanel()">&times;</button>
+        </div>
+        <div class="map-dl-panel-body" id="mapDownloadPanelBody">
+          <div style="text-align:center;padding:12px;color:var(--text-muted)">Carregando...</div>
+        </div>
       </div>
       <div class="map-container">
         <div id="leafletMap"></div>
