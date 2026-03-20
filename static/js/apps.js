@@ -503,7 +503,7 @@ function updateSysStatusBar(d) {
   const rows = [
     { id: "sysOllama", ok: !!d.status && d.status === "online", label: d.status === "online" ? "Ollama online" : "Ollama offline" },
     { id: "sysSTT",    ok: d.stt === "whisper", label: d.stt === "whisper" ? "Whisper (offline)" : "Browser Speech API" },
-    { id: "sysTTS",    ok: d.tts === "piper" || d.tts === "pyttsx3", label: d.tts === "piper" ? "Piper (offline)" : d.tts === "pyttsx3" ? "pyttsx3 (offline)" : "Edge TTS (online)" },
+    { id: "sysTTS",    ok: d.tts === "kokoro" || d.tts === "piper" || d.tts === "pyttsx3", label: d.tts === "kokoro" ? "Kokoro TTS (offline)" : d.tts === "piper" ? "Piper (offline)" : d.tts === "pyttsx3" ? "pyttsx3 (offline)" : "Edge TTS (online)" },
   ];
   for (const row of rows) {
     const dot = document.getElementById(row.id);
@@ -540,8 +540,17 @@ function maybeShowSetupModal(d, force = false) {
   // Build content (manual open from settings)
   let html = "";
 
-  // TTS section — Piper models
-  if (!hasAnyPiper) {
+  // TTS section — Kokoro > Piper > pyttsx3
+  const ttsEngine = d.tts || '';
+  if (hasTTSOffline) {
+    const engineName = ttsEngine === 'kokoro' ? 'Kokoro TTS' : ttsEngine === 'piper' ? 'Piper' : ttsEngine === 'pyttsx3' ? 'pyttsx3' : ttsEngine;
+    html += `<div class="setup-section">
+      <div class="setup-ok">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+        TTS offline ativo (${engineName})
+      </div>
+    </div>`;
+  } else if (!hasAnyPiper) {
     html += `<div class="setup-section">
       <div class="setup-section-title">🔊 TTS Offline — Modelos de Voz (Piper)</div>
       <div class="setup-section-desc">Escolha um modelo para síntese de voz 100% offline e alta qualidade. Baixa uma vez, funciona para sempre.</div>
@@ -562,13 +571,6 @@ function maybeShowSetupModal(d, force = false) {
       </div>`;
     }
     html += `</div></div>`;
-  } else {
-    html += `<div class="setup-section">
-      <div class="setup-ok">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
-        TTS offline ativo (Piper)
-      </div>
-    </div>`;
   }
 
   // STT section — Whisper
