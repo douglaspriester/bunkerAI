@@ -41,10 +41,6 @@ import {
 } from './chat.js';
 
 import {
-  initGuideCompanion, guideOnModeChange,
-} from './guide-companion.js';
-
-import {
   initCompanion, companionSend, resizeCompanion, destroyCompanion,
 } from './companion.js';
 
@@ -87,9 +83,6 @@ const globals = {
   streamFromAPI, addMsgDom, addStreamMsgDom, addMsgActions,
   scrollChat, getWelcomeHtml,
   showView, showChatView, showGuideView,
-
-  // Guide Companion
-  initGuideCompanion, guideOnModeChange,
 
   // 3D Companion
   initCompanion, companionSend, resizeCompanion, destroyCompanion,
@@ -154,7 +147,6 @@ async function boot() {
   renderChatList();
   renderFavorites();
   initModeSelector();
-  // initGuideCompanion(); // Disabled — replaced by 3D Companion (Atlas)
   window.renderSidebarCharacters?.();
 
   // Load sidebar apps list

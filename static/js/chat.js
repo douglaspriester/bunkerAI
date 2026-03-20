@@ -320,8 +320,6 @@ export function setAIMode(modeId) {
   // Refresh welcome screen if visible
   const welcome = document.getElementById('welcomeMsg');
   if (welcome) welcome.outerHTML = getWelcomeHtml();
-  // Notify Guide companion of mode change
-  window.guideOnModeChange?.();
 }
 
 export function renderModeSelector() {
