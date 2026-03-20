@@ -1605,6 +1605,126 @@ function openMap() {
   openApp('map');
 }
 
+// ─── Map Download Panel (inside Maps app) ─────────────────────────────────
+
+function toggleMapDownloadPanel() {
+  const panel = document.getElementById('mapDownloadPanel');
+  if (!panel) return;
+  const isHidden = panel.classList.contains('hidden');
+  panel.classList.toggle('hidden');
+  if (isHidden) loadMapDownloadPanel();
+}
+
+async function loadMapDownloadPanel() {
+  const body = document.getElementById('mapDownloadPanelBody');
+  if (!body) return;
+  body.innerHTML = '<div style="text-align:center;padding:12px;color:var(--text-muted)">Carregando...</div>';
+  try {
+    const [mapsRes, availRes] = await Promise.all([
+      fetch('/api/maps').then(r => r.json()),
+      fetch('/api/maps/available').then(r => r.json()).catch(() => ({ regions: [] })),
+    ]);
+    const maps = mapsRes.maps || [];
+    const regions = availRes.regions || [];
+
+    let html = '';
+
+    // Installed
+    if (maps.length > 0) {
+      html += '<div class="mdl-section-title">Instalados</div>';
+      for (const m of maps) {
+        html += `<div class="mdl-item installed"><span>${m.name || m.file}</span><span class="mdl-size">${m.size_mb} MB</span></div>`;
+      }
+    }
+
+    // Available for download
+    const notInstalled = regions.filter(r => !r.installed);
+    if (notInstalled.length > 0) {
+      html += '<div class="mdl-section-title" style="margin-top:8px">Disponiveis para download</div>';
+      for (const r of notInstalled) {
+        html += `<div class="mdl-item" id="mdlItem_${r.id}">
+          <div class="mdl-info">
+            <div class="mdl-name">${r.name}</div>
+            <div class="mdl-desc">${r.desc} (~${r.est_mb} MB)</div>
+          </div>
+          <button class="btn-sm btn-accent" onclick="startMapDownloadInPanel('${r.id}')">Baixar</button>
+          <div class="mdl-progress hidden" id="mdlProg_${r.id}">
+            <div class="setup-bar-track"><div class="setup-bar" id="mdlBar_${r.id}" style="width:0%"></div></div>
+            <span class="mdl-status" id="mdlStat_${r.id}">Preparando...</span>
+          </div>
+        </div>`;
+      }
+    }
+
+    if (!html) {
+      html = '<div style="text-align:center;padding:12px;color:var(--accent)">Todos os mapas ja estao instalados!</div>';
+    }
+
+    body.innerHTML = html;
+  } catch (e) {
+    body.innerHTML = `<div style="color:var(--error);padding:12px">Erro: ${e.message}</div>`;
+  }
+}
+
+async function startMapDownloadInPanel(regionId) {
+  const btn = document.querySelector(`#mdlItem_${regionId} button`);
+  const prog = document.getElementById('mdlProg_' + regionId);
+  const stat = document.getElementById('mdlStat_' + regionId);
+  const bar = document.getElementById('mdlBar_' + regionId);
+
+  if (btn) btn.disabled = true;
+  if (prog) prog.classList.remove('hidden');
+
+  try {
+    const r = await fetch('/api/maps/download', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ region: regionId }),
+    });
+
+    if (r.headers.get('content-type')?.includes('json')) {
+      const d = await r.json();
+      if (d.status === 'already_installed') {
+        if (stat) stat.textContent = `Ja instalado (${d.size_mb} MB)`;
+        if (bar) bar.style.width = '100%';
+        return;
+      }
+    }
+
+    const reader = r.body.getReader();
+    const decoder = new TextDecoder();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      for (const line of decoder.decode(value, { stream: true }).split('\n')) {
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const d = JSON.parse(line.slice(6));
+          if (d.status === 'extracting') {
+            if (stat) stat.textContent = `Extraindo (~${d.est_mb || '?'} MB)...`;
+            if (bar) bar.style.width = '30%';
+          } else if (d.status === 'progress') {
+            if (stat) stat.textContent = d.message;
+            if (bar) bar.style.width = '60%';
+          } else if (d.status === 'done') {
+            if (stat) stat.textContent = `Pronto! (${d.size_mb} MB)`;
+            if (bar) { bar.style.width = '100%'; bar.style.background = 'var(--accent)'; }
+            if (btn) btn.textContent = 'Instalado';
+            // Reload panel after 2s
+            setTimeout(() => loadMapDownloadPanel(), 2000);
+          } else if (d.status === 'error') {
+            if (stat) stat.textContent = `Erro: ${d.message}`;
+            if (btn) { btn.disabled = false; btn.textContent = 'Tentar novamente'; }
+          }
+        } catch {}
+      }
+    }
+  } catch (e) {
+    if (stat) stat.textContent = `Erro: ${e.message}`;
+    if (btn) { btn.disabled = false; btn.textContent = 'Tentar novamente'; }
+  }
+}
+
 function closeMap() {
   // In window mode, close the map window
   const win = Object.values(_windows).find(w => w.appId === 'map');
