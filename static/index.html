@@ -487,6 +487,18 @@ Responda no idioma do usuario. Use markdown.</textarea>
           </button>
         </div>
       </div>
+      <!-- Marker category bar (visible when marker mode active) -->
+      <div class="map-cat-bar hidden" id="mapCatBar">
+        <span class="map-cat-label">Tipo:</span>
+        <button class="map-cat-btn active" data-cat="general" onclick="setMarkerCategory('general')">📍</button>
+        <button class="map-cat-btn" data-cat="water" onclick="setMarkerCategory('water')">💧</button>
+        <button class="map-cat-btn" data-cat="shelter" onclick="setMarkerCategory('shelter')">🏠</button>
+        <button class="map-cat-btn" data-cat="danger" onclick="setMarkerCategory('danger')">⚠️</button>
+        <button class="map-cat-btn" data-cat="food" onclick="setMarkerCategory('food')">🍎</button>
+        <button class="map-cat-btn" data-cat="medical" onclick="setMarkerCategory('medical')">🏥</button>
+        <button class="map-cat-btn" data-cat="supply" onclick="setMarkerCategory('supply')">📦</button>
+        <button class="map-cat-btn" data-cat="route" onclick="setMarkerCategory('route')">🚶</button>
+      </div>
       <div class="map-container">
         <div id="leafletMap"></div>
         <div class="map-info-bar" id="mapInfoBar">

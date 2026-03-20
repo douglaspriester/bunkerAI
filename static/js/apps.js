@@ -709,19 +709,116 @@ async function checkMapStatus() {
   const el = document.getElementById("mapConfigStatus");
   if (!el) return;
   try {
-    const r = await fetch("/api/maps");
-    const d = await r.json();
-    if (d.maps && d.maps.length > 0) {
-      const m = d.maps[0];
-      el.textContent = `\u2713 ${m.file} (${m.size_mb} MB) — 100% offline`;
+    const [mapsRes, availRes] = await Promise.all([
+      fetch("/api/maps").then(r => r.json()),
+      fetch("/api/maps/available").then(r => r.json()).catch(() => ({ regions: [] })),
+    ]);
+    const maps = mapsRes.maps || [];
+    const regions = availRes.regions || [];
+
+    let html = '';
+
+    // Installed maps
+    if (maps.length > 0) {
+      html += '<div class="map-installed-title">Mapas instalados:</div>';
+      for (const m of maps) {
+        html += `<div class="map-installed-item">
+          <span class="map-installed-name">✓ ${m.name}</span>
+          <span class="map-installed-size">${m.size_mb} MB</span>
+        </div>`;
+      }
       el.className = "map-config-status online";
     } else {
-      el.textContent = "Nenhum .pmtiles encontrado";
+      html += '<div class="map-installed-title" style="color:var(--error)">⚠ Nenhum mapa offline instalado</div>';
       el.className = "map-config-status offline";
     }
+
+    // Available for download
+    const notInstalled = regions.filter(r => !r.installed);
+    if (notInstalled.length > 0) {
+      html += '<div class="map-download-title">Baixar mapas offline:</div>';
+      for (const r of notInstalled) {
+        html += `<div class="map-download-item" id="mapDl_${r.id}">
+          <div class="map-dl-info">
+            <span class="map-dl-name">${r.name}</span>
+            <span class="map-dl-desc">${r.desc}</span>
+            <span class="map-dl-size">~${r.est_mb} MB</span>
+          </div>
+          <button class="btn-sm btn-accent" onclick="downloadMap('${r.id}')">Baixar</button>
+          <div class="map-dl-progress hidden" id="mapProg_${r.id}">
+            <div class="setup-bar-track"><div class="setup-bar" id="mapBar_${r.id}" style="width:0%"></div></div>
+            <span class="map-dl-status" id="mapStatus_${r.id}">Preparando...</span>
+          </div>
+        </div>`;
+      }
+    }
+
+    el.innerHTML = html;
   } catch {
     el.textContent = "Erro ao verificar";
     el.className = "map-config-status offline";
+  }
+}
+
+async function downloadMap(regionId) {
+  const item = document.getElementById('mapDl_' + regionId);
+  const prog = document.getElementById('mapProg_' + regionId);
+  const status = document.getElementById('mapStatus_' + regionId);
+  const bar = document.getElementById('mapBar_' + regionId);
+  const btn = item?.querySelector('button');
+
+  if (btn) btn.disabled = true;
+  if (prog) prog.classList.remove('hidden');
+  if (status) status.textContent = 'Iniciando download...';
+
+  try {
+    const r = await fetch('/api/maps/download', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ region: regionId }),
+    });
+
+    if (r.headers.get('content-type')?.includes('json')) {
+      const d = await r.json();
+      if (d.status === 'already_installed') {
+        if (status) status.textContent = `Ja instalado (${d.size_mb} MB)`;
+        if (bar) bar.style.width = '100%';
+        return;
+      }
+    }
+
+    const reader = r.body.getReader();
+    const decoder = new TextDecoder();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const text = decoder.decode(value, { stream: true });
+      for (const line of text.split('\n')) {
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const d = JSON.parse(line.slice(6));
+          if (d.status === 'extracting') {
+            if (status) status.textContent = `Extraindo mapa (~${d.est_mb || '?'} MB)...`;
+            if (bar) bar.style.width = '30%';
+          } else if (d.status === 'progress') {
+            if (status) status.textContent = d.message;
+            if (bar) bar.style.width = '60%';
+          } else if (d.status === 'done') {
+            if (status) status.textContent = `✓ Concluido! (${d.size_mb} MB)`;
+            if (bar) bar.style.width = '100%';
+            if (btn) btn.textContent = '✓';
+            // Refresh map status
+            setTimeout(() => checkMapStatus(), 1000);
+          } else if (d.status === 'error') {
+            if (status) status.textContent = `Erro: ${d.message}`;
+            if (btn) { btn.disabled = false; btn.textContent = 'Tentar novamente'; }
+          }
+        } catch {}
+      }
+    }
+  } catch (e) {
+    if (status) status.textContent = `Erro: ${e.message}`;
+    if (btn) { btn.disabled = false; btn.textContent = 'Tentar novamente'; }
   }
 }
 
@@ -1512,6 +1609,8 @@ function closeMap() {
   if (win) closeWindow(win.winId);
 }
 
+window._mapInit = initMap;
+
 async function initMap() {
   // Default to center of Brazil
   const defaultLat = -15.79;
@@ -1643,20 +1742,44 @@ async function initMap() {
 }
 
 // Marker functions
-function addMapMarker(lat, lng, label) {
+// Marker categories for survival
+const MARKER_CATEGORIES = {
+  general:  { icon: '📍', color: '#42f5a0', label: 'Geral' },
+  water:    { icon: '💧', color: '#60a5fa', label: 'Agua' },
+  shelter:  { icon: '🏠', color: '#a78bfa', label: 'Abrigo' },
+  danger:   { icon: '⚠️', color: '#f54266', label: 'Perigo' },
+  food:     { icon: '🍎', color: '#34d399', label: 'Comida' },
+  medical:  { icon: '🏥', color: '#f472b6', label: 'Medico' },
+  supply:   { icon: '📦', color: '#fbbf24', label: 'Suprimento' },
+  route:    { icon: '🚶', color: '#38bdf8', label: 'Rota' },
+};
+
+let _activeMarkerCategory = 'general';
+
+function setMarkerCategory(cat) {
+  _activeMarkerCategory = cat;
+  document.querySelectorAll('.map-cat-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.cat === cat)
+  );
+}
+
+function addMapMarker(lat, lng, label, category) {
   const id = genId();
+  const cat = MARKER_CATEGORIES[category || _activeMarkerCategory] || MARKER_CATEGORIES.general;
+  const catId = category || _activeMarkerCategory;
+
   const icon = L.divIcon({
     className: "custom-marker",
-    html: `<div style="width:12px;height:12px;background:#42f5a0;border:2px solid #08090b;border-radius:50%;box-shadow:0 0 8px rgba(66,245,160,0.5);"></div>`,
-    iconSize: [12, 12],
-    iconAnchor: [6, 6],
+    html: `<div style="width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:14px;filter:drop-shadow(0 0 4px ${cat.color})">${cat.icon}</div>`,
+    iconSize: [20, 20],
+    iconAnchor: [10, 10],
   });
 
   const marker = L.marker([lat, lng], { icon })
     .addTo(mapState.leafletMap)
-    .bindPopup(`<strong>${escapeHtml(label)}</strong><br><span style="font-size:11px;color:#6b6c78;font-family:monospace;">${lat.toFixed(5)}, ${lng.toFixed(5)}</span><br><button onclick="removeMapMarker('${id}')" style="margin-top:6px;padding:2px 8px;background:rgba(245,66,102,0.15);border:1px solid rgba(245,66,102,0.3);border-radius:4px;color:#f54266;font-size:10px;cursor:pointer;">Remover</button>`);
+    .bindPopup(`<strong>${cat.icon} ${escapeHtml(label)}</strong><br><span style="font-size:10px;color:#888;text-transform:uppercase">${cat.label}</span><br><span style="font-size:11px;color:#6b6c78;font-family:monospace;">${lat.toFixed(5)}, ${lng.toFixed(5)}</span><br><button onclick="removeMapMarker('${id}')" style="margin-top:6px;padding:2px 8px;background:rgba(245,66,102,0.15);border:1px solid rgba(245,66,102,0.3);border-radius:4px;color:#f54266;font-size:10px;cursor:pointer;">Remover</button>`);
 
-  mapState.markers.push({ id, lat, lng, label, leafletMarker: marker });
+  mapState.markers.push({ id, lat, lng, label, category: catId, leafletMarker: marker });
   saveMapMarkers();
   renderMarkersList();
 }
@@ -1727,7 +1850,8 @@ function renderMarkersList() {
   list.innerHTML = "";
   for (const m of mapState.markers) {
     const li = document.createElement("li");
-    li.innerHTML = `<span class="marker-dot"></span>${escapeHtml(m.label)}`;
+    const cat = MARKER_CATEGORIES[m.category] || MARKER_CATEGORIES.general;
+    li.innerHTML = `<span style="margin-right:4px">${cat.icon}</span>${escapeHtml(m.label)}`;
     li.onclick = () => {
       mapState.leafletMap.flyTo([m.lat, m.lng], 15, { duration: 1 });
       m.leafletMarker.openPopup();
@@ -1743,6 +1867,9 @@ function toggleMarkerMode() {
   document.getElementById("btnMarker").classList.toggle("active", mapState.markerMode);
   document.getElementById("btnMeasure").classList.remove("active");
   document.getElementById("leafletMap").style.cursor = mapState.markerMode ? "crosshair" : "";
+  // Show/hide marker category bar
+  const catBar = document.getElementById("mapCatBar");
+  if (catBar) catBar.classList.toggle("hidden", !mapState.markerMode);
 }
 
 function toggleMeasureMode() {

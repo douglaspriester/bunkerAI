@@ -5019,3 +5019,24 @@ body {
 .journal-audio-item { display: flex; align-items: center; gap: 8px; padding: 4px 8px; background: var(--surface-2); border-radius: var(--radius-sm); }
 .journal-audio-item audio { height: 32px; flex: 1; }
 .journal-audio-transcript { font-size: 11px; color: var(--text-muted); padding: 4px 8px; background: var(--bg-dark); border-radius: var(--radius-sm); margin-top: -2px; font-style: italic; }
+
+/* Map management UI */
+.map-installed-title { font-size: 12px; font-weight: 600; margin-bottom: 6px; color: var(--text-bright); }
+.map-installed-item { display: flex; justify-content: space-between; padding: 4px 8px; background: var(--surface-2); border-radius: var(--radius-sm); margin-bottom: 4px; font-size: 12px; }
+.map-installed-name { color: var(--success, #42f5a0); }
+.map-installed-size { color: var(--text-muted); }
+.map-download-title { font-size: 12px; font-weight: 600; margin: 12px 0 6px; color: var(--text-bright); }
+.map-download-item { padding: 8px; background: var(--surface-2); border-radius: var(--radius-md); margin-bottom: 6px; }
+.map-dl-info { display: flex; flex-direction: column; gap: 2px; margin-bottom: 6px; }
+.map-dl-name { font-size: 12px; font-weight: 600; color: var(--text-bright); }
+.map-dl-desc { font-size: 11px; color: var(--text-muted); }
+.map-dl-size { font-size: 11px; color: var(--accent); }
+.map-dl-progress { margin-top: 6px; }
+.map-dl-status { font-size: 11px; color: var(--text-muted); }
+
+/* Map marker category bar */
+.map-cat-bar { display: flex; align-items: center; gap: 4px; padding: 4px 12px; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+.map-cat-label { font-size: 11px; color: var(--text-muted); margin-right: 4px; }
+.map-cat-btn { width: 28px; height: 28px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: transparent; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+.map-cat-btn:hover { background: var(--surface-3); }
+.map-cat-btn.active { border-color: var(--accent); background: rgba(0,212,255,0.1); box-shadow: 0 0 6px rgba(0,212,255,0.3); }

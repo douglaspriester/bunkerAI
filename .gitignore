@@ -6,6 +6,7 @@ __pycache__/
 tts_cache/
 generated_apps/
 static/maps/*.pmtiles
+!static/maps/world_basic.pmtiles
 .claude/
 data/db/
 models/*.gguf
@@ -15,3 +16,4 @@ kokoro_models/
 voice_models/
 *.wav
 *.mp3
+tools/pmtiles.exe

@@ -610,11 +610,115 @@ def offer_emulator_download():
     print()
 
 
+# ── Map regions for offline use ────────────────────────────────────────────────
+
+MAPS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static", "maps")
+PROTOMAPS_BUILD = "https://build.protomaps.com/20260317.pmtiles"
+
+MAP_REGIONS = [
+    {"id": "world_basic", "name": "Mundo Basico (zoom 0-5)", "maxzoom": 5, "bbox": "-180,-85,180,85", "est_mb": 17},
+    {"id": "brazil", "name": "Brasil (zoom 0-10)", "maxzoom": 10, "bbox": "-74.0,-34.0,-34.0,6.0", "est_mb": 250},
+    {"id": "south_america", "name": "America do Sul (zoom 0-8)", "maxzoom": 8, "bbox": "-82.0,-56.0,-34.0,13.0", "est_mb": 200},
+    {"id": "north_america", "name": "America do Norte (zoom 0-8)", "maxzoom": 8, "bbox": "-170.0,15.0,-50.0,72.0", "est_mb": 300},
+    {"id": "europe", "name": "Europa (zoom 0-8)", "maxzoom": 8, "bbox": "-25.0,34.0,45.0,72.0", "est_mb": 350},
+]
+
+
+def offer_maps_download():
+    """Offer offline map downloads."""
+    print("\n" + "=" * 60)
+    print("🗺️  MAPAS OFFLINE")
+    print("=" * 60)
+    print("Mapas sao ESSENCIAIS para sobrevivencia (navegacao, rotas, pontos de agua).\n")
+
+    os.makedirs(MAPS_DIR, exist_ok=True)
+    existing = [f for f in os.listdir(MAPS_DIR) if f.endswith(".pmtiles")]
+    if existing:
+        print(f"  Mapas ja instalados: {', '.join(existing)}")
+
+    # Check for pmtiles CLI
+    pmtiles_bin = shutil.which("pmtiles")
+    if not pmtiles_bin:
+        tools_dir = os.path.dirname(os.path.abspath(__file__))
+        for name in ["pmtiles.exe", "pmtiles"]:
+            candidate = os.path.join(tools_dir, name)
+            if os.path.exists(candidate):
+                pmtiles_bin = candidate
+                break
+
+    if not pmtiles_bin:
+        print("  ⚠ pmtiles CLI nao encontrado. Baixe em:")
+        print("    https://github.com/protomaps/go-pmtiles/releases")
+        print("    Coloque em tools/pmtiles.exe e rode novamente.")
+        print()
+        resp = input("  [P] Pular mapas: ").strip().upper()
+        return
+
+    print("  Opcoes:")
+    print(f"  [M] Mapa mundial basico (~17 MB) [RECOMENDADO]")
+    print(f"  [B] Brasil detalhado (~250 MB)")
+    print(f"  [A] America do Sul (~200 MB)")
+    print(f"  [T] Todos os mapas basicos")
+    print(f"  [P] Pular")
+    print()
+
+    choice = input("  Escolha [M/B/A/T/P]: ").strip().upper()
+
+    to_download = []
+    if choice == "M":
+        to_download = [MAP_REGIONS[0]]
+    elif choice == "B":
+        to_download = [MAP_REGIONS[0], MAP_REGIONS[1]]  # world basic + brazil
+    elif choice == "A":
+        to_download = [MAP_REGIONS[0], MAP_REGIONS[2]]  # world basic + south america
+    elif choice == "T":
+        to_download = MAP_REGIONS[:3]  # world + brazil + south america
+    elif choice == "P":
+        print("  Pulando mapas.")
+        return
+    else:
+        print("  Opcao invalida, pulando.")
+        return
+
+    for region in to_download:
+        outfile = os.path.join(MAPS_DIR, f"{region['id']}.pmtiles")
+        if os.path.exists(outfile):
+            size_mb = os.path.getsize(outfile) / (1024 * 1024)
+            print(f"  ✓ {region['name']} ja existe ({size_mb:.1f} MB)")
+            continue
+
+        print(f"\n  Baixando {region['name']} (~{region['est_mb']} MB)...")
+        print(f"  Isso pode levar alguns minutos...")
+
+        cmd = [
+            pmtiles_bin, "extract",
+            PROTOMAPS_BUILD, outfile,
+            f"--maxzoom={region['maxzoom']}",
+            f"--bbox={region['bbox']}",
+        ]
+
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
+            if result.returncode == 0 and os.path.exists(outfile):
+                size_mb = os.path.getsize(outfile) / (1024 * 1024)
+                print(f"  ✓ {region['name']} — {size_mb:.1f} MB")
+            else:
+                print(f"  ✗ Erro: {result.stderr[:200]}")
+        except subprocess.TimeoutExpired:
+            print(f"  ✗ Timeout (mapa muito grande?)")
+        except Exception as e:
+            print(f"  ✗ Erro: {e}")
+
+    total = [f for f in os.listdir(MAPS_DIR) if f.endswith(".pmtiles")]
+    print(f"\n  {len(total)} mapa(s) offline prontos!")
+
+
 def main_with_games():
-    """Extended main that also offers games after models."""
+    """Extended main that also offers games and maps after models."""
     main()
     offer_games_download()
     offer_emulator_download()
+    offer_maps_download()
 
 
 if __name__ == "__main__":

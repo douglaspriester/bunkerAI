@@ -1608,6 +1608,144 @@ async def serve_pmtiles(filename: str, request: Request):
         )
 
 
+# ─── Map Download & Management ───────────────────────────────────────────────
+
+# Available map regions for download (Protomaps daily builds)
+PROTOMAPS_BUILD = "https://build.protomaps.com/20260317.pmtiles"
+
+MAP_REGIONS = {
+    "world_basic": {
+        "name": "Mundo Basico (zoom 0-6)",
+        "desc": "Mapa mundial com continentes, paises e cidades principais",
+        "maxzoom": 6,
+        "bbox": "-180,-85,180,85",
+        "est_mb": 60,
+    },
+    "brazil": {
+        "name": "Brasil (zoom 0-10)",
+        "desc": "Brasil com estradas, cidades e detalhes regionais",
+        "maxzoom": 10,
+        "bbox": "-74.0,-34.0,-34.0,6.0",
+        "est_mb": 250,
+    },
+    "south_america": {
+        "name": "America do Sul (zoom 0-8)",
+        "desc": "Continente sul-americano com cidades e estradas",
+        "maxzoom": 8,
+        "bbox": "-82.0,-56.0,-34.0,13.0",
+        "est_mb": 200,
+    },
+    "north_america": {
+        "name": "America do Norte (zoom 0-8)",
+        "desc": "EUA, Canada e Mexico com detalhes",
+        "maxzoom": 8,
+        "bbox": "-170.0,15.0,-50.0,72.0",
+        "est_mb": 300,
+    },
+    "europe": {
+        "name": "Europa (zoom 0-8)",
+        "desc": "Europa com cidades e estradas",
+        "maxzoom": 8,
+        "bbox": "-25.0,34.0,45.0,72.0",
+        "est_mb": 350,
+    },
+}
+
+@app.get("/api/maps/available")
+async def available_maps():
+    """List map regions available for download"""
+    installed = []
+    if MAPS_DIR.exists():
+        for f in sorted(MAPS_DIR.iterdir()):
+            if f.suffix == ".pmtiles":
+                installed.append(f.stem)
+    result = []
+    for rid, info in MAP_REGIONS.items():
+        result.append({**info, "id": rid, "installed": rid in installed,
+                       "filename": f"{rid}.pmtiles"})
+    return {"regions": result, "installed": installed}
+
+
+@app.post("/api/maps/download")
+async def download_map(request: Request):
+    """Download a map region from Protomaps. Streams progress via SSE."""
+    body = await request.json()
+    region_id = body.get("region", "world_basic")
+    region = MAP_REGIONS.get(region_id)
+    if not region:
+        return JSONResponse({"error": "Regiao desconhecida"}, status_code=400)
+
+    output_path = MAPS_DIR / f"{region_id}.pmtiles"
+    if output_path.exists():
+        return JSONResponse({"status": "already_installed", "size_mb": round(output_path.stat().st_size / 1048576, 1)})
+
+    MAPS_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Use pmtiles extract if available, otherwise direct download
+    pmtiles_bin = shutil.which("pmtiles")
+    if not pmtiles_bin:
+        # Check in tools/ or project root
+        for p in [Path("tools/pmtiles.exe"), Path("tools/pmtiles"), Path("pmtiles.exe")]:
+            if p.exists():
+                pmtiles_bin = str(p)
+                break
+
+    async def stream_download():
+        if pmtiles_bin:
+            # Use pmtiles extract for efficient partial download
+            cmd = [
+                pmtiles_bin, "extract",
+                PROTOMAPS_BUILD,
+                str(output_path),
+                f"--maxzoom={region['maxzoom']}",
+                f"--bbox={region['bbox']}",
+            ]
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    *cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.STDOUT,
+                )
+                yield f"data: {json.dumps({'status': 'extracting', 'region': region_id, 'est_mb': region['est_mb']})}\n\n"
+                async for line in proc.stdout:
+                    text = line.decode().strip()
+                    if text:
+                        yield f"data: {json.dumps({'status': 'progress', 'message': text})}\n\n"
+                await proc.wait()
+                if proc.returncode == 0 and output_path.exists():
+                    size_mb = round(output_path.stat().st_size / 1048576, 1)
+                    yield f"data: {json.dumps({'status': 'done', 'size_mb': size_mb})}\n\n"
+                else:
+                    yield f"data: {json.dumps({'status': 'error', 'message': 'Falha na extracao'})}\n\n"
+            except (NotImplementedError, OSError):
+                # asyncio subprocess not available — try sync
+                import subprocess
+                yield f"data: {json.dumps({'status': 'extracting', 'region': region_id})}\n\n"
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+                if result.returncode == 0 and output_path.exists():
+                    size_mb = round(output_path.stat().st_size / 1048576, 1)
+                    yield f"data: {json.dumps({'status': 'done', 'size_mb': size_mb})}\n\n"
+                else:
+                    yield f"data: {json.dumps({'status': 'error', 'message': result.stderr[:200]})}\n\n"
+        else:
+            yield f"data: {json.dumps({'status': 'error', 'message': 'pmtiles CLI nao encontrado. Coloque pmtiles.exe em tools/'})}\n\n"
+
+    return StreamingResponse(stream_download(), media_type="text/event-stream")
+
+
+@app.delete("/api/maps/{filename}")
+async def delete_map(filename: str):
+    """Delete a map file"""
+    safe_name = Path(filename).name
+    if not safe_name.endswith(".pmtiles"):
+        return JSONResponse({"error": "Arquivo invalido"}, status_code=400)
+    filepath = MAPS_DIR / safe_name
+    if filepath.exists():
+        filepath.unlink()
+        return {"status": "deleted", "file": safe_name}
+    return JSONResponse({"error": "Mapa nao encontrado"}, status_code=404)
+
+
 # ─── Pull model ──────────────────────────────────────────────────────────────
 
 @app.post("/api/models/pull")
