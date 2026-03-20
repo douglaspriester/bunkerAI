@@ -1757,21 +1757,35 @@ async function initMap() {
         await loadScript("./lib/protomaps-leaflet.js");
       }
 
-      const pmFile = mapsData.maps[0];
-      mapState.offlinePmtiles = pmFile.file;
+      // Sort: world/basic first (background), then regional (more detail on top)
+      const sorted = [...mapsData.maps].sort((a, b) => {
+        const aIsWorld = a.name.includes('world') || a.name.includes('basic');
+        const bIsWorld = b.name.includes('world') || b.name.includes('basic');
+        if (aIsWorld && !bIsWorld) return -1;
+        if (!aIsWorld && bIsWorld) return 1;
+        return a.size_mb - b.size_mb; // smaller first
+      });
 
-      // Use protomaps-leaflet for vector tile rendering
+      mapState.offlinePmtiles = sorted.map(m => m.file).join(', ');
+
+      // Load ALL PMTiles as layers (world as base, regional on top)
       if (typeof protomapsL !== "undefined") {
-        const layer = protomapsL.leafletLayer({
-          url: "/maps/" + pmFile.file,
-          flavor: "dark",
-        });
-        layer.addTo(map);
+        for (const pmFile of sorted) {
+          try {
+            const layer = protomapsL.leafletLayer({
+              url: "/maps/" + pmFile.file,
+              flavor: "dark",
+            });
+            layer.addTo(map);
+          } catch (layerErr) {
+            console.warn("[Maps] Failed to load layer " + pmFile.file + ":", layerErr.message);
+          }
+        }
         usingOffline = true;
         mapState.pmtilesLoaded = true;
       } else if (typeof pmtiles !== "undefined") {
-        // Fallback: raster layer
-        const p = new pmtiles.PMTiles("/maps/" + pmFile.file);
+        // Fallback: raster layer (only first map)
+        const p = new pmtiles.PMTiles("/maps/" + sorted[0].file);
         pmtiles.leafletRasterLayer(p, {
           attribution: '&copy; <a href="https://openstreetmap.org">OpenStreetMap</a> &copy; <a href="https://protomaps.com">Protomaps</a>',
         }).addTo(map);
