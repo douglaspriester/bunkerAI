@@ -1050,7 +1050,7 @@ body::after {
 /* ═══════════════════════════════════════════════════════════════
    MAP
    ═══════════════════════════════════════════════════════════════ */
-.map-view { display: flex; flex-direction: column; height: 100%; }
+.map-view { display: flex; flex-direction: column; height: 100%; position: relative; }
 .map-tools { display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap; }
 .map-tool-btn {
   display: flex; align-items: center; gap: 5px;
@@ -5023,8 +5023,8 @@ body {
 /* Map management UI */
 /* Map download panel (inside Maps app) */
 .map-download-panel {
-  position: absolute; top: 44px; right: 8px; z-index: 1001;
-  width: 300px; max-height: 70vh; overflow-y: auto;
+  position: absolute; top: 8px; right: 8px; z-index: 1001;
+  width: 300px; max-height: calc(100% - 40px); overflow-y: auto;
   background: rgba(12, 14, 20, 0.97); border: 1px solid var(--border);
   border-radius: var(--radius-md); box-shadow: 0 8px 32px rgba(0,0,0,0.7);
   backdrop-filter: blur(12px);

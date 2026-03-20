@@ -503,17 +503,17 @@ Responda no idioma do usuario. Use markdown.</textarea>
         <button class="map-cat-btn" data-cat="supply" onclick="setMarkerCategory('supply')">📦</button>
         <button class="map-cat-btn" data-cat="route" onclick="setMarkerCategory('route')">🚶</button>
       </div>
-      <!-- Map download panel (toggled by Mapas button) -->
-      <div class="map-download-panel hidden" id="mapDownloadPanel">
-        <div class="map-dl-panel-header">
-          <span>Baixar Mapas Offline</span>
-          <button class="btn-close-sm" onclick="toggleMapDownloadPanel()">&times;</button>
-        </div>
-        <div class="map-dl-panel-body" id="mapDownloadPanelBody">
-          <div style="text-align:center;padding:12px;color:var(--text-muted)">Carregando...</div>
-        </div>
-      </div>
       <div class="map-container">
+        <!-- Map download panel (inside map-container so it overlays the map) -->
+        <div class="map-download-panel hidden" id="mapDownloadPanel">
+          <div class="map-dl-panel-header">
+            <span>Baixar Mapas Offline</span>
+            <button class="btn-close-sm" onclick="toggleMapDownloadPanel()">&times;</button>
+          </div>
+          <div class="map-dl-panel-body" id="mapDownloadPanelBody">
+            <div style="text-align:center;padding:12px;color:var(--text-muted)">Carregando...</div>
+          </div>
+        </div>
         <div id="leafletMap"></div>
         <div class="map-info-bar" id="mapInfoBar">
           <span id="mapCoords">Clique no mapa para ver coordenadas</span>
