@@ -3236,17 +3236,17 @@ body::after {
 .os-window-resize {
   position: absolute;
   bottom: 0; right: 0;
-  width: 16px; height: 16px;
+  width: 20px; height: 20px;
   cursor: nwse-resize;
-  z-index: 10;
+  z-index: 1100;
 }
 .os-window-resize::after {
   content: '';
   position: absolute;
   bottom: 3px; right: 3px;
-  width: 8px; height: 8px;
-  border-right: 2px solid rgba(0,212,255,0.25);
-  border-bottom: 2px solid rgba(0,212,255,0.25);
+  width: 10px; height: 10px;
+  border-right: 2px solid rgba(0,212,255,0.4);
+  border-bottom: 2px solid rgba(0,212,255,0.4);
 }
 .os-window-maximized .os-window-resize {
   display: none;
@@ -5024,30 +5024,32 @@ body {
 /* Map download panel (inside Maps app) */
 .map-download-panel {
   position: absolute; top: 44px; right: 8px; z-index: 1001;
-  width: 320px; max-height: 400px; overflow-y: auto;
-  background: var(--surface-1); border: 1px solid var(--border);
-  border-radius: var(--radius-md); box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  width: 300px; max-height: 70vh; overflow-y: auto;
+  background: rgba(12, 14, 20, 0.97); border: 1px solid var(--border);
+  border-radius: var(--radius-md); box-shadow: 0 8px 32px rgba(0,0,0,0.7);
+  backdrop-filter: blur(12px);
 }
 .map-dl-panel-header {
   display: flex; justify-content: space-between; align-items: center;
-  padding: 10px 12px; border-bottom: 1px solid var(--border);
-  font-size: 13px; font-weight: 600; color: var(--text-bright);
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+  font-size: 13px; font-weight: 700; color: #fff;
+  background: rgba(20, 24, 36, 0.95); position: sticky; top: 0;
 }
 .map-dl-panel-header .btn-close-sm {
   background: none; border: none; color: var(--text-muted); cursor: pointer;
-  font-size: 18px; line-height: 1; padding: 0 4px;
+  font-size: 20px; line-height: 1; padding: 2px 6px;
 }
-.map-dl-panel-header .btn-close-sm:hover { color: var(--text-bright); }
-.map-dl-panel-body { padding: 10px 12px; }
-.mdl-section-title { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
-.mdl-item { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; padding: 8px; background: var(--surface-2); border-radius: var(--radius-sm); margin-bottom: 6px; }
-.mdl-item.installed { opacity: 0.7; }
+.map-dl-panel-header .btn-close-sm:hover { color: #fff; }
+.map-dl-panel-body { padding: 12px 14px; }
+.mdl-section-title { font-size: 10px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid rgba(66,245,160,0.15); }
+.mdl-item { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; padding: 10px; background: rgba(30, 34, 48, 0.9); border-radius: var(--radius-sm); margin-bottom: 6px; border: 1px solid rgba(255,255,255,0.05); }
+.mdl-item.installed { border-color: rgba(66,245,160,0.2); }
 .mdl-info { flex: 1; min-width: 0; }
-.mdl-name { font-size: 12px; font-weight: 600; color: var(--text-bright); }
-.mdl-desc { font-size: 11px; color: var(--text-muted); }
-.mdl-size { font-size: 11px; color: var(--accent); }
-.mdl-progress { width: 100%; margin-top: 4px; }
-.mdl-status { font-size: 11px; color: var(--text-muted); }
+.mdl-name { font-size: 13px; font-weight: 600; color: #fff; }
+.mdl-desc { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 2px; }
+.mdl-size { font-size: 12px; color: var(--accent); font-weight: 600; }
+.mdl-progress { width: 100%; margin-top: 6px; }
+.mdl-status { font-size: 11px; color: rgba(255,255,255,0.6); }
 
 .map-installed-title { font-size: 12px; font-weight: 600; margin-bottom: 6px; color: var(--text-bright); }
 .map-installed-item { display: flex; justify-content: space-between; padding: 4px 8px; background: var(--surface-2); border-radius: var(--radius-sm); margin-bottom: 4px; font-size: 12px; }
