@@ -487,6 +487,18 @@ Responda no idioma do usuario. Use markdown.</textarea>
           </button>
         </div>
       </div>
+      <!-- Marker category bar (visible when marker mode active) -->
+      <div class="map-cat-bar hidden" id="mapCatBar">
+        <span class="map-cat-label">Tipo:</span>
+        <button class="map-cat-btn active" data-cat="general" onclick="setMarkerCategory('general')">📍</button>
+        <button class="map-cat-btn" data-cat="water" onclick="setMarkerCategory('water')">💧</button>
+        <button class="map-cat-btn" data-cat="shelter" onclick="setMarkerCategory('shelter')">🏠</button>
+        <button class="map-cat-btn" data-cat="danger" onclick="setMarkerCategory('danger')">⚠️</button>
+        <button class="map-cat-btn" data-cat="food" onclick="setMarkerCategory('food')">🍎</button>
+        <button class="map-cat-btn" data-cat="medical" onclick="setMarkerCategory('medical')">🏥</button>
+        <button class="map-cat-btn" data-cat="supply" onclick="setMarkerCategory('supply')">📦</button>
+        <button class="map-cat-btn" data-cat="route" onclick="setMarkerCategory('route')">🚶</button>
+      </div>
       <div class="map-container">
         <div id="leafletMap"></div>
         <div class="map-info-bar" id="mapInfoBar">
@@ -762,7 +774,7 @@ Responda no idioma do usuario. Use markdown.</textarea>
         <h2 class="panel-title" id="gameTitle">Jogo</h2>
       </div>
       <div class="game-frame-wrap">
-        <iframe id="gameFrame" class="game-frame" sandbox="allow-scripts allow-same-origin"></iframe>
+        <iframe id="gameFrame" class="game-frame" sandbox="allow-scripts allow-same-origin allow-popups allow-downloads"></iframe>
       </div>
     </div>
 
@@ -1342,6 +1354,29 @@ Responda no idioma do usuario. Use markdown.</textarea>
       </div>
     </div>
 
+    <!-- Companion View -->
+    <div class="panel-view hidden" id="companionView">
+      <div style="display:flex;flex-direction:column;height:100%;background:var(--bg-dark)">
+        <!-- 3D Avatar Area -->
+        <div style="flex:0 0 280px;position:relative;background:#1a1a2e;border-bottom:1px solid var(--border)">
+          <canvas id="companionCanvas" style="width:100%;height:100%;display:block"></canvas>
+          <div style="position:absolute;bottom:8px;left:12px;font-size:11px;color:var(--text-muted);opacity:0.6">Atlas — Seu Companheiro</div>
+        </div>
+        <!-- Chat Area -->
+        <div id="companionChat" style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px"></div>
+        <!-- Input -->
+        <div style="padding:8px 12px;border-top:1px solid var(--border);display:flex;gap:8px">
+          <input type="text" id="companionInput" placeholder="Fale com Atlas..."
+            style="flex:1;padding:8px 12px;border-radius:var(--radius-md);border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary);font-size:13px"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();companionSendMsg()}">
+          <button id="companionMicBtn" class="btn-action companion-mic-btn" style="padding:8px 10px" title="Segurar para falar"
+            onmousedown="companionStartVoice()" onmouseup="companionStopVoice()"
+            ontouchstart="companionStartVoice()" ontouchend="companionStopVoice()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="1" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></button>
+          <button onclick="companionSendMsg()" class="btn-action" style="padding:8px 14px">Enviar</button>
+        </div>
+      </div>
+    </div>
+
   </main>
 
   </div><!-- /desktop -->
@@ -1435,7 +1470,11 @@ Responda no idioma do usuario. Use markdown.</textarea>
   <script src="./lib/jszip.min.js"></script>
   <script src="./lib/epub.min.js"></script>
   <script src="./lib/minisearch.min.js"></script>
+  <!-- Import map: lets three-vrm and GLTFLoader resolve bare "three" specifier -->
+  <script type="importmap">
+  { "imports": { "three": "./lib/three.module.min.js" } }
+  </script>
   <!-- ES Modules: core logic split into focused modules -->
-  <script type="module" src="./js/main.js"></script>
+  <script type="module" src="./js/main.js?v=2"></script>
 </body>
 </html>

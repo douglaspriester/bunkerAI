@@ -1,0 +1,10 @@
+{
+  "systems": [
+    {"id": "nes", "name": "Nintendo (NES)", "core": "fceumm", "extensions": [".nes"]},
+    {"id": "snes", "name": "Super Nintendo", "core": "snes9x", "extensions": [".smc", ".sfc"]},
+    {"id": "gb", "name": "Game Boy / Color", "core": "gambatte", "extensions": [".gb", ".gbc"]},
+    {"id": "gba", "name": "Game Boy Advance", "core": "mgba", "extensions": [".gba"]},
+    {"id": "genesis", "name": "Sega Genesis", "core": "genesis_plus_gx", "extensions": [".md", ".gen"]}
+  ],
+  "games": []
+}

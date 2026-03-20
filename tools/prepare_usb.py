@@ -425,5 +425,301 @@ def main():
     print()
 
 
-if __name__ == "__main__":
+# ─── Games / ROMs section ────────────────────────────────────────────────────
+
+GAMES_BASE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static", "games")
+
+# Homebrew ROM catalog — all free/open-source, legal to distribute
+GAMES_CATALOG = [
+    {
+        "system": "nes",
+        "name": "Alter Ego",
+        "filename": "alter-ego.nes",
+        "url": "https://raw.githubusercontent.com/nicklausw/nes-homebrew-starter-games/main/alter-ego.nes",
+        "size_kb": 40,
+    },
+    {
+        "system": "nes",
+        "name": "Blade Buster",
+        "filename": "blade-buster.nes",
+        "url": "https://raw.githubusercontent.com/nicklausw/nes-homebrew-starter-games/main/blade-buster.nes",
+        "size_kb": 128,
+    },
+    {
+        "system": "gb",
+        "name": "Tobu Tobu Girl",
+        "filename": "tobu-tobu-girl.gb",
+        "url": "https://tangramgames.dk/tobutobugirl/tobutobugirl.gb",
+        "size_kb": 64,
+    },
+    {
+        "system": "gba",
+        "name": "Celeste Classic",
+        "filename": "celeste-classic.gba",
+        "url": "https://github.com/nicklausw/gba-homebrew-starter-games/raw/main/celeste-classic.gba",
+        "size_kb": 256,
+    },
+]
+
+
+def count_roms():
+    """Count ROMs already in static/games/."""
+    count = 0
+    rom_exts = {".nes", ".smc", ".sfc", ".gb", ".gbc", ".gba", ".md", ".gen"}
+    for dirpath, _, filenames in os.walk(GAMES_BASE):
+        for f in filenames:
+            if os.path.splitext(f)[1].lower() in rom_exts:
+                count += 1
+    return count
+
+
+def offer_games_download():
+    """Ask user if they want to add games/ROMs."""
+    print()
+    print("=" * 60)
+    print("  JOGOS — Emulador Retro (NES, SNES, Game Boy, GBA, Genesis)")
+    print("=" * 60)
+    print()
+
+    existing = count_roms()
+    if existing > 0:
+        print(f"  [OK] {existing} ROM(s) ja presentes")
+    else:
+        print("  [--] Nenhuma ROM encontrada")
+
+    print()
+    print("  Opcoes:")
+    print("    [B] Baixar jogos homebrew inclusos (gratuitos/legais)")
+    print("    [I] Informacoes sobre como adicionar seus proprios jogos")
+    print("    [P] Pular")
+    print()
+
+    choice = input("  Escolha [B/I/P]: ").strip().upper()
+
+    if choice == "B":
+        download_homebrew_games()
+    elif choice == "I":
+        print()
+        print("  Para adicionar seus proprios jogos:")
+        print(f"    1. Copie arquivos .nes para: {os.path.join(GAMES_BASE, 'nes')}")
+        print(f"    2. Copie arquivos .gb/.gbc para: {os.path.join(GAMES_BASE, 'gb')}")
+        print(f"    3. Copie arquivos .gba para: {os.path.join(GAMES_BASE, 'gba')}")
+        print(f"    4. Copie arquivos .smc/.sfc para: {os.path.join(GAMES_BASE, 'snes')}")
+        print(f"    5. Copie arquivos .md/.gen para: {os.path.join(GAMES_BASE, 'genesis')}")
+        print()
+        print("  Os jogos aparecerao automaticamente no app 'Jogos' do Bunker OS.")
+        print("  Use apenas jogos homebrew ou que voce possua legalmente.")
+        print()
+    else:
+        print("  [OK] Jogos pulados.")
+
+
+def download_homebrew_games():
+    """Download homebrew game ROMs."""
+    print()
+    ok = 0
+    for game in GAMES_CATALOG:
+        sys_dir = os.path.join(GAMES_BASE, game["system"])
+        os.makedirs(sys_dir, exist_ok=True)
+        filepath = os.path.join(sys_dir, game["filename"])
+
+        if os.path.exists(filepath):
+            print(f"  [OK] {game['name']} ({game['system'].upper()}) ja existe")
+            ok += 1
+            continue
+
+        print(f"  [..] Baixando {game['name']} ({game['system'].upper()})...", end="", flush=True)
+        try:
+            req = urllib.request.Request(game["url"], headers={"User-Agent": "BunkerAI/4.0"})
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                with open(filepath, "wb") as f:
+                    f.write(resp.read())
+            print(f" OK ({game['size_kb']} KB)")
+            ok += 1
+        except Exception as e:
+            print(f" ERRO: {e}")
+            if os.path.exists(filepath):
+                os.unlink(filepath)
+
+    print()
+    print(f"  {ok}/{len(GAMES_CATALOG)} jogos homebrew prontos!")
+    total = count_roms()
+    print(f"  Total de ROMs: {total}")
+    print()
+
+
+EMU_CDN = "https://cdn.emulatorjs.org/stable/data"
+EMU_CORES = {
+    "fceumm": "cores/fceumm-legacy-wasm.data",
+    "snes9x": "cores/snes9x-legacy-wasm.data",
+    "gambatte": "cores/gambatte-legacy-wasm.data",
+    "mgba": "cores/mgba-legacy-wasm.data",
+    "genesis_plus_gx": "cores/genesis_plus_gx-legacy-wasm.data",
+}
+EMU_SUPPORT_FILES = [
+    "emulator.min.js",
+    "emulator.min.css",
+    "loader.js",
+    "compression/extract7z.js",
+]
+
+def offer_emulator_download():
+    """Download EmulatorJS cores for fully offline play."""
+    emu_dir = Path("static") / "emulator"
+    cores_dir = emu_dir / "cores"
+    print("═" * 55)
+    print("  EMULATORJS — Cores para jogo offline")
+    print("═" * 55)
+    existing = sum(1 for c in EMU_CORES.values() if (emu_dir / c).exists())
+    print(f"  Cores instalados: {existing}/{len(EMU_CORES)}")
+    if existing == len(EMU_CORES):
+        print("  ✔ Todos os cores já estão instalados!")
+        return
+    choice = input("\n  [D] Baixar cores  [S] Pular\n  > ").strip().upper()
+    if choice != "D":
+        return
+    cores_dir.mkdir(parents=True, exist_ok=True)
+    comp_dir = emu_dir / "compression"
+    comp_dir.mkdir(parents=True, exist_ok=True)
+    # Download cores
+    for name, path in EMU_CORES.items():
+        dest = emu_dir / path
+        if dest.exists():
+            print(f"  ✔ {name} já existe")
+            continue
+        url = f"{EMU_CDN}/{path}"
+        print(f"  ⬇ Baixando {name}...", end=" ", flush=True)
+        try:
+            urllib.request.urlretrieve(url, str(dest))
+            sz = dest.stat().st_size / 1024 / 1024
+            print(f"OK ({sz:.1f} MB)")
+        except Exception as e:
+            print(f"ERRO: {e}")
+    # Download support files
+    for path in EMU_SUPPORT_FILES:
+        dest = emu_dir / path
+        if dest.exists():
+            continue
+        url = f"{EMU_CDN}/{path}"
+        try:
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            urllib.request.urlretrieve(url, str(dest))
+        except Exception:
+            pass
+    print("  ✔ Cores do emulador instalados!")
+    print()
+
+
+# ── Map regions for offline use ────────────────────────────────────────────────
+
+MAPS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static", "maps")
+PROTOMAPS_BUILD = "https://build.protomaps.com/20260317.pmtiles"
+
+MAP_REGIONS = [
+    {"id": "world_basic", "name": "Mundo Basico (zoom 0-5)", "maxzoom": 5, "bbox": "-180,-85,180,85", "est_mb": 17},
+    {"id": "brazil", "name": "Brasil (zoom 0-10)", "maxzoom": 10, "bbox": "-74.0,-34.0,-34.0,6.0", "est_mb": 250},
+    {"id": "south_america", "name": "America do Sul (zoom 0-8)", "maxzoom": 8, "bbox": "-82.0,-56.0,-34.0,13.0", "est_mb": 200},
+    {"id": "north_america", "name": "America do Norte (zoom 0-8)", "maxzoom": 8, "bbox": "-170.0,15.0,-50.0,72.0", "est_mb": 300},
+    {"id": "europe", "name": "Europa (zoom 0-8)", "maxzoom": 8, "bbox": "-25.0,34.0,45.0,72.0", "est_mb": 350},
+]
+
+
+def offer_maps_download():
+    """Offer offline map downloads."""
+    print("\n" + "=" * 60)
+    print("🗺️  MAPAS OFFLINE")
+    print("=" * 60)
+    print("Mapas sao ESSENCIAIS para sobrevivencia (navegacao, rotas, pontos de agua).\n")
+
+    os.makedirs(MAPS_DIR, exist_ok=True)
+    existing = [f for f in os.listdir(MAPS_DIR) if f.endswith(".pmtiles")]
+    if existing:
+        print(f"  Mapas ja instalados: {', '.join(existing)}")
+
+    # Check for pmtiles CLI
+    pmtiles_bin = shutil.which("pmtiles")
+    if not pmtiles_bin:
+        tools_dir = os.path.dirname(os.path.abspath(__file__))
+        for name in ["pmtiles.exe", "pmtiles"]:
+            candidate = os.path.join(tools_dir, name)
+            if os.path.exists(candidate):
+                pmtiles_bin = candidate
+                break
+
+    if not pmtiles_bin:
+        print("  ⚠ pmtiles CLI nao encontrado. Baixe em:")
+        print("    https://github.com/protomaps/go-pmtiles/releases")
+        print("    Coloque em tools/pmtiles.exe e rode novamente.")
+        print()
+        resp = input("  [P] Pular mapas: ").strip().upper()
+        return
+
+    print("  Opcoes:")
+    print(f"  [M] Mapa mundial basico (~17 MB) [RECOMENDADO]")
+    print(f"  [B] Brasil detalhado (~250 MB)")
+    print(f"  [A] America do Sul (~200 MB)")
+    print(f"  [T] Todos os mapas basicos")
+    print(f"  [P] Pular")
+    print()
+
+    choice = input("  Escolha [M/B/A/T/P]: ").strip().upper()
+
+    to_download = []
+    if choice == "M":
+        to_download = [MAP_REGIONS[0]]
+    elif choice == "B":
+        to_download = [MAP_REGIONS[0], MAP_REGIONS[1]]  # world basic + brazil
+    elif choice == "A":
+        to_download = [MAP_REGIONS[0], MAP_REGIONS[2]]  # world basic + south america
+    elif choice == "T":
+        to_download = MAP_REGIONS[:3]  # world + brazil + south america
+    elif choice == "P":
+        print("  Pulando mapas.")
+        return
+    else:
+        print("  Opcao invalida, pulando.")
+        return
+
+    for region in to_download:
+        outfile = os.path.join(MAPS_DIR, f"{region['id']}.pmtiles")
+        if os.path.exists(outfile):
+            size_mb = os.path.getsize(outfile) / (1024 * 1024)
+            print(f"  ✓ {region['name']} ja existe ({size_mb:.1f} MB)")
+            continue
+
+        print(f"\n  Baixando {region['name']} (~{region['est_mb']} MB)...")
+        print(f"  Isso pode levar alguns minutos...")
+
+        cmd = [
+            pmtiles_bin, "extract",
+            PROTOMAPS_BUILD, outfile,
+            f"--maxzoom={region['maxzoom']}",
+            f"--bbox={region['bbox']}",
+        ]
+
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
+            if result.returncode == 0 and os.path.exists(outfile):
+                size_mb = os.path.getsize(outfile) / (1024 * 1024)
+                print(f"  ✓ {region['name']} — {size_mb:.1f} MB")
+            else:
+                print(f"  ✗ Erro: {result.stderr[:200]}")
+        except subprocess.TimeoutExpired:
+            print(f"  ✗ Timeout (mapa muito grande?)")
+        except Exception as e:
+            print(f"  ✗ Erro: {e}")
+
+    total = [f for f in os.listdir(MAPS_DIR) if f.endswith(".pmtiles")]
+    print(f"\n  {len(total)} mapa(s) offline prontos!")
+
+
+def main_with_games():
+    """Extended main that also offers games and maps after models."""
     main()
+    offer_games_download()
+    offer_emulator_download()
+    offer_maps_download()
+
+
+if __name__ == "__main__":
+    main_with_games()

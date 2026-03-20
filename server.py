@@ -631,26 +631,42 @@ async def _tts_pyttsx3(text: str, filepath: Path, voice_id: str = None) -> Optio
         wav_path = filepath.with_suffix(".wav")
 
         def _synth():
-            engine = pyttsx3.init()
-            voices = engine.getProperty("voices")
-            if voice_id:
-                for v in voices:
-                    if voice_id in str(v.id) or voice_id.lower() in v.name.lower():
-                        engine.setProperty("voice", v.id)
-                        break
-            else:
-                # Prefer Portuguese if available
-                pt = next((v for v in voices if any(
-                    x in v.name.lower() for x in ["portuguese", "brasil", "brazil", "zira", "heloisa", "pt"]
-                )), None)
-                if pt:
-                    engine.setProperty("voice", pt.id)
-            engine.setProperty("rate", 175)
-            engine.setProperty("volume", 0.9)
-            engine.save_to_file(text, str(wav_path))
-            engine.runAndWait()
-            engine.stop()
-            return wav_path.exists() and wav_path.stat().st_size > 100
+            # Windows COM threading requires CoInitialize in worker threads
+            try:
+                import pythoncom
+                pythoncom.CoInitialize()
+            except ImportError:
+                pass
+            try:
+                engine = pyttsx3.init()
+                voices = engine.getProperty("voices")
+                if voice_id:
+                    for v in voices:
+                        if voice_id in str(v.id) or voice_id.lower() in v.name.lower():
+                            engine.setProperty("voice", v.id)
+                            break
+                else:
+                    # Prefer Portuguese if available
+                    pt = next((v for v in voices if any(
+                        x in v.name.lower() for x in ["portuguese", "brasil", "brazil", "zira", "heloisa", "pt"]
+                    )), None)
+                    if pt:
+                        engine.setProperty("voice", pt.id)
+                engine.setProperty("rate", 175)
+                engine.setProperty("volume", 0.9)
+                engine.save_to_file(text, str(wav_path))
+                engine.runAndWait()
+                engine.stop()
+                return wav_path.exists() and wav_path.stat().st_size > 100
+            except Exception as inner_e:
+                print(f"[TTS] pyttsx3 synth error: {inner_e}")
+                return False
+            finally:
+                try:
+                    import pythoncom
+                    pythoncom.CoUninitialize()
+                except (ImportError, Exception):
+                    pass
 
         loop = asyncio.get_event_loop()
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
@@ -658,18 +674,24 @@ async def _tts_pyttsx3(text: str, filepath: Path, voice_id: str = None) -> Optio
 
         if ok and wav_path.exists():
             if shutil.which("ffmpeg"):
-                proc = await asyncio.create_subprocess_exec(
-                    "ffmpeg", "-y", "-i", str(wav_path), "-q:a", "4", str(filepath),
-                    stdout=asyncio.subprocess.DEVNULL,
-                    stderr=asyncio.subprocess.DEVNULL,
-                )
-                await proc.wait()
-                wav_path.unlink(missing_ok=True)
-                return filepath if filepath.exists() else None
+                try:
+                    proc = await asyncio.create_subprocess_exec(
+                        "ffmpeg", "-y", "-i", str(wav_path), "-q:a", "4", str(filepath),
+                        stdout=asyncio.subprocess.DEVNULL,
+                        stderr=asyncio.subprocess.DEVNULL,
+                    )
+                    await proc.wait()
+                    wav_path.unlink(missing_ok=True)
+                    return filepath if filepath.exists() else None
+                except (NotImplementedError, OSError):
+                    # asyncio subprocess not supported (Windows ProactorEventLoop)
+                    return wav_path
             else:
                 return wav_path  # serve WAV directly
     except Exception as e:
-        print(f"[TTS] pyttsx3 error: {e}")
+        import traceback
+        print(f"[TTS] pyttsx3 error: {type(e).__name__}: {e}")
+        traceback.print_exc()
     return None
 
 
@@ -775,18 +797,21 @@ async def _tts_kokoro(text: str, filepath: Path, voice: str) -> Optional[Path]:
         if result and result.exists():
             # Convert to mp3 if ffmpeg available
             if shutil.which("ffmpeg"):
-                mp3_proc = await asyncio.create_subprocess_exec(
-                    "ffmpeg", "-y", "-i", str(wav_path), "-q:a", "4", str(filepath),
-                    stdout=asyncio.subprocess.DEVNULL,
-                    stderr=asyncio.subprocess.DEVNULL,
-                )
-                await mp3_proc.wait()
-                wav_path.unlink(missing_ok=True)
-                return filepath if filepath.exists() else None
+                try:
+                    mp3_proc = await asyncio.create_subprocess_exec(
+                        "ffmpeg", "-y", "-i", str(wav_path), "-q:a", "4", str(filepath),
+                        stdout=asyncio.subprocess.DEVNULL,
+                        stderr=asyncio.subprocess.DEVNULL,
+                    )
+                    await mp3_proc.wait()
+                    wav_path.unlink(missing_ok=True)
+                    return filepath if filepath.exists() else None
+                except (NotImplementedError, OSError):
+                    return wav_path  # serve WAV on Windows ProactorEventLoop
             else:
                 return wav_path
     except Exception as e:
-        print(f"[TTS] Kokoro error: {e}")
+        print(f"[TTS] Kokoro error: {type(e).__name__}: {e}")
     return None
 
 
@@ -1115,16 +1140,20 @@ async def tts(request: Request, background_tasks: BackgroundTasks):
             print(f"[TTS] pyttsx3 error: {e}, falling back to edge-tts")
 
     # 4. Fallback: edge-tts (requires internet — blocked in offline mode)
-    if OFFLINE_MODE:
-        return JSONResponse({"error": "Modo offline ativo. Instale Kokoro TTS para voz offline.", "offline": True}, status_code=503)
-    try:
-        import edge_tts
-        communicate = edge_tts.Communicate(text, voice)
-        await communicate.save(str(filepath))
-        background_tasks.add_task(os.unlink, str(filepath))
-        return FileResponse(str(filepath), media_type="audio/mpeg", filename=filename)
-    except Exception as e:
-        return JSONResponse({"error": str(e), "hint": "edge-tts precisa de internet"}, status_code=500)
+    # Only use edge-tts if engine is "auto" or "edge-tts" explicitly
+    if engine in ("auto", "edge-tts"):
+        if OFFLINE_MODE:
+            return JSONResponse({"error": "Modo offline ativo. Instale Kokoro TTS para voz offline.", "offline": True}, status_code=503)
+        try:
+            import edge_tts
+            communicate = edge_tts.Communicate(text, voice)
+            await communicate.save(str(filepath))
+            background_tasks.add_task(os.unlink, str(filepath))
+            return FileResponse(str(filepath), media_type="audio/mpeg", filename=filename)
+        except Exception as e:
+            return JSONResponse({"error": str(e), "hint": "edge-tts precisa de internet"}, status_code=500)
+
+    return JSONResponse({"error": f"Engine '{engine}' nao disponivel", "available": "kokoro, piper, pyttsx3, edge-tts"}, status_code=503)
 
 
 async def _tts_piper(text: str, filepath: Path, voice: str) -> Optional[Path]:
@@ -1577,6 +1606,144 @@ async def serve_pmtiles(filename: str, request: Request):
                 "Access-Control-Allow-Origin": "*",
             },
         )
+
+
+# ─── Map Download & Management ───────────────────────────────────────────────
+
+# Available map regions for download (Protomaps daily builds)
+PROTOMAPS_BUILD = "https://build.protomaps.com/20260317.pmtiles"
+
+MAP_REGIONS = {
+    "world_basic": {
+        "name": "Mundo Basico (zoom 0-6)",
+        "desc": "Mapa mundial com continentes, paises e cidades principais",
+        "maxzoom": 6,
+        "bbox": "-180,-85,180,85",
+        "est_mb": 60,
+    },
+    "brazil": {
+        "name": "Brasil (zoom 0-10)",
+        "desc": "Brasil com estradas, cidades e detalhes regionais",
+        "maxzoom": 10,
+        "bbox": "-74.0,-34.0,-34.0,6.0",
+        "est_mb": 250,
+    },
+    "south_america": {
+        "name": "America do Sul (zoom 0-8)",
+        "desc": "Continente sul-americano com cidades e estradas",
+        "maxzoom": 8,
+        "bbox": "-82.0,-56.0,-34.0,13.0",
+        "est_mb": 200,
+    },
+    "north_america": {
+        "name": "America do Norte (zoom 0-8)",
+        "desc": "EUA, Canada e Mexico com detalhes",
+        "maxzoom": 8,
+        "bbox": "-170.0,15.0,-50.0,72.0",
+        "est_mb": 300,
+    },
+    "europe": {
+        "name": "Europa (zoom 0-8)",
+        "desc": "Europa com cidades e estradas",
+        "maxzoom": 8,
+        "bbox": "-25.0,34.0,45.0,72.0",
+        "est_mb": 350,
+    },
+}
+
+@app.get("/api/maps/available")
+async def available_maps():
+    """List map regions available for download"""
+    installed = []
+    if MAPS_DIR.exists():
+        for f in sorted(MAPS_DIR.iterdir()):
+            if f.suffix == ".pmtiles":
+                installed.append(f.stem)
+    result = []
+    for rid, info in MAP_REGIONS.items():
+        result.append({**info, "id": rid, "installed": rid in installed,
+                       "filename": f"{rid}.pmtiles"})
+    return {"regions": result, "installed": installed}
+
+
+@app.post("/api/maps/download")
+async def download_map(request: Request):
+    """Download a map region from Protomaps. Streams progress via SSE."""
+    body = await request.json()
+    region_id = body.get("region", "world_basic")
+    region = MAP_REGIONS.get(region_id)
+    if not region:
+        return JSONResponse({"error": "Regiao desconhecida"}, status_code=400)
+
+    output_path = MAPS_DIR / f"{region_id}.pmtiles"
+    if output_path.exists():
+        return JSONResponse({"status": "already_installed", "size_mb": round(output_path.stat().st_size / 1048576, 1)})
+
+    MAPS_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Use pmtiles extract if available, otherwise direct download
+    pmtiles_bin = shutil.which("pmtiles")
+    if not pmtiles_bin:
+        # Check in tools/ or project root
+        for p in [Path("tools/pmtiles.exe"), Path("tools/pmtiles"), Path("pmtiles.exe")]:
+            if p.exists():
+                pmtiles_bin = str(p)
+                break
+
+    async def stream_download():
+        if pmtiles_bin:
+            # Use pmtiles extract for efficient partial download
+            cmd = [
+                pmtiles_bin, "extract",
+                PROTOMAPS_BUILD,
+                str(output_path),
+                f"--maxzoom={region['maxzoom']}",
+                f"--bbox={region['bbox']}",
+            ]
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    *cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.STDOUT,
+                )
+                yield f"data: {json.dumps({'status': 'extracting', 'region': region_id, 'est_mb': region['est_mb']})}\n\n"
+                async for line in proc.stdout:
+                    text = line.decode().strip()
+                    if text:
+                        yield f"data: {json.dumps({'status': 'progress', 'message': text})}\n\n"
+                await proc.wait()
+                if proc.returncode == 0 and output_path.exists():
+                    size_mb = round(output_path.stat().st_size / 1048576, 1)
+                    yield f"data: {json.dumps({'status': 'done', 'size_mb': size_mb})}\n\n"
+                else:
+                    yield f"data: {json.dumps({'status': 'error', 'message': 'Falha na extracao'})}\n\n"
+            except (NotImplementedError, OSError):
+                # asyncio subprocess not available — try sync
+                import subprocess
+                yield f"data: {json.dumps({'status': 'extracting', 'region': region_id})}\n\n"
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+                if result.returncode == 0 and output_path.exists():
+                    size_mb = round(output_path.stat().st_size / 1048576, 1)
+                    yield f"data: {json.dumps({'status': 'done', 'size_mb': size_mb})}\n\n"
+                else:
+                    yield f"data: {json.dumps({'status': 'error', 'message': result.stderr[:200]})}\n\n"
+        else:
+            yield f"data: {json.dumps({'status': 'error', 'message': 'pmtiles CLI nao encontrado. Coloque pmtiles.exe em tools/'})}\n\n"
+
+    return StreamingResponse(stream_download(), media_type="text/event-stream")
+
+
+@app.delete("/api/maps/{filename}")
+async def delete_map(filename: str):
+    """Delete a map file"""
+    safe_name = Path(filename).name
+    if not safe_name.endswith(".pmtiles"):
+        return JSONResponse({"error": "Arquivo invalido"}, status_code=400)
+    filepath = MAPS_DIR / safe_name
+    if filepath.exists():
+        filepath.unlink()
+        return {"status": "deleted", "file": safe_name}
+    return JSONResponse({"error": "Mapa nao encontrado"}, status_code=404)
 
 
 # ─── Pull model ──────────────────────────────────────────────────────────────
@@ -2119,16 +2286,89 @@ async def update_book_progress(book_id: int, request: Request):
 
 # ─── Games API ───────────────────────────────────────────────────────────────
 
+# ROM catalog from static/games/catalog.json
+ROMS_DIR = Path("static") / "games"
+
+# Emulator core mapping (EmulatorJS core names)
+_EMU_CORES = {
+    "nes": "fceumm", "snes": "snes9x", "gb": "gambatte",
+    "gba": "mgba", "genesis": "genesis_plus_gx",
+}
+_EMU_EXTENSIONS = {
+    "nes": [".nes"], "snes": [".smc", ".sfc"], "gb": [".gb", ".gbc"],
+    "gba": [".gba"], "genesis": [".md", ".gen"],
+}
+
+
 @app.get("/api/games")
 async def list_games():
-    """List available games"""
+    """List available games (HTML + ROM-based)"""
+    games = []
+    # 1. HTML games from data/games/
     idx = GAMES_DIR / "_index.json"
     if idx.exists():
-        return JSONResponse(json.loads(idx.read_text(encoding="utf-8")))
-    games = []
-    for f in sorted(GAMES_DIR.glob("*.html")):
-        games.append({"id": f.stem, "name": f.stem.replace("-", " ").title(), "file": f.name})
+        data = json.loads(idx.read_text(encoding="utf-8"))
+        if isinstance(data, list):
+            games.extend(data)
+    else:
+        for f in sorted(GAMES_DIR.glob("*.html")):
+            games.append({"id": f.stem, "name": f.stem.replace("-", " ").title(), "file": f.name, "type": "html"})
+
+    # 2. ROM games from static/games/<system>/
+    for sys_id, exts in _EMU_EXTENSIONS.items():
+        sys_dir = ROMS_DIR / sys_id
+        if not sys_dir.is_dir():
+            continue
+        for ext in exts:
+            for rom in sorted(sys_dir.glob(f"*{ext}")):
+                title = rom.stem.replace("-", " ").replace("_", " ").title()
+                games.append({
+                    "id": f"rom:{sys_id}:{rom.name}",
+                    "name": title,
+                    "title": title,
+                    "system": sys_id,
+                    "type": "rom",
+                    "core": _EMU_CORES.get(sys_id, sys_id),
+                })
     return games
+
+
+@app.get("/api/games/rom-player")
+async def rom_player(system: str, rom: str):
+    """Generate an EmulatorJS player page for a given ROM"""
+    safe_sys = Path(system).name
+    safe_rom = Path(rom).name
+    rom_path = ROMS_DIR / safe_sys / safe_rom
+    if not rom_path.exists():
+        return JSONResponse({"error": "ROM not found"}, status_code=404)
+    core = _EMU_CORES.get(safe_sys, safe_sys)
+    title = safe_rom.rsplit(".", 1)[0].replace("-", " ").replace("_", " ").title()
+    # Use local emulator if cores exist, otherwise CDN
+    local_cores = ROMS_DIR.parent / "emulator" / "cores"
+    if local_cores.is_dir() and any(local_cores.iterdir()):
+        ejs_data = "/emulator/"
+        ejs_loader = "/emulator/loader.js"
+    else:
+        ejs_data = "https://cdn.emulatorjs.org/stable/data/"
+        ejs_loader = "https://cdn.emulatorjs.org/stable/data/loader.js"
+    html = f"""<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8"><title>{title}</title>
+<style>body{{margin:0;background:#000;overflow:hidden}}#game{{width:100vw;height:100vh}}</style>
+</head><body>
+<div id="game"></div>
+<script>
+  EJS_player = '#game';
+  EJS_gameUrl = '/games/{safe_sys}/{safe_rom}';
+  EJS_core = '{core}';
+  EJS_pathtodata = '{ejs_data}';
+  EJS_startOnLoaded = true;
+  EJS_color = '#1a73e8';
+  EJS_backgroundBlur = true;
+</script>
+<script src="{ejs_loader}"></script>
+</body></html>"""
+    return HTMLResponse(html)
 
 
 @app.get("/api/games/{name}")
@@ -2676,6 +2916,17 @@ async def imagine_history():
     return {"images": images[:50]}  # limit to 50
 
 
-# ─── Static ──────────────────────────────────────────────────────────────────
+# ─── Static (with no-cache for JS/CSS to avoid stale code) ──────────────────
 
+from starlette.middleware.base import BaseHTTPMiddleware
+
+class NoCacheJSMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        path = request.url.path
+        if path.endswith(('.js', '.css', '.html')) or path == '/':
+            response.headers['Cache-Control'] = 'no-cache, must-revalidate'
+        return response
+
+app.add_middleware(NoCacheJSMiddleware)
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
