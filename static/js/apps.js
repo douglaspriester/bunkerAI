@@ -10763,3 +10763,596 @@ window.onboardingFinish = onboardingFinish;
 window.onboardingNext = onboardingNext;
 window.onboardingPrev = onboardingPrev;
 window.onboardingSelectLang = onboardingSelectLang;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Navigation App — GPS-free orientation: stars, shadow compass, distance,
+//                  map reading, watch method, cardinal points by sun
+// ═══════════════════════════════════════════════════════════════════════════════
+
+let _navHemisphere = 'north';
+let _navSection = 'stars';
+
+function navigationInit() {
+  _navSection = 'stars';
+  _navHemisphere = 'north';
+  _navRender();
+}
+
+function navSetSection(sec) {
+  _navSection = sec;
+  document.querySelectorAll('.nav-tab').forEach(b => b.classList.toggle('active', b.dataset.section === sec));
+  _navRender();
+}
+
+function navSetHemisphere(h) {
+  _navHemisphere = h;
+  document.querySelectorAll('.nav-hemi-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent.trim().toLowerCase().startsWith(h === 'north' ? 'n' : 's'));
+  });
+  _navRender();
+}
+
+function _navRender() {
+  const c = document.getElementById('navContent');
+  if (!c) return;
+  const sections = {
+    stars:    _navStars,
+    shadow:   _navShadow,
+    distance: _navDistance,
+    maps:     _navMaps,
+    watch:    _navWatch,
+    cardinal: _navCardinal,
+  };
+  c.innerHTML = (sections[_navSection] || _navStars)();
+  const st = document.getElementById('navStatus');
+  if (st) {
+    const labels = { stars: 'Orientacao por estrelas', shadow: 'Bussola por sombra', distance: 'Estimativa de distancia', maps: 'Leitura de mapas', watch: 'Navegacao por relogio', cardinal: 'Pontos cardeais pelo sol' };
+    st.textContent = labels[_navSection] || '';
+  }
+}
+
+/* ── Stars ─────────────────────────────────────────────────────────────────── */
+function _navStars() {
+  const isNorth = _navHemisphere === 'north';
+  return `
+  <div class="nav-section">
+    <div class="nav-card nav-card-primary">
+      <h3>${isNorth ? '&#11088; Polaris — Estrela do Norte' : '&#11088; Cruzeiro do Sul'}</h3>
+      <div class="nav-diagram">
+        ${isNorth ? _navDiagramPolaris() : _navDiagramCrux()}
+      </div>
+      <div class="nav-steps">
+        ${isNorth ? `
+        <div class="nav-step"><span class="nav-step-num">1</span><span>Encontre a constelacao <strong>Ursa Maior</strong> (a "panela" ou "carro") — 7 estrelas brilhantes em formato de panela</span></div>
+        <div class="nav-step"><span class="nav-step-num">2</span><span>Identifique as 2 estrelas da <strong>borda externa</strong> da panela (Dubhe e Merak)</span></div>
+        <div class="nav-step"><span class="nav-step-num">3</span><span>Trace uma linha imaginaria entre elas e <strong>prolongue 5x</strong> a distancia</span></div>
+        <div class="nav-step"><span class="nav-step-num">4</span><span>Voce chegara a <strong>Polaris</strong>, a estrela brilhante no fim da cauda da Ursa Menor</span></div>
+        <div class="nav-step"><span class="nav-step-num">5</span><span>Polaris indica <strong>NORTE</strong> com precisao. Olhando para ela: atras=Sul, esquerda=Oeste, direita=Leste</span></div>
+        ` : `
+        <div class="nav-step"><span class="nav-step-num">1</span><span>Encontre o <strong>Cruzeiro do Sul</strong> — 4 estrelas brilhantes em formato de cruz</span></div>
+        <div class="nav-step"><span class="nav-step-num">2</span><span>Identifique o eixo <strong>mais longo</strong> da cruz (de cima para baixo)</span></div>
+        <div class="nav-step"><span class="nav-step-num">3</span><span>Prolongue esse eixo <strong>4,5 vezes</strong> para baixo a partir da estrela inferior</span></div>
+        <div class="nav-step"><span class="nav-step-num">4</span><span>O ponto imaginario onde voce chega e o <strong>Polo Celeste Sul</strong></span></div>
+        <div class="nav-step"><span class="nav-step-num">5</span><span>Trace uma linha vertical ate o horizonte — aquela direcao e <strong>SUL</strong></span></div>
+        <div class="nav-step"><span class="nav-step-num">6</span><span>Olhando para o Sul: atras=Norte, esquerda=Leste, direita=Oeste</span></div>
+        `}
+      </div>
+    </div>
+
+    <div class="nav-card">
+      <h3>&#128161; Dicas para observacao noturna</h3>
+      <ul class="nav-list">
+        <li>Espere <strong>20-30 min</strong> no escuro para adaptacao da visao noturna</li>
+        <li>Evite olhar para luzes (celular, lanterna) — use filtro <strong>vermelho</strong> se precisar</li>
+        <li>Ceu limpo e sem lua e ideal para identificar estrelas</li>
+        <li>A Via Lactea cruza o ceu de Norte a Sul (referencia geral)</li>
+        <li>Estrelas giram ~15 graus/hora. ${isNorth ? 'Polaris permanece fixa' : 'O Cruzeiro do Sul gira ao redor do polo'}</li>
+      </ul>
+    </div>
+
+    <div class="nav-card">
+      <h3>&#127763; Navegacao pela Lua</h3>
+      <ul class="nav-list">
+        <li>Se a Lua nasce <strong>antes do por-do-sol</strong>, o lado iluminado aponta para <strong>Oeste</strong></li>
+        <li>Se a Lua nasce <strong>depois da meia-noite</strong>, o lado iluminado aponta para <strong>Leste</strong></li>
+        <li>Lua cheia nasce no <strong>Leste</strong> ao por-do-sol e se poe no <strong>Oeste</strong> ao nascer do sol</li>
+        <li>Trace uma linha pela "ponta" do crescente ate o horizonte — indica aproximadamente <strong>${isNorth ? 'Sul' : 'Norte'}</strong></li>
+      </ul>
+    </div>
+  </div>`;
+}
+
+function _navDiagramPolaris() {
+  return `<svg viewBox="0 0 400 280" class="nav-svg">
+    <defs><filter id="glow"><feGaussianBlur stdDeviation="2" result="g"/><feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+    <!-- Ursa Major -->
+    <text x="80" y="260" fill="#8af" font-size="11" text-anchor="middle">Ursa Maior</text>
+    <line x1="50" y1="200" x2="90" y2="230" stroke="#445" stroke-width="1"/>
+    <line x1="90" y1="230" x2="130" y2="220" stroke="#445" stroke-width="1"/>
+    <line x1="130" y1="220" x2="140" y2="190" stroke="#445" stroke-width="1"/>
+    <line x1="140" y1="190" x2="110" y2="170" stroke="#445" stroke-width="1"/>
+    <line x1="110" y1="170" x2="70" y2="175" stroke="#445" stroke-width="1"/>
+    <line x1="70" y1="175" x2="50" y2="200" stroke="#445" stroke-width="1"/>
+    <circle cx="50" cy="200" r="3" fill="#ff0" filter="url(#glow)"/>
+    <circle cx="90" cy="230" r="3" fill="#ff0" filter="url(#glow)"/>
+    <circle cx="130" cy="220" r="3" fill="#ff0" filter="url(#glow)"/>
+    <circle cx="140" cy="190" r="3" fill="#ff0" filter="url(#glow)"/>
+    <circle cx="110" cy="170" r="3" fill="#ff0" filter="url(#glow)"/>
+    <circle cx="70" cy="175" r="3" fill="#ff0" filter="url(#glow)"/>
+    <circle cx="40" cy="185" r="3" fill="#ff0" filter="url(#glow)"/>
+    <line x1="50" y1="200" x2="40" y2="185" stroke="#445" stroke-width="1"/>
+    <!-- Dubhe & Merak labels -->
+    <text x="55" y="215" fill="#aaa" font-size="9">Merak</text>
+    <text x="140" y="205" fill="#aaa" font-size="9">Dubhe</text>
+    <!-- Guide line -->
+    <line x1="140" y1="190" x2="310" y2="50" stroke="#0ff" stroke-width="1" stroke-dasharray="6,4" opacity="0.6"/>
+    <line x1="50" y1="200" x2="310" y2="50" stroke="#0ff" stroke-width="1" stroke-dasharray="6,4" opacity="0.3"/>
+    <text x="200" y="110" fill="#0ff" font-size="10" text-anchor="middle" opacity="0.7">5x distancia</text>
+    <!-- Polaris -->
+    <circle cx="310" cy="50" r="6" fill="#ff0" filter="url(#glow)"/>
+    <text x="330" y="54" fill="#ff0" font-size="12" font-weight="bold">Polaris</text>
+    <text x="310" y="30" fill="#0f0" font-size="11" text-anchor="middle" font-weight="bold">&#8593; NORTE</text>
+  </svg>`;
+}
+
+function _navDiagramCrux() {
+  return `<svg viewBox="0 0 400 280" class="nav-svg">
+    <defs><filter id="glow2"><feGaussianBlur stdDeviation="2" result="g"/><feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+    <text x="150" y="30" fill="#8af" font-size="11" text-anchor="middle">Cruzeiro do Sul</text>
+    <!-- Cross -->
+    <line x1="150" y1="50" x2="150" y2="160" stroke="#445" stroke-width="1"/>
+    <line x1="110" y1="100" x2="190" y2="100" stroke="#445" stroke-width="1"/>
+    <circle cx="150" cy="50" r="4" fill="#ff0" filter="url(#glow2)"/>
+    <circle cx="150" cy="160" r="4" fill="#ff0" filter="url(#glow2)"/>
+    <circle cx="110" cy="100" r="3" fill="#ff0" filter="url(#glow2)"/>
+    <circle cx="190" cy="100" r="3" fill="#ff0" filter="url(#glow2)"/>
+    <!-- Extension line -->
+    <line x1="150" y1="160" x2="150" y2="255" stroke="#0ff" stroke-width="1" stroke-dasharray="6,4" opacity="0.6"/>
+    <text x="175" y="210" fill="#0ff" font-size="10" opacity="0.7">4.5x eixo</text>
+    <!-- South Pole -->
+    <circle cx="150" cy="255" r="5" fill="#0ff" opacity="0.5"/>
+    <text x="150" y="275" fill="#0f0" font-size="11" text-anchor="middle" font-weight="bold">&#8595; SUL</text>
+    <!-- Pointer stars -->
+    <circle cx="300" cy="120" r="3" fill="#ff0" filter="url(#glow2)"/>
+    <circle cx="340" cy="145" r="3" fill="#ff0" filter="url(#glow2)"/>
+    <text x="320" y="110" fill="#aaa" font-size="9" text-anchor="middle">Ponteiros (Alpha &amp; Beta Centauri)</text>
+    <line x1="300" y1="120" x2="340" y2="145" stroke="#445" stroke-width="1"/>
+  </svg>`;
+}
+
+/* ── Shadow Compass ────────────────────────────────────────────────────────── */
+function _navShadow() {
+  return `
+  <div class="nav-section">
+    <div class="nav-card nav-card-primary">
+      <h3>&#9728;&#65039; Metodo da Vara e Sombra</h3>
+      <p class="nav-subtitle">Funciona em qualquer hemisferio, precisa apenas de sol e uma vara</p>
+      <div class="nav-diagram">
+        ${_navDiagramShadow()}
+      </div>
+      <div class="nav-steps">
+        <div class="nav-step"><span class="nav-step-num">1</span><span>Finca uma <strong>vara reta</strong> (60-100cm) verticalmente no chao plano</span></div>
+        <div class="nav-step"><span class="nav-step-num">2</span><span>Marque a <strong>ponta da sombra</strong> com uma pedra — esta e a marca <strong>OESTE</strong></span></div>
+        <div class="nav-step"><span class="nav-step-num">3</span><span>Espere <strong>15-30 minutos</strong> (quanto mais tempo, mais preciso)</span></div>
+        <div class="nav-step"><span class="nav-step-num">4</span><span>Marque a <strong>nova posicao</strong> da ponta da sombra — esta e a marca <strong>LESTE</strong></span></div>
+        <div class="nav-step"><span class="nav-step-num">5</span><span>Trace uma <strong>linha reta</strong> entre as duas marcas — esta e a <strong>linha Leste-Oeste</strong></span></div>
+        <div class="nav-step"><span class="nav-step-num">6</span><span>Uma linha <strong>perpendicular</strong> a essa indica <strong>Norte-Sul</strong></span></div>
+      </div>
+    </div>
+
+    <div class="nav-card">
+      <h3>&#9201; Metodo Rapido (menos preciso)</h3>
+      <div class="nav-steps">
+        <div class="nav-step"><span class="nav-step-num">1</span><span>Aponte o ponteiro das horas do relogio para o <strong>sol</strong></span></div>
+        <div class="nav-step"><span class="nav-step-num">2</span><span>${_navHemisphere === 'north' ?
+          'O ponto medio entre o ponteiro das horas e o 12 indica <strong>SUL</strong>' :
+          'O ponto medio entre o 12 e o ponteiro das horas indica <strong>NORTE</strong>'}</span></div>
+      </div>
+    </div>
+
+    <div class="nav-card">
+      <h3>&#128161; Dicas importantes</h3>
+      <ul class="nav-list">
+        <li>Funciona melhor entre <strong>9h e 15h</strong> (sombras mais definidas)</li>
+        <li>Quanto mais <strong>plano</strong> o terreno, mais preciso</li>
+        <li>Nao funciona em dias totalmente <strong>nublados</strong></li>
+        <li>Perto do <strong>meio-dia</strong> solar, a sombra e mais curta e aponta Norte (hemisferio sul) ou Sul (hemisferio norte)</li>
+        <li>No <strong>equador</strong>, o metodo da vara e o mais confiavel</li>
+      </ul>
+    </div>
+  </div>`;
+}
+
+function _navDiagramShadow() {
+  return `<svg viewBox="0 0 400 220" class="nav-svg">
+    <!-- Ground -->
+    <line x1="40" y1="180" x2="360" y2="180" stroke="#444" stroke-width="1"/>
+    <!-- Stick -->
+    <line x1="200" y1="180" x2="200" y2="80" stroke="#a86" stroke-width="3"/>
+    <circle cx="200" cy="78" r="3" fill="#a86"/>
+    <text x="210" y="75" fill="#aaa" font-size="10">Vara</text>
+    <!-- Shadow 1 (West) -->
+    <line x1="200" y1="180" x2="120" y2="180" stroke="#666" stroke-width="2" stroke-dasharray="4,3"/>
+    <circle cx="120" cy="180" r="5" fill="#f80"/>
+    <text x="120" y="200" fill="#f80" font-size="10" text-anchor="middle">&#8592; Oeste (1a marca)</text>
+    <!-- Shadow 2 (East) -->
+    <line x1="200" y1="180" x2="280" y2="180" stroke="#666" stroke-width="2" stroke-dasharray="4,3"/>
+    <circle cx="280" cy="180" r="5" fill="#0f0"/>
+    <text x="280" y="200" fill="#0f0" font-size="10" text-anchor="middle">Leste (2a marca) &#8594;</text>
+    <!-- E-W line -->
+    <line x1="120" y1="170" x2="280" y2="170" stroke="#0ff" stroke-width="1" opacity="0.5"/>
+    <!-- N-S line -->
+    <line x1="200" y1="130" x2="200" y2="210" stroke="#0f0" stroke-width="1" stroke-dasharray="3,3" opacity="0.5"/>
+    <text x="200" y="125" fill="#0f0" font-size="11" text-anchor="middle" font-weight="bold">${_navHemisphere === 'south' ? '&#8593; Norte' : '&#8593; Sul'}</text>
+    <!-- Sun -->
+    <circle cx="320" cy="40" r="18" fill="#ff0" opacity="0.3"/>
+    <circle cx="320" cy="40" r="10" fill="#ff0" opacity="0.6"/>
+    <text x="345" y="45" fill="#ff0" font-size="10">Sol</text>
+  </svg>`;
+}
+
+/* ── Distance Estimation ───────────────────────────────────────────────────── */
+function _navDistance() {
+  return `
+  <div class="nav-section">
+    <div class="nav-card nav-card-primary">
+      <h3>&#128099; Estimativa de Distancia a Pe</h3>
+      <div class="nav-table-wrap">
+        <table class="nav-table">
+          <thead><tr><th>Terreno</th><th>Velocidade</th><th>Passos/km</th><th>Tempo/km</th></tr></thead>
+          <tbody>
+            <tr><td>&#128739;&#65039; Estrada plana</td><td>5 km/h</td><td>~1.250</td><td>12 min</td></tr>
+            <tr><td>&#127795; Trilha florestal</td><td>3-4 km/h</td><td>~1.400</td><td>15-20 min</td></tr>
+            <tr><td>&#9968;&#65039; Montanha (subida)</td><td>2-3 km/h</td><td>~1.600</td><td>20-30 min</td></tr>
+            <tr><td>&#127966; Terreno acidentado</td><td>1.5-2 km/h</td><td>~1.800</td><td>30-40 min</td></tr>
+            <tr><td>&#127958;&#65039; Areia/neve</td><td>1-2 km/h</td><td>~2.000</td><td>30-60 min</td></tr>
+            <tr><td>&#127806; Vegetacao densa</td><td>0.5-1 km/h</td><td>~2.200</td><td>60+ min</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="nav-card">
+      <h3>&#128077; Metodo do Polegar</h3>
+      <p class="nav-desc">Estima distancia de objetos visiveis sem instrumentos</p>
+      <div class="nav-steps">
+        <div class="nav-step"><span class="nav-step-num">1</span><span>Estenda o braco e levante o <strong>polegar</strong></span></div>
+        <div class="nav-step"><span class="nav-step-num">2</span><span>Feche um olho e alinhe o polegar com o objeto</span></div>
+        <div class="nav-step"><span class="nav-step-num">3</span><span>Troque de olho (sem mover a mao) — o polegar "pula"</span></div>
+        <div class="nav-step"><span class="nav-step-num">4</span><span>Estime quanto o polegar "pulou" em relacao ao tamanho do objeto</span></div>
+        <div class="nav-step"><span class="nav-step-num">5</span><span><strong>Distancia &#8776; 10x</strong> a largura aparente do "pulo"</span></div>
+      </div>
+    </div>
+
+    <div class="nav-card">
+      <h3>&#128290; Calculadora de Passos</h3>
+      <div class="nav-calc-row">
+        <label>Passos dados:</label>
+        <input type="number" id="navStepCount" value="1000" min="0" class="nav-input" oninput="navCalcDist()">
+      </div>
+      <div class="nav-calc-row">
+        <label>Terreno:</label>
+        <select id="navTerrain" class="nav-select" onchange="navCalcDist()">
+          <option value="1250">Estrada plana</option>
+          <option value="1400">Trilha florestal</option>
+          <option value="1600">Montanha</option>
+          <option value="1800">Terreno acidentado</option>
+          <option value="2000">Areia / neve</option>
+          <option value="2200">Vegetacao densa</option>
+        </select>
+      </div>
+      <div class="nav-calc-result" id="navDistResult">
+        Distancia estimada: <strong>0.80 km</strong> (800 m)
+      </div>
+    </div>
+
+    <div class="nav-card">
+      <h3>&#128065; Referencia Visual de Distancia</h3>
+      <ul class="nav-list">
+        <li><strong>100m</strong> — Detalhes faciais visiveis, expressoes claras</li>
+        <li><strong>200m</strong> — Cores de roupa distinguiveis, rosto borrado</li>
+        <li><strong>500m</strong> — Corpo humano visivel, sem detalhes</li>
+        <li><strong>1km</strong> — Troncos de arvores visiveis, pessoa e um ponto</li>
+        <li><strong>2km</strong> — Janelas de edificios, formas gerais</li>
+        <li><strong>5km</strong> — Edificios e torres, montanhas</li>
+        <li><strong>10km+</strong> — Apenas contornos gerais de relevo</li>
+      </ul>
+    </div>
+  </div>`;
+}
+
+/* ── Map Reading ───────────────────────────────────────────────────────────── */
+function _navMaps() {
+  return `
+  <div class="nav-section">
+    <div class="nav-card nav-card-primary">
+      <h3>&#128506;&#65039; Leitura de Mapas Topograficos</h3>
+      <div class="nav-diagram">
+        ${_navDiagramContour()}
+      </div>
+    </div>
+
+    <div class="nav-card">
+      <h3>&#127760; Curvas de Nivel</h3>
+      <ul class="nav-list">
+        <li><strong>Curvas juntas</strong> = terreno <strong>ingreme</strong> (encosta acentuada)</li>
+        <li><strong>Curvas separadas</strong> = terreno <strong>suave</strong> (planicie ou encosta leve)</li>
+        <li><strong>Circulos concentricos</strong> = <strong>morro ou pico</strong></li>
+        <li>Curvas em <strong>V apontando morro acima</strong> = <strong>vale/rio</strong></li>
+        <li>Curvas em <strong>V apontando morro abaixo</strong> = <strong>crista</strong></li>
+        <li>Cada curva mestra (mais grossa) geralmente tem <strong>altitude marcada</strong></li>
+        <li>O intervalo entre curvas depende da <strong>escala</strong> do mapa</li>
+      </ul>
+    </div>
+
+    <div class="nav-card">
+      <h3>&#128207; Escala do Mapa</h3>
+      <div class="nav-table-wrap">
+        <table class="nav-table">
+          <thead><tr><th>Escala</th><th>1cm no mapa =</th><th>Uso tipico</th></tr></thead>
+          <tbody>
+            <tr><td>1:25.000</td><td>250 m</td><td>Caminhada, detalhes locais</td></tr>
+            <tr><td>1:50.000</td><td>500 m</td><td>Trilha, planejamento de rota</td></tr>
+            <tr><td>1:100.000</td><td>1 km</td><td>Viagem regional</td></tr>
+            <tr><td>1:250.000</td><td>2.5 km</td><td>Viagem entre cidades</td></tr>
+            <tr><td>1:1.000.000</td><td>10 km</td><td>Visao geral de pais/regiao</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="nav-card">
+      <h3>&#127912; Cores e Simbolos Comuns</h3>
+      <div class="nav-colors-grid">
+        <div class="nav-color-item"><span class="nav-color-swatch" style="background:#3b82f6"></span><strong>Azul</strong> — Agua (rios, lagos, mar)</div>
+        <div class="nav-color-item"><span class="nav-color-swatch" style="background:#22c55e"></span><strong>Verde</strong> — Vegetacao, floresta</div>
+        <div class="nav-color-item"><span class="nav-color-swatch" style="background:#a16207"></span><strong>Marrom</strong> — Curvas de nivel, relevo</div>
+        <div class="nav-color-item"><span class="nav-color-swatch" style="background:#ef4444"></span><strong>Vermelho</strong> — Estradas principais</div>
+        <div class="nav-color-item"><span class="nav-color-swatch" style="background:#111"></span><strong>Preto</strong> — Construcoes, limites, texto</div>
+        <div class="nav-color-item"><span class="nav-color-swatch" style="background:#eab308"></span><strong>Amarelo</strong> — Areas urbanizadas</div>
+        <div class="nav-color-item"><span class="nav-color-swatch" style="background:#fff;border:1px solid #555"></span><strong>Branco</strong> — Area aberta, campo</div>
+        <div class="nav-color-item"><span class="nav-color-swatch" style="background:#a855f7"></span><strong>Roxo</strong> — Atualizacoes recentes</div>
+      </div>
+    </div>
+
+    <div class="nav-card">
+      <h3>&#128204; Orientando o Mapa</h3>
+      <div class="nav-steps">
+        <div class="nav-step"><span class="nav-step-num">1</span><span>Identifique o <strong>Norte</strong> (seta do mapa ou topo)</span></div>
+        <div class="nav-step"><span class="nav-step-num">2</span><span>Use bussola, sol ou estrelas para encontrar o Norte real</span></div>
+        <div class="nav-step"><span class="nav-step-num">3</span><span>Gire o mapa ate o <strong>Norte do mapa</strong> apontar para o Norte real</span></div>
+        <div class="nav-step"><span class="nav-step-num">4</span><span>Identifique <strong>2 pontos de referencia</strong> visiveis (morro, rio, estrada)</span></div>
+        <div class="nav-step"><span class="nav-step-num">5</span><span>Confirme sua posicao pela <strong>intersecao</strong> das linhas de visada</span></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function _navDiagramContour() {
+  return `<svg viewBox="0 0 400 200" class="nav-svg">
+    <!-- Contour lines for a hill -->
+    <ellipse cx="150" cy="110" rx="120" ry="80" fill="none" stroke="#864" stroke-width="1" opacity="0.4"/>
+    <ellipse cx="150" cy="110" rx="95" ry="65" fill="none" stroke="#864" stroke-width="1" opacity="0.5"/>
+    <ellipse cx="150" cy="110" rx="70" ry="48" fill="none" stroke="#864" stroke-width="1.5" opacity="0.7"/>
+    <text x="220" y="68" fill="#864" font-size="8">300m</text>
+    <ellipse cx="150" cy="110" rx="45" ry="32" fill="none" stroke="#864" stroke-width="1" opacity="0.6"/>
+    <ellipse cx="150" cy="110" rx="22" ry="16" fill="none" stroke="#864" stroke-width="1" opacity="0.8"/>
+    <text x="145" y="114" fill="#ff0" font-size="9" text-anchor="middle">&#9650; 500m</text>
+    <!-- Valley -->
+    <path d="M300,40 Q320,100 300,180" fill="none" stroke="#38f" stroke-width="1.5"/>
+    <text x="310" y="115" fill="#38f" font-size="9">Rio</text>
+    <!-- Labels -->
+    <text x="150" y="195" fill="#aaa" font-size="10" text-anchor="middle">Curvas juntas = ingreme | Separadas = suave</text>
+    <text x="55" y="50" fill="#aaa" font-size="9">Encosta suave</text>
+    <line x1="55" y1="53" x2="55" y2="75" stroke="#aaa" stroke-width="0.5" stroke-dasharray="2,2"/>
+    <text x="240" y="140" fill="#aaa" font-size="9">Encosta ingreme</text>
+    <line x1="240" y1="130" x2="222" y2="120" stroke="#aaa" stroke-width="0.5" stroke-dasharray="2,2"/>
+  </svg>`;
+}
+
+/* ── Watch Method ──────────────────────────────────────────────────────────── */
+function _navWatch() {
+  const isNorth = _navHemisphere === 'north';
+  return `
+  <div class="nav-section">
+    <div class="nav-card nav-card-primary">
+      <h3>&#9200; Navegacao por Relogio Analogico</h3>
+      <p class="nav-subtitle">${isNorth ?
+        'Hemisferio Norte — encontrando SUL' :
+        'Hemisferio Sul — encontrando NORTE'}</p>
+      <div class="nav-diagram">
+        ${_navDiagramWatch()}
+      </div>
+      <div class="nav-steps">
+        ${isNorth ? `
+        <div class="nav-step"><span class="nav-step-num">1</span><span>Segure o relogio <strong>horizontalmente</strong></span></div>
+        <div class="nav-step"><span class="nav-step-num">2</span><span>Aponte o <strong>ponteiro das horas</strong> diretamente para o <strong>sol</strong></span></div>
+        <div class="nav-step"><span class="nav-step-num">3</span><span>Encontre o ponto medio entre o ponteiro das horas e o <strong>12</strong></span></div>
+        <div class="nav-step"><span class="nav-step-num">4</span><span>Esse ponto medio aponta para o <strong>SUL</strong></span></div>
+        <div class="nav-step"><span class="nav-step-num">5</span><span>O lado oposto e o <strong>NORTE</strong></span></div>
+        ` : `
+        <div class="nav-step"><span class="nav-step-num">1</span><span>Segure o relogio <strong>horizontalmente</strong></span></div>
+        <div class="nav-step"><span class="nav-step-num">2</span><span>Aponte o <strong>12</strong> do relogio diretamente para o <strong>sol</strong></span></div>
+        <div class="nav-step"><span class="nav-step-num">3</span><span>Encontre o ponto medio entre o <strong>12</strong> e o <strong>ponteiro das horas</strong></span></div>
+        <div class="nav-step"><span class="nav-step-num">4</span><span>Esse ponto medio aponta para o <strong>NORTE</strong></span></div>
+        <div class="nav-step"><span class="nav-step-num">5</span><span>O lado oposto e o <strong>SUL</strong></span></div>
+        `}
+      </div>
+    </div>
+
+    <div class="nav-card">
+      <h3>&#128338; Se voce so tem relogio digital</h3>
+      <div class="nav-steps">
+        <div class="nav-step"><span class="nav-step-num">1</span><span>Desenhe um circulo no chao ou papel</span></div>
+        <div class="nav-step"><span class="nav-step-num">2</span><span>Marque a hora atual como num relogio analogico</span></div>
+        <div class="nav-step"><span class="nav-step-num">3</span><span>Siga o mesmo metodo descrito acima</span></div>
+      </div>
+    </div>
+
+    <div class="nav-card">
+      <h3>&#9888;&#65039; Limitacoes</h3>
+      <ul class="nav-list">
+        <li>Funciona melhor em <strong>latitudes acima de 20 graus</strong></li>
+        <li>Perto do equador, o metodo perde precisao</li>
+        <li>Se estiver em <strong>horario de verao</strong>, use a hora -1 para compensar</li>
+        <li>Precisao de <strong>&#177;15 graus</strong> em condicoes normais</li>
+        <li>Mais preciso no <strong>inverno</strong> que no verao</li>
+      </ul>
+    </div>
+  </div>`;
+}
+
+function _navDiagramWatch() {
+  const isNorth = _navHemisphere === 'north';
+  // Draw a clock face; hour hand at ~2 o'clock (pointing at sun), midpoint indicated
+  return `<svg viewBox="0 0 300 260" class="nav-svg">
+    <!-- Clock face -->
+    <circle cx="150" cy="130" r="90" fill="none" stroke="#555" stroke-width="2"/>
+    <circle cx="150" cy="130" r="3" fill="#fff"/>
+    <!-- 12 -->
+    <text x="150" y="55" fill="#fff" font-size="12" text-anchor="middle" font-weight="bold">12</text>
+    <!-- 3 -->
+    <text x="235" y="135" fill="#aaa" font-size="11" text-anchor="middle">3</text>
+    <!-- 6 -->
+    <text x="150" y="215" fill="#aaa" font-size="11" text-anchor="middle">6</text>
+    <!-- 9 -->
+    <text x="65" y="135" fill="#aaa" font-size="11" text-anchor="middle">9</text>
+    ${isNorth ? `
+    <!-- Hour hand pointing at ~2 (sun) -->
+    <line x1="150" y1="130" x2="205" y2="75" stroke="#f80" stroke-width="3"/>
+    <text x="220" y="65" fill="#ff0" font-size="10">&#9728; Sol</text>
+    <!-- Midpoint line (between hour hand and 12) -->
+    <line x1="150" y1="130" x2="185" y2="60" stroke="#0f0" stroke-width="1.5" stroke-dasharray="4,3"/>
+    <text x="192" y="38" fill="#0f0" font-size="11" font-weight="bold">&#8594; SUL</text>
+    <!-- North opposite -->
+    <text x="108" y="222" fill="#0ff" font-size="10" font-weight="bold">&#8592; NORTE</text>
+    ` : `
+    <!-- 12 pointing at sun -->
+    <line x1="150" y1="130" x2="150" y2="55" stroke="#f80" stroke-width="2" stroke-dasharray="4,3"/>
+    <text x="150" y="38" fill="#ff0" font-size="10" text-anchor="middle">&#9728; Sol (aponte 12 aqui)</text>
+    <!-- Hour hand at ~2 -->
+    <line x1="150" y1="130" x2="205" y2="75" stroke="#fff" stroke-width="3"/>
+    <text x="222" y="70" fill="#aaa" font-size="9">Horas</text>
+    <!-- Midpoint -->
+    <line x1="150" y1="130" x2="185" y2="60" stroke="#0f0" stroke-width="1.5" stroke-dasharray="4,3"/>
+    <text x="192" y="38" fill="#0f0" font-size="11" font-weight="bold">&#8594; NORTE</text>
+    <text x="108" y="222" fill="#0ff" font-size="10" font-weight="bold">&#8592; SUL</text>
+    `}
+  </svg>`;
+}
+
+/* ── Cardinal Points by Sun ────────────────────────────────────────────────── */
+function _navCardinal() {
+  const isNorth = _navHemisphere === 'north';
+  return `
+  <div class="nav-section">
+    <div class="nav-card nav-card-primary">
+      <h3>&#127749; Pontos Cardeais pelo Sol</h3>
+      <div class="nav-diagram">
+        ${_navDiagramSunPath()}
+      </div>
+    </div>
+
+    <div class="nav-card">
+      <h3>&#9728;&#65039; Regras Basicas</h3>
+      <div class="nav-info-grid">
+        <div class="nav-info-box nav-info-east">
+          <div class="nav-info-icon">&#127749;</div>
+          <div><strong>Nascer do Sol</strong></div>
+          <div>Aproximadamente <strong>LESTE</strong></div>
+          <div class="nav-info-sub">~05h-07h (varia por estacao)</div>
+        </div>
+        <div class="nav-info-box nav-info-west">
+          <div class="nav-info-icon">&#127751;</div>
+          <div><strong>Por do Sol</strong></div>
+          <div>Aproximadamente <strong>OESTE</strong></div>
+          <div class="nav-info-sub">~17h-19h (varia por estacao)</div>
+        </div>
+        <div class="nav-info-box nav-info-noon">
+          <div class="nav-info-icon">&#9728;&#65039;</div>
+          <div><strong>Meio-dia Solar</strong></div>
+          <div>Sol no ponto mais alto</div>
+          <div class="nav-info-sub">${isNorth ?
+            'Aponta para <strong>SUL</strong> (hemis. norte)' :
+            'Aponta para <strong>NORTE</strong> (hemis. sul)'}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="nav-card">
+      <h3>&#128197; Variacao por Estacao</h3>
+      <ul class="nav-list">
+        <li><strong>Equinocios</strong> (mar/set) — Sol nasce exatamente no Leste e poe exatamente no Oeste</li>
+        <li><strong>Solsticio de verao</strong> — Sol nasce e poe mais ao ${isNorth ? 'Norte (Nordeste/Noroeste)' : 'Sul (Sudeste/Sudoeste)'}</li>
+        <li><strong>Solsticio de inverno</strong> — Sol nasce e poe mais ao ${isNorth ? 'Sul (Sudeste/Sudoeste)' : 'Norte (Nordeste/Noroeste)'}</li>
+        <li>A variacao pode ser de ate <strong>30 graus</strong> dependendo da latitude</li>
+      </ul>
+    </div>
+
+    <div class="nav-card">
+      <h3>&#128205; Encontrando o Norte com precisao</h3>
+      <div class="nav-steps">
+        <div class="nav-step"><span class="nav-step-num">1</span><span>De manha, fique de frente para o <strong>nascer do sol</strong> (Leste)</span></div>
+        <div class="nav-step"><span class="nav-step-num">2</span><span>Estenda os bracos: <strong>esquerda = Norte</strong>, <strong>direita = Sul</strong></span></div>
+        <div class="nav-step"><span class="nav-step-num">3</span><span>Atras de voce = <strong>Oeste</strong></span></div>
+        <div class="nav-step"><span class="nav-step-num">4</span><span>Ao meio-dia, a sombra mais curta aponta ${isNorth ? '<strong>Norte</strong> (hemisferio norte)' : '<strong>Sul</strong> (hemisferio sul)'}</span></div>
+      </div>
+    </div>
+
+    <div class="nav-card">
+      <h3>&#127795; Indicadores Naturais</h3>
+      <ul class="nav-list">
+        <li><strong>Musgo</strong> tende a crescer no lado com <strong>menos sol</strong> (${isNorth ? 'Norte' : 'Sul'} — mas nao e 100% confiavel)</li>
+        <li><strong>Antenas parabolicas</strong> geralmente apontam para o equador (referencia em areas urbanas)</li>
+        <li><strong>Igrejas</strong> tradicionais tem o altar voltado para o Leste</li>
+        <li><strong>Cupinzeiros</strong> no Brasil — eixo maior geralmente Norte-Sul</li>
+        <li><strong>Neve</strong> derrete primeiro no lado que recebe mais sol (${isNorth ? 'Sul' : 'Norte'})</li>
+        <li><strong>Flores</strong> como girassois tendem a seguir o sol (Leste para Oeste)</li>
+      </ul>
+    </div>
+  </div>`;
+}
+
+function _navDiagramSunPath() {
+  const isNorth = _navHemisphere === 'north';
+  return `<svg viewBox="0 0 400 180" class="nav-svg">
+    <!-- Horizon -->
+    <line x1="30" y1="140" x2="370" y2="140" stroke="#444" stroke-width="1.5"/>
+    <text x="200" y="170" fill="#555" font-size="10" text-anchor="middle">Horizonte</text>
+    <!-- Sun path arc -->
+    <path d="M60,140 Q200,${isNorth ? '10' : '20'} 340,140" fill="none" stroke="#ff0" stroke-width="1.5" stroke-dasharray="5,3" opacity="0.6"/>
+    <!-- Sunrise -->
+    <circle cx="60" cy="140" r="12" fill="#f80" opacity="0.6"/>
+    <text x="60" y="125" fill="#f80" font-size="10" text-anchor="middle" font-weight="bold">Nascer</text>
+    <text x="60" y="160" fill="#0f0" font-size="11" text-anchor="middle" font-weight="bold">LESTE</text>
+    <!-- Noon -->
+    <circle cx="200" cy="${isNorth ? '25' : '30'}" r="14" fill="#ff0" opacity="0.5"/>
+    <circle cx="200" cy="${isNorth ? '25' : '30'}" r="8" fill="#ff0" opacity="0.8"/>
+    <text x="200" y="${isNorth ? '12' : '17'}" fill="#fff" font-size="9" text-anchor="middle">Meio-dia</text>
+    <!-- Noon shadow direction -->
+    <line x1="200" y1="140" x2="${isNorth ? '200' : '200'}" y2="${isNorth ? '105' : '100'}" stroke="#0f0" stroke-width="1" stroke-dasharray="3,2"/>
+    <text x="${isNorth ? '218' : '218'}" y="${isNorth ? '110' : '105'}" fill="#0f0" font-size="9">${isNorth ? '&#8593; Sombra=Norte' : '&#8593; Sombra=Sul'}</text>
+    <!-- Sunset -->
+    <circle cx="340" cy="140" r="12" fill="#f44" opacity="0.6"/>
+    <text x="340" y="125" fill="#f44" font-size="10" text-anchor="middle" font-weight="bold">Por-do-sol</text>
+    <text x="340" y="160" fill="#0f0" font-size="11" text-anchor="middle" font-weight="bold">OESTE</text>
+    <!-- Direction indicator -->
+    <text x="200" y="155" fill="#0ff" font-size="10" text-anchor="middle">${isNorth ? '&#8595; SUL (sol ao meio-dia)' : '&#8593; NORTE (sol ao meio-dia)'}</text>
+  </svg>`;
+}
+
+/* ── Step Calculator ──────────────────────────────────────────────────────── */
+function navCalcDist() {
+  const steps = parseInt(document.getElementById('navStepCount')?.value) || 0;
+  const stepsPerKm = parseInt(document.getElementById('navTerrain')?.value) || 1250;
+  const km = steps / stepsPerKm;
+  const m = Math.round(km * 1000);
+  const el = document.getElementById('navDistResult');
+  if (el) el.innerHTML = `Distancia estimada: <strong>${km.toFixed(2)} km</strong> (${m} m)`;
+}
+
+// Expose to window
+window.navigationInit = navigationInit;
+window.navSetSection = navSetSection;
+window.navSetHemisphere = navSetHemisphere;
+window.navCalcDist = navCalcDist;

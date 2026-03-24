@@ -3079,6 +3079,45 @@ Responda no idioma do usuario. Use markdown.</textarea>
       </div>
     </div>
 
+    <!-- ═══ Navigation App ═══ -->
+    <div class="panel-view hidden" id="navView">
+      <div class="nav-app" id="navApp">
+        <!-- Header -->
+        <div class="nav-header">
+          <div class="nav-hero">
+            <div class="nav-hero-icon">&#129517;</div>
+            <div class="nav-hero-text">
+              <h2>Navega&#231;&#227;o</h2>
+              <p>Orienta&#231;&#227;o sem GPS &#8212; estrelas, sol, b&#250;ssola e mapas</p>
+            </div>
+          </div>
+          <div class="nav-tabs" id="navTabs">
+            <button class="nav-tab active" data-section="stars" onclick="navSetSection('stars')">&#11088; Estrelas</button>
+            <button class="nav-tab" data-section="shadow" onclick="navSetSection('shadow')">&#9728;&#65039; B&#250;ssola Solar</button>
+            <button class="nav-tab" data-section="distance" onclick="navSetSection('distance')">&#128099; Dist&#226;ncia</button>
+            <button class="nav-tab" data-section="maps" onclick="navSetSection('maps')">&#128506;&#65039; Mapas</button>
+            <button class="nav-tab" data-section="watch" onclick="navSetSection('watch')">&#9200; Rel&#243;gio</button>
+            <button class="nav-tab" data-section="cardinal" onclick="navSetSection('cardinal')">&#127749; Sol &amp; Cardeais</button>
+          </div>
+        </div>
+
+        <!-- Content -->
+        <div class="nav-content" id="navContent">
+          <!-- Rendered by JS -->
+        </div>
+
+        <!-- Statusbar -->
+        <div class="nav-statusbar">
+          <span id="navStatus">Selecione uma t&#233;cnica de navega&#231;&#227;o</span>
+          <span class="nav-hemisphere-toggle">
+            Hemisf&#233;rio:
+            <button class="nav-hemi-btn active" onclick="navSetHemisphere('north')">Norte</button>
+            <button class="nav-hemi-btn" onclick="navSetHemisphere('south')">Sul</button>
+          </span>
+        </div>
+      </div>
+    </div>
+
   </main>
 
   </div><!-- /desktop -->
