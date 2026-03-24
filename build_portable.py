@@ -46,10 +46,12 @@ LLAMA_CPP_URLS = {
 CHROME_TESTING_JSON = "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json"
 
 # stable-diffusion.cpp — image generation engine (optional)
-SD_CPP_TAG = "master-533-862a658"
-SD_CPP_URLS = {
-    "windows": f"https://github.com/leejet/stable-diffusion.cpp/releases/download/{SD_CPP_TAG}/sd-{SD_CPP_TAG}-bin-win-avx2-x64.zip",
-    "linux": f"https://github.com/leejet/stable-diffusion.cpp/releases/download/{SD_CPP_TAG}/sd-{SD_CPP_TAG}-bin-Linux-Ubuntu-24.04-x86_64.zip",
+# Resolved dynamically from GitHub releases API at build time
+SD_CPP_RELEASES_API = "https://api.github.com/repos/leejet/stable-diffusion.cpp/releases?per_page=1"
+SD_CPP_ASSET_PATTERNS = {
+    "windows": ["bin-win-avx2-x64.zip"],
+    "linux": ["bin-Linux-Ubuntu-24.04-x86_64.zip"],
+    "darwin": ["bin-Darwin", "arm64.zip"],
 }
 SD_MODEL_URL = "https://huggingface.co/second-state/stable-diffusion-v1-5-GGUF/resolve/main/stable-diffusion-v1-5-pruned-emaonly-Q8_0.gguf"
 SD_MODEL_FILE = "sd-v1.5-q8.gguf"
@@ -172,7 +174,8 @@ def build_portable(output_dir: Path, skip_model: bool = False, cpu_only: bool = 
     print(bold("  ╚══════════════════════════════════════════════════╝"))
     print()
 
-    os_name = "windows" if platform.system() == "Windows" else "linux"
+    _sys = platform.system()
+    os_name = "windows" if _sys == "Windows" else ("darwin" if _sys == "Darwin" else "linux")
 
     if output_dir.exists():
         print(f"  Pasta de saida ja existe: {output_dir}")
@@ -345,7 +348,29 @@ def build_portable(output_dir: Path, skip_model: bool = False, cpu_only: bool = 
     if skip_sd:
         warn("Download do sd-server pulado (--skip-sd)")
     else:
-        sd_url = SD_CPP_URLS.get(os_name)
+        # Resolve sd-server URL dynamically from GitHub releases
+        sd_url = None
+        patterns = SD_CPP_ASSET_PATTERNS.get(os_name, [])
+        if patterns:
+            try:
+                import json as _json
+                req = urllib.request.Request(
+                    "https://api.github.com/repos/leejet/stable-diffusion.cpp/releases?per_page=5",
+                    headers={"User-Agent": "BunkerAI/4.0", "Accept": "application/vnd.github.v3+json"},
+                )
+                with urllib.request.urlopen(req, timeout=15) as resp:
+                    releases = _json.loads(resp.read())
+                    for release in releases:
+                        for asset in release.get("assets", []):
+                            name = asset.get("name", "")
+                            if all(p in name for p in patterns):
+                                sd_url = asset.get("browser_download_url", "")
+                                break
+                        if sd_url:
+                            break
+            except Exception as e:
+                warn(f"Nao conseguiu resolver URL do sd-server: {e}")
+
         if sd_url:
             sd_zip = tmp_dir / "sd-cpp.zip"
             if download(sd_url, sd_zip, f"sd-server ({SD_CPP_TAG})"):
@@ -633,14 +658,22 @@ echo ================================================================
 echo.
 
 REM ---- Iniciar sd-server (gerador de imagens) se disponivel ----
-if exist "runtime\sd\sd-server.exe" (
+set "SD_BIN="
+if exist "runtime\sd\sd-server.exe" set "SD_BIN=runtime\sd\sd-server.exe"
+if not defined SD_BIN if exist "tools\sd-server.exe" set "SD_BIN=tools\sd-server.exe"
+if defined SD_BIN (
     set "SD_MODEL="
-    for %%f in (runtime\sd\models\*.gguf) do (
+    for %%f in (sd_models\*.gguf) do (
         if not defined SD_MODEL set "SD_MODEL=%%f"
+    )
+    if not defined SD_MODEL (
+        for %%f in (runtime\sd\models\*.gguf) do (
+            if not defined SD_MODEL set "SD_MODEL=%%f"
+        )
     )
     if defined SD_MODEL (
         echo [OK] Iniciando gerador de imagens...
-        start "" /b "runtime\sd\sd-server.exe" -m "!SD_MODEL!" --listen-port 7860 >nul 2>&1
+        start "" /b "!SD_BIN!" -m "!SD_MODEL!" --listen-port 7860 >nul 2>&1
         echo [OK] sd-server em http://127.0.0.1:7860
     )
 )
@@ -779,12 +812,16 @@ echo "════════════════════════�
 echo ""
 
 # ─── sd-server (image gen) ─────────────────────────
-if [ -x "runtime/sd/sd-server" ]; then
-    SD_MODEL=$(find runtime/sd/models/ -name "*.gguf" 2>/dev/null | head -1)
+SD_BIN=""
+[ -f "runtime/sd/sd-server" ] && SD_BIN="runtime/sd/sd-server"
+[ -z "$SD_BIN" ] && [ -f "tools/sd-server" ] && SD_BIN="tools/sd-server"
+if [ -n "$SD_BIN" ]; then
+    chmod +x "$SD_BIN"
+    SD_MODEL=$(find sd_models/ -name "*.gguf" 2>/dev/null | head -1)
+    [ -z "$SD_MODEL" ] && SD_MODEL=$(find runtime/sd/models/ -name "*.gguf" 2>/dev/null | head -1)
     if [ -n "$SD_MODEL" ]; then
         echo "[OK] Iniciando gerador de imagens..."
-        chmod +x runtime/sd/sd-server
-        runtime/sd/sd-server -m "$SD_MODEL" --listen-port 7860 &>/dev/null &
+        "$SD_BIN" -m "$SD_MODEL" --listen-port 7860 &>/dev/null &
         SD_PID=$!
         echo "[OK] sd-server em http://127.0.0.1:7860"
     fi

@@ -839,6 +839,31 @@ def _chat_stream(payload: dict, timeout: float = 300.0) -> StreamingResponse:
     return _chat_stream_ollama(payload, timeout)
 
 
+async def _llm_complete(model: str, messages: list, timeout: float = 60.0) -> str:
+    """Non-streaming LLM call — returns the full response text."""
+    if not model:
+        return ""
+    try:
+        if BACKEND == "llama.cpp" and LLAMA_CPP_URL:
+            oai_msgs = [{"role": m.get("role", "user"), "content": m.get("content", "")} for m in messages]
+            async with httpx.AsyncClient(timeout=httpx.Timeout(timeout)) as c:
+                resp = await c.post(f"{LLAMA_CPP_URL}/v1/chat/completions", json={
+                    "messages": oai_msgs, "stream": False, "temperature": 0.7,
+                })
+                data = resp.json()
+                return data.get("choices", [{}])[0].get("message", {}).get("content", "")
+        else:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(timeout)) as c:
+                resp = await c.post(f"{OLLAMA_BASE}/api/chat", json={
+                    "model": model, "messages": messages, "stream": False,
+                })
+                data = resp.json()
+                return data.get("message", {}).get("content", "")
+    except Exception as e:
+        print(f"[LLM Complete] Error: {e}")
+        return ""
+
+
 def _chat_stream_ollama(payload: dict, timeout: float) -> StreamingResponse:
     """Stream from Ollama /api/chat."""
     async def generate():
@@ -2867,19 +2892,568 @@ async def read_file(path: str, raw: str = ""):
 # ─── Image Generation (stable-diffusion.cpp) ────────────────────────────────
 
 SD_SERVER_URL = os.getenv("SD_SERVER_URL", "http://127.0.0.1:7860")
+SD_SERVER_PORT = int(os.getenv("SD_SERVER_PORT", "7860"))
+SD_MODELS_DIR = Path("sd_models")
+SD_MODELS_DIR.mkdir(exist_ok=True)
 GENERATED_IMAGES_DIR = Path("generated_images")
 GENERATED_IMAGES_DIR.mkdir(exist_ok=True)
+
+_sd_server_process = None  # managed sd-server subprocess
+
+# ── SD Model Catalog ─────────────────────────────────────────────────────────
+
+SD_MODEL_CATALOG = [
+    {
+        "id": "sd21-turbo",
+        "name": "SD 2.1 Turbo (Rapido)",
+        "filename": "sd-v2-1-turbo-q4_0.gguf",
+        "url": "https://huggingface.co/gpustack/stable-diffusion-v2-1-turbo-GGUF/resolve/main/stable-diffusion-v2-1-turbo-Q4_0.gguf",
+        "size_gb": 2.1,
+        "requires_gpu": False,
+        "desc": "1-4 steps, 512x512 — mais rapido, ideal para uso offline",
+        "tags": "turbo · CPU/GPU · 1-4 steps · 512px",
+        "recommended": True,
+        "default_steps": 4,
+        "max_resolution": 512,
+    },
+    {
+        "id": "sd15",
+        "name": "SD 1.5 (Classico)",
+        "filename": "sd-v1-5-pruned-emaonly-q4_0.gguf",
+        "url": "https://huggingface.co/second-state/stable-diffusion-v1-5-GGUF/resolve/main/stable-diffusion-v1-5-Q4_0.gguf",
+        "size_gb": 1.6,
+        "requires_gpu": False,
+        "desc": "10-20 steps, 512x512 — boa qualidade, muitos estilos",
+        "tags": "classico · CPU/GPU · 10-20 steps · 512px",
+        "recommended": False,
+        "default_steps": 20,
+        "max_resolution": 512,
+    },
+    {
+        "id": "sd15-q8",
+        "name": "SD 1.5 Q8 (Melhor Qualidade)",
+        "filename": "sd-v1-5-pruned-emaonly-q8_0.gguf",
+        "url": "https://huggingface.co/second-state/stable-diffusion-v1-5-GGUF/resolve/main/stable-diffusion-v1-5-Q8_0.gguf",
+        "size_gb": 1.8,
+        "requires_gpu": False,
+        "desc": "Melhor qualidade que Q4, pouco maior",
+        "tags": "qualidade · CPU/GPU · 10-20 steps · 512px",
+        "recommended": False,
+        "default_steps": 20,
+        "max_resolution": 512,
+    },
+    {
+        "id": "sdxl-turbo",
+        "name": "SDXL Turbo (GPU)",
+        "filename": "sdxl-turbo-q4_0.gguf",
+        "url": "https://huggingface.co/gpustack/stable-diffusion-xl-1.0-turbo-GGUF/resolve/main/stable-diffusion-xl-1.0-turbo-Q4_0.gguf",
+        "size_gb": 3.5,
+        "requires_gpu": True,
+        "desc": "1-4 steps, 1024x1024 — alta resolucao, requer GPU 6GB+",
+        "tags": "turbo · GPU 6GB+ · 1-4 steps · 1024px",
+        "recommended": False,
+        "default_steps": 4,
+        "max_resolution": 1024,
+    },
+]
+
+_sd_active_downloads: dict = {}
+
+
+def _find_sd_server_binary():
+    """Find sd-server binary in tools/, runtime/sd/, or system PATH. Cross-platform."""
+    import shutil as _shutil
+    is_win = platform.system() == "Windows"
+    # Platform-ordered names
+    if is_win:
+        names = ["sd-server.exe", "sd_server.exe", "sd-server", "sd_server"]
+    else:
+        names = ["sd-server", "sd_server", "sd-server.exe", "sd_server.exe"]
+    # Check tools/ and runtime/sd/ directories
+    for search_dir in [Path("tools"), Path("runtime/sd")]:
+        for name in names:
+            candidate = search_dir / name
+            if candidate.exists():
+                if not is_win:
+                    candidate.chmod(candidate.stat().st_mode | 0o755)
+                return str(candidate)
+    # Check system PATH
+    found = _shutil.which("sd-server") or _shutil.which("sd_server")
+    return found
+
+
+def _get_sd_models_on_disk():
+    """List SD model files on disk (sd_models/ dir)."""
+    models = []
+    if SD_MODELS_DIR.exists():
+        for f in SD_MODELS_DIR.glob("*.gguf"):
+            models.append({"filename": f.name, "size_gb": round(f.stat().st_size / (1024**3), 2), "path": str(f)})
+    return models
+
+
+def _get_active_sd_model():
+    """Return the best available SD model to use."""
+    on_disk = _get_sd_models_on_disk()
+    if not on_disk:
+        return None
+    # Prefer catalog models in order
+    for cat in SD_MODEL_CATALOG:
+        for m in on_disk:
+            if m["filename"] == cat["filename"]:
+                return {**cat, **m}
+    # Fallback to any GGUF
+    return on_disk[0]
+
+
+async def _auto_start_sd_server():
+    """Try to auto-start sd-server if binary and model available."""
+    global _sd_server_process
+    if _sd_server_process and _sd_server_process.poll() is None:
+        return True  # already running
+
+    binary = _find_sd_server_binary()
+    if not binary:
+        return False
+
+    model = _get_active_sd_model()
+    if not model:
+        return False
+
+    model_path = model.get("path") or str(SD_MODELS_DIR / model["filename"])
+    if not Path(model_path).exists():
+        return False
+
+    try:
+        cmd = [binary, "-m", model_path, "--listen-port", str(SD_SERVER_PORT)]
+        # Run from the binary's directory so it finds shared libs (stable-diffusion.dll etc)
+        bin_dir = str(Path(binary).parent.resolve())
+        env = os.environ.copy()
+        if platform.system() == "Windows":
+            env["PATH"] = bin_dir + ";" + env.get("PATH", "")
+        else:
+            env["LD_LIBRARY_PATH"] = bin_dir + ":" + env.get("LD_LIBRARY_PATH", "")
+            env["DYLD_LIBRARY_PATH"] = bin_dir + ":" + env.get("DYLD_LIBRARY_PATH", "")
+
+        print(f"[SD] Auto-starting sd-server: {' '.join(cmd)}")
+        _sd_server_process = subprocess.Popen(
+            cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env,
+        )
+        # Wait for model loading — can take 5-15s for large models
+        for i in range(10):
+            await asyncio.sleep(2)
+            if _sd_server_process.poll() is not None:
+                print(f"[SD] sd-server exited early (code {_sd_server_process.returncode})")
+                _sd_server_process = None
+                return False
+            # Check if it's responding
+            try:
+                async with httpx.AsyncClient(timeout=2) as c:
+                    r = await c.get(f"http://127.0.0.1:{SD_SERVER_PORT}/")
+                    if r.status_code == 200:
+                        print(f"[SD] sd-server ready after {(i+1)*2}s")
+                        return True
+            except Exception:
+                pass
+        # Still running but not responding yet — assume it's loading
+        print("[SD] sd-server started (still loading model...)")
+        return True
+    except Exception as e:
+        print(f"[SD] Failed to start sd-server: {e}")
+        return False
 
 
 @app.get("/api/imagine/status")
 async def imagine_status():
-    """Check if sd-server is running and reachable."""
+    """Check if sd-server is running and reachable. Auto-start if possible."""
+    # First check if already running
     try:
         async with httpx.AsyncClient(timeout=3) as client:
             resp = await client.get(f"{SD_SERVER_URL}/")
-            return {"available": resp.status_code == 200, "url": SD_SERVER_URL}
+            if resp.status_code == 200:
+                active_model = _get_active_sd_model()
+                return {"available": True, "url": SD_SERVER_URL, "model": active_model}
     except Exception:
-        return {"available": False, "url": SD_SERVER_URL}
+        pass
+
+    # Try auto-start
+    started = await _auto_start_sd_server()
+    if started:
+        # Verify it's responding
+        await asyncio.sleep(2)
+        try:
+            async with httpx.AsyncClient(timeout=5) as client:
+                resp = await client.get(f"{SD_SERVER_URL}/")
+                if resp.status_code == 200:
+                    active_model = _get_active_sd_model()
+                    return {"available": True, "url": SD_SERVER_URL, "model": active_model, "auto_started": True}
+        except Exception:
+            pass
+
+    has_binary = _find_sd_server_binary() is not None
+    has_model = _get_active_sd_model() is not None
+    models_on_disk = _get_sd_models_on_disk()
+
+    return {
+        "available": False, "url": SD_SERVER_URL,
+        "has_binary": has_binary, "has_model": has_model,
+        "models_on_disk": models_on_disk,
+        "need_binary": not has_binary,
+        "need_model": not has_model,
+        "platform": platform.system().lower(),
+    }
+
+
+# ── sd-server binary download (cross-platform) ──────────────────────────────
+
+_SD_CPP_RELEASES_API = "https://api.github.com/repos/leejet/stable-diffusion.cpp/releases?per_page=1"
+
+# Patterns to match in release asset names per platform
+# Order: GPU build first (if available), then CPU fallback
+def _get_sd_asset_patterns():
+    """Return asset patterns for current platform, preferring GPU builds."""
+    sys_name = platform.system().lower()
+    has_nvidia = False
+    try:
+        r = subprocess.run(["nvidia-smi"], capture_output=True, timeout=3)
+        has_nvidia = r.returncode == 0
+    except Exception:
+        pass
+
+    if sys_name == "windows":
+        if has_nvidia:
+            return [["bin-win-cuda12-x64.zip"], ["bin-win-avx2-x64.zip"]]
+        return [["bin-win-avx2-x64.zip"]]
+    elif sys_name == "linux":
+        if has_nvidia:
+            return [["bin-Linux", "x86_64.zip"]]  # matches both cuda and cpu
+        return [["bin-Linux-Ubuntu-24.04-x86_64.zip"]]
+    elif sys_name == "darwin":
+        return [["bin-Darwin", "arm64.zip"]]
+    return []
+
+_sd_binary_download: dict = {}
+
+
+async def _resolve_sd_cpp_download_url() -> str:
+    """Find the best sd-server download URL for this platform from GitHub releases.
+    Prefers CUDA/GPU builds when NVIDIA GPU is detected."""
+    pattern_sets = _get_sd_asset_patterns()
+    if not pattern_sets:
+        return ""
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(
+                "https://api.github.com/repos/leejet/stable-diffusion.cpp/releases?per_page=5",
+                headers={"Accept": "application/vnd.github.v3+json", "User-Agent": "BunkerAI"},
+            )
+            if resp.status_code != 200:
+                return ""
+            releases = resp.json()
+            # Try each pattern set in priority order (GPU first, then CPU)
+            for patterns in pattern_sets:
+                for release in releases:
+                    for asset in release.get("assets", []):
+                        name = asset.get("name", "")
+                        if all(p in name for p in patterns):
+                            print(f"[SD] Resolved binary: {name}")
+                            return asset.get("browser_download_url", "")
+    except Exception as e:
+        print(f"[SD] Failed to resolve download URL: {e}")
+    return ""
+
+
+@app.get("/api/imagine/binary/status")
+async def sd_binary_status():
+    """Check sd-server binary availability and provide download link for current platform."""
+    has_binary = _find_sd_server_binary() is not None
+    sys_name = platform.system().lower()
+    arch = platform.machine().lower()
+    download_url = "" if has_binary else await _resolve_sd_cpp_download_url()
+
+    return {
+        "has_binary": has_binary,
+        "binary_path": _find_sd_server_binary(),
+        "platform": sys_name,
+        "arch": arch,
+        "download_available": bool(download_url),
+        "download_url": download_url,
+        "downloading": bool(_sd_binary_download),
+        "releases_url": "https://github.com/leejet/stable-diffusion.cpp/releases",
+    }
+
+
+@app.post("/api/imagine/binary/download")
+async def sd_binary_download(background_tasks: BackgroundTasks):
+    """Download sd-server binary for current platform."""
+    if _sd_binary_download:
+        return {"status": "already_downloading", "progress": _sd_binary_download}
+
+    url = await _resolve_sd_cpp_download_url()
+    if not url:
+        return JSONResponse({"error": f"Nao foi possivel encontrar binario para {platform.system()}. Baixe manualmente."}, 400)
+
+    _sd_binary_download.update({"percent": 0, "status": "downloading"})
+    background_tasks.add_task(_download_sd_binary, url)
+    return {"status": "started"}
+
+
+@app.get("/api/imagine/binary/progress")
+async def sd_binary_progress():
+    """Check sd-server binary download progress."""
+    if _sd_binary_download:
+        return _sd_binary_download
+    if _find_sd_server_binary():
+        return {"status": "complete", "percent": 100}
+    return {"status": "idle", "percent": 0}
+
+
+async def _download_sd_binary(url: str):
+    """Download and extract sd-server binary to tools/."""
+    import urllib.request, zipfile as _zipfile
+    is_win = platform.system() == "Windows"
+    tools_dir = Path("tools")
+    tools_dir.mkdir(exist_ok=True)
+    zip_path = tools_dir / "sd-cpp.zip"
+
+    try:
+        _sd_binary_download.update({"status": "downloading", "percent": 10})
+        req = urllib.request.Request(url, headers={"User-Agent": "BunkerAI/4.0"})
+        with urllib.request.urlopen(req, timeout=600) as resp:
+            total = int(resp.headers.get("Content-Length", 0))
+            downloaded = 0
+            with open(zip_path, "wb") as f:
+                while True:
+                    chunk = resp.read(1024 * 512)
+                    if not chunk:
+                        break
+                    f.write(chunk)
+                    downloaded += len(chunk)
+                    if total > 0:
+                        _sd_binary_download["percent"] = round(downloaded / total * 80)
+
+        _sd_binary_download.update({"status": "extracting", "percent": 85})
+        # Extract all files from zip (binaries + shared libs like stable-diffusion.dll)
+        with _zipfile.ZipFile(zip_path) as zf:
+            for member in zf.namelist():
+                basename = Path(member).name
+                if not basename:
+                    continue  # skip directories
+                # Extract executables, DLLs, .so, .dylib
+                ext = Path(basename).suffix.lower()
+                if ext in (".exe", ".dll", ".so", ".dylib", "") and not basename.startswith("."):
+                    data = zf.read(member)
+                    if len(data) < 100:
+                        continue  # skip tiny/empty files
+                    dest = tools_dir / basename
+                    dest.write_bytes(data)
+                    if not is_win and (ext == "" or ext in (".so", ".dylib")):
+                        dest.chmod(0o755)
+                    print(f"[SD] Extracted {basename} ({len(data)//1024} KB)")
+
+        zip_path.unlink(missing_ok=True)
+        _sd_binary_download.update({"status": "complete", "percent": 100})
+        print(f"[SD] sd-server binary installed in {tools_dir}")
+    except Exception as e:
+        _sd_binary_download.update({"status": "error", "error": str(e)})
+        print(f"[SD] Binary download failed: {e}")
+        if zip_path.exists():
+            zip_path.unlink()
+    finally:
+        await asyncio.sleep(15)
+        _sd_binary_download.clear()
+
+
+@app.get("/api/imagine/models")
+async def imagine_models():
+    """List SD model catalog with download status."""
+    on_disk = {m["filename"] for m in _get_sd_models_on_disk()}
+    has_gpu, vram = False, 0
+    try:
+        r = subprocess.run(
+            ["nvidia-smi", "--query-gpu=memory.total", "--format=csv,noheader,nounits"],
+            capture_output=True, text=True, timeout=3,
+        )
+        if r.returncode == 0:
+            has_gpu, vram = True, int(r.stdout.strip().split("\n")[0])
+    except Exception:
+        pass
+
+    result = []
+    for m in SD_MODEL_CATALOG:
+        downloaded = m["filename"] in on_disk
+        filepath = SD_MODELS_DIR / m["filename"]
+        complete = downloaded and filepath.stat().st_size > m["size_gb"] * 0.9 * 1024**3 if downloaded else False
+        result.append({
+            **m,
+            "downloaded": complete,
+            "downloading": m["id"] in _sd_active_downloads,
+            "size_on_disk": filepath.stat().st_size if downloaded else 0,
+        })
+
+    # Include any extra GGUF files not in catalog
+    catalog_files = {m["filename"] for m in SD_MODEL_CATALOG}
+    for m in _get_sd_models_on_disk():
+        if m["filename"] not in catalog_files:
+            result.append({
+                "id": Path(m["filename"]).stem,
+                "name": Path(m["filename"]).stem,
+                **m,
+                "desc": "Modelo adicionado manualmente",
+                "tags": "custom",
+                "downloaded": True,
+                "downloading": False,
+                "recommended": False,
+            })
+
+    return {"models": result, "has_gpu": has_gpu, "vram_mb": vram, "sd_models_dir": str(SD_MODELS_DIR.resolve())}
+
+
+@app.post("/api/imagine/models/download")
+async def download_sd_model(request: Request, background_tasks: BackgroundTasks):
+    """Start downloading an SD model in the background."""
+    body = await request.json()
+    model_id = body.get("model_id", "")
+
+    model = next((m for m in SD_MODEL_CATALOG if m["id"] == model_id), None)
+    if not model:
+        return JSONResponse({"error": f"Modelo '{model_id}' nao encontrado"}, 404)
+
+    filepath = SD_MODELS_DIR / model["filename"]
+    if filepath.exists() and filepath.stat().st_size > model["size_gb"] * 0.9 * 1024**3:
+        return {"status": "already_downloaded"}
+
+    if model_id in _sd_active_downloads:
+        return {"status": "already_downloading", "progress": _sd_active_downloads[model_id]}
+
+    _sd_active_downloads[model_id] = {"percent": 0, "downloaded": 0, "total": 0, "speed": ""}
+    # Run in thread to avoid blocking the event loop (urllib is sync)
+    asyncio.get_event_loop().run_in_executor(None, _download_sd_model_sync, model)
+    return {"status": "started", "model_id": model_id}
+
+
+@app.get("/api/imagine/models/progress/{model_id}")
+async def sd_download_progress(model_id: str):
+    """Check SD model download progress."""
+    if model_id in _sd_active_downloads:
+        return {"status": "downloading", **_sd_active_downloads[model_id]}
+    model = next((m for m in SD_MODEL_CATALOG if m["id"] == model_id), None)
+    if model:
+        filepath = SD_MODELS_DIR / model["filename"]
+        if filepath.exists() and filepath.stat().st_size > model["size_gb"] * 0.9 * 1024**3:
+            return {"status": "complete", "percent": 100}
+    return {"status": "idle", "percent": 0}
+
+
+def _download_sd_model_sync(model: dict):
+    """Download an SD model (runs in thread pool, doesn't block event loop)."""
+    import urllib.request
+    filepath = SD_MODELS_DIR / model["filename"]
+    model_id = model["id"]
+    try:
+        req = urllib.request.Request(model["url"], headers={"User-Agent": "BunkerAI/4.0"})
+        with urllib.request.urlopen(req, timeout=3600) as resp:
+            total = int(resp.headers.get("Content-Length", 0))
+            _sd_active_downloads[model_id]["total"] = total
+            downloaded = 0
+            chunk_size = 1024 * 512
+            with open(filepath, "wb") as f:
+                last_time = time.time()
+                last_bytes = 0
+                while True:
+                    chunk = resp.read(chunk_size)
+                    if not chunk:
+                        break
+                    f.write(chunk)
+                    downloaded += len(chunk)
+                    now = time.time()
+                    elapsed = now - last_time
+                    if elapsed > 0.5:
+                        speed = (downloaded - last_bytes) / elapsed
+                        speed_str = f"{speed / (1024*1024):.1f} MB/s" if speed > 1024*1024 else f"{speed / 1024:.0f} KB/s"
+                        _sd_active_downloads[model_id].update({
+                            "percent": round(downloaded / total * 100, 1) if total else 0,
+                            "downloaded": downloaded,
+                            "speed": speed_str,
+                        })
+                        last_time = now
+                        last_bytes = downloaded
+        _sd_active_downloads[model_id]["percent"] = 100
+        print(f"[SD] Model downloaded: {model['name']} -> {filepath}")
+    except Exception as e:
+        _sd_active_downloads[model_id]["error"] = str(e)
+        print(f"[SD] Download failed: {model['name']}: {e}")
+        if filepath.exists() and filepath.stat().st_size < 1000:
+            filepath.unlink()
+    finally:
+        time.sleep(30)
+        _sd_active_downloads.pop(model_id, None)
+
+
+@app.delete("/api/imagine/models/{model_id}")
+async def delete_sd_model(model_id: str):
+    """Delete an SD model."""
+    model = next((m for m in SD_MODEL_CATALOG if m["id"] == model_id), None)
+    if not model:
+        return JSONResponse({"error": "Modelo nao encontrado"}, 404)
+    filepath = SD_MODELS_DIR / model["filename"]
+    if filepath.exists():
+        filepath.unlink()
+        return {"status": "deleted"}
+    return {"status": "not_found"}
+
+
+@app.post("/api/imagine/enhance")
+async def imagine_enhance(request: Request):
+    """Use local LLM to enhance a simple prompt into an optimized SD prompt."""
+    body = await request.json()
+    user_prompt = (body.get("prompt", "") or "")[:2000]
+    style = body.get("style", "")
+
+    if not user_prompt.strip():
+        return JSONResponse({"error": "prompt is required"}, status_code=400)
+
+    model = get_model("chat", "")
+    if not model:
+        return JSONResponse({"error": "no_llm", "message": "Nenhum modelo LLM disponivel"}, status_code=503)
+
+    style_hint = f"\nThe user wants the style: {style}." if style else ""
+
+    system = f"""You are an expert Stable Diffusion prompt engineer.
+Given a simple image description (in any language), generate an optimized English prompt for Stable Diffusion image generation.{style_hint}
+
+Rules:
+- Output ONLY valid JSON, no markdown, no explanation.
+- Format: {{"prompt": "...", "negative": "..."}}
+- The "prompt" field: rich visual details, lighting, composition, style keywords. Under 150 words.
+- The "negative" field: things to avoid (deformed, blurry, bad anatomy, etc).
+- Always include quality boosters (masterpiece, best quality, highly detailed).
+- Preserve the user's original intent faithfully.
+- Do NOT add NSFW content."""
+
+    text = await _llm_complete(model, [
+        {"role": "system", "content": system},
+        {"role": "user", "content": user_prompt},
+    ], timeout=45.0)
+
+    # Try to parse JSON from response
+    try:
+        # Find JSON in response (LLM might wrap it in markdown)
+        import re
+        json_match = re.search(r'\{[^{}]*"prompt"[^{}]*\}', text, re.DOTALL)
+        if json_match:
+            result = json.loads(json_match.group())
+            return {
+                "enhanced_prompt": result.get("prompt", user_prompt),
+                "negative_prompt": result.get("negative", ""),
+            }
+    except (json.JSONDecodeError, AttributeError):
+        pass
+
+    # Fallback: return cleaned text as prompt
+    cleaned = text.strip().strip('"').strip('`')
+    if cleaned:
+        return {"enhanced_prompt": cleaned, "negative_prompt": ""}
+    return {"enhanced_prompt": user_prompt, "negative_prompt": ""}
 
 
 @app.post("/api/imagine/generate")
@@ -2887,10 +3461,13 @@ async def imagine_generate(request: Request):
     """Generate an image via sd-server and return it."""
     body = await request.json()
     prompt = body.get("prompt", "")
+    negative_prompt = body.get("negative_prompt", "")
+    original_prompt = body.get("original_prompt", "")
     steps = int(body.get("steps", 20))
     width = int(body.get("width", 512))
     height = int(body.get("height", 512))
     cfg_scale = float(body.get("cfg_scale", 7.0))
+    seed = body.get("seed", -1)
 
     if not prompt:
         return JSONResponse({"error": "prompt is required"}, status_code=400)
@@ -2907,25 +3484,50 @@ async def imagine_generate(request: Request):
             "height": height,
             "cfg_scale": cfg_scale,
         }
-        async with httpx.AsyncClient(timeout=120) as client:
+        if negative_prompt:
+            payload["negative_prompt"] = negative_prompt
+        if seed and seed >= 0:
+            payload["seed"] = int(seed)
+
+        async with httpx.AsyncClient(timeout=httpx.Timeout(600.0, connect=10.0)) as client:
             resp = await client.post(f"{SD_SERVER_URL}/v1/images/generations", json=payload)
             if resp.status_code != 200:
-                return JSONResponse({"error": f"sd-server error: {resp.status_code}"}, status_code=502)
+                body_text = resp.text[:300]
+                return JSONResponse({"error": f"sd-server error {resp.status_code}: {body_text}"}, status_code=502)
 
             # sd-server returns JSON with base64 image data
             data = resp.json()
             if "data" in data and len(data["data"]) > 0:
                 img_b64 = data["data"][0].get("b64_json", "")
+                if not img_b64:
+                    # Some sd-server versions use "url" or "b64" key
+                    img_b64 = data["data"][0].get("b64", "") or data["data"][0].get("base64", "")
                 if img_b64:
                     # Save to disk
                     import base64, time as _time
                     img_bytes = base64.b64decode(img_b64)
                     fname = f"img_{int(_time.time())}_{hash(prompt) & 0xFFFF:04x}.png"
                     fpath = GENERATED_IMAGES_DIR / fname
-                    fpath.write_bytes(img_bytes)
-                    return {"image": f"/api/imagine/view/{fname}", "filename": fname}
 
-            return JSONResponse({"error": "No image data in response"}, status_code=502)
+                    # Save metadata alongside image
+                    meta = {
+                        "prompt": prompt, "negative_prompt": negative_prompt,
+                        "original_prompt": original_prompt or prompt,
+                        "steps": steps, "width": width, "height": height,
+                        "cfg_scale": cfg_scale, "seed": seed,
+                    }
+                    meta_path = GENERATED_IMAGES_DIR / f"{fname}.json"
+                    meta_path.write_text(json.dumps(meta, ensure_ascii=False), encoding="utf-8")
+
+                    fpath.write_bytes(img_bytes)
+                    return {"image": f"/api/imagine/view/{fname}", "filename": fname, "meta": meta}
+
+            # Debug: log what we got
+            keys = list(data.get("data", [{}])[0].keys()) if data.get("data") else []
+            print(f"[SD] No b64 image in response. Keys: {keys}. Data keys: {list(data.keys())}")
+            return JSONResponse({"error": f"sd-server retornou resposta sem imagem (keys: {keys})"}, status_code=502)
+    except httpx.ReadTimeout:
+        return JSONResponse({"error": "Timeout — imagem demorou muito. Tente menos steps ou resolucao menor."}, status_code=504)
     except httpx.ConnectError:
         return JSONResponse({
             "error": "sd-server não está rodando. Inicie com: sd-server -m modelo.gguf --listen-port 7860"
@@ -2946,16 +3548,24 @@ async def imagine_view(filename: str):
 
 @app.get("/api/imagine/history")
 async def imagine_history():
-    """List previously generated images."""
+    """List previously generated images with metadata."""
     images = []
     if GENERATED_IMAGES_DIR.exists():
         for f in sorted(GENERATED_IMAGES_DIR.glob("*.png"), key=lambda x: x.stat().st_mtime, reverse=True):
-            images.append({
+            entry = {
                 "filename": f.name,
                 "url": f"/api/imagine/view/{f.name}",
                 "size_kb": f.stat().st_size // 1024,
-            })
-    return {"images": images[:50]}  # limit to 50
+            }
+            # Load metadata if available
+            meta_path = GENERATED_IMAGES_DIR / f"{f.name}.json"
+            if meta_path.exists():
+                try:
+                    entry["meta"] = json.loads(meta_path.read_text(encoding="utf-8"))
+                except Exception:
+                    pass
+            images.append(entry)
+    return {"images": images[:50]}
 
 
 # ─── Static (with no-cache for JS/CSS to avoid stale code) ──────────────────

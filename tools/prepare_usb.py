@@ -425,6 +425,202 @@ def main():
     print()
 
 
+# ─── Image Generation Models (Stable Diffusion) ─────────────────────────────
+
+SD_MODELS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "sd_models")
+
+SD_CATALOG = [
+    {
+        "id": "sd21-turbo",
+        "name": "SD 2.1 Turbo (Rapido)",
+        "filename": "sd-v2-1-turbo-q4_0.gguf",
+        "url": "https://huggingface.co/gpustack/stable-diffusion-v2-1-turbo-GGUF/resolve/main/stable-diffusion-v2-1-turbo-Q4_0.gguf",
+        "size_gb": 2.1,
+        "requires_gpu": False,
+        "gpu_vram_min": 0,
+        "tags": "turbo · 1-4 steps · CPU/GPU · RECOMENDADO",
+    },
+    {
+        "id": "sd15",
+        "name": "SD 1.5 (Classico)",
+        "filename": "sd-v1-5-pruned-emaonly-q4_0.gguf",
+        "url": "https://huggingface.co/second-state/stable-diffusion-v1-5-GGUF/resolve/main/stable-diffusion-v1-5-Q4_0.gguf",
+        "size_gb": 1.6,
+        "requires_gpu": False,
+        "gpu_vram_min": 0,
+        "tags": "classico · 10-20 steps · CPU/GPU · mais estilos",
+    },
+    {
+        "id": "sdxl-turbo",
+        "name": "SDXL Turbo (Alta Resolucao)",
+        "filename": "sdxl-turbo-q4_0.gguf",
+        "url": "https://huggingface.co/gpustack/stable-diffusion-xl-1.0-turbo-GGUF/resolve/main/stable-diffusion-xl-1.0-turbo-Q4_0.gguf",
+        "size_gb": 3.5,
+        "requires_gpu": True,
+        "gpu_vram_min": 6000,
+        "tags": "turbo · 1024px · GPU 6GB+ · melhor qualidade",
+    },
+]
+
+
+def get_sd_already_downloaded():
+    """Return set of SD model filenames already downloaded."""
+    if not os.path.isdir(SD_MODELS_DIR):
+        return set()
+    return {f for f in os.listdir(SD_MODELS_DIR) if f.endswith(".gguf")}
+
+
+def offer_sd_models():
+    """Offer to download Stable Diffusion models for image generation."""
+    print()
+    print("=" * 60)
+    print("  GERADOR DE IMAGENS — Modelos Stable Diffusion")
+    print("=" * 60)
+    print()
+    bin_name = "sd-server.exe" if sys.platform == "win32" else "sd-server"
+    print("  Modelos para gerar imagens offline com IA.")
+    print(f"  Requer {bin_name} (stable-diffusion.cpp) em tools/")
+    print("  Download: https://github.com/leejet/stable-diffusion.cpp/releases")
+    print()
+
+    has_gpu, vram = detect_gpu()
+    os.makedirs(SD_MODELS_DIR, exist_ok=True)
+    downloaded = get_sd_already_downloaded()
+    free_gb = get_free_space_gb(SD_MODELS_DIR)
+    fs_type = detect_filesystem(SD_MODELS_DIR)
+    is_fat32 = fs_type == "fat32"
+
+    if downloaded:
+        print(f"  [OK] Modelos SD ja baixados: {len(downloaded)}")
+        for fn in sorted(downloaded):
+            sz = os.path.getsize(os.path.join(SD_MODELS_DIR, fn)) / (1024 ** 3)
+            print(f"    - {fn} ({format_size(sz)})")
+        print()
+
+    available = []
+    for m in SD_CATALOG:
+        if m["filename"] in downloaded:
+            continue
+        if m["size_gb"] > free_gb - 0.5:
+            continue
+        if is_fat32 and m["size_gb"] > FAT32_MAX_FILE_GB:
+            continue
+        available.append(m)
+
+    if not available and downloaded:
+        print("  Todos os modelos ja estao instalados ou nao cabem.")
+        return
+    if not available:
+        print("  Espaco insuficiente para modelos de imagem.")
+        return
+
+    print("  Modelos disponiveis:")
+    print()
+    for i, m in enumerate(available, 1):
+        gpu_warn = " [!GPU necessaria]" if m["requires_gpu"] and not has_gpu else ""
+        rec = " ★" if m["id"] == "sd21-turbo" else ""
+        print(f"   [{i}] {m['name']}{rec}")
+        print(f"       {format_size(m['size_gb'])} · {m['tags']}{gpu_warn}")
+        print()
+
+    if has_gpu and vram >= 6000:
+        print("  GPU detectada! Modelos GPU terao melhor desempenho.")
+    print()
+
+    print("  Opcoes:")
+    print("    [R] Baixar SD 2.1 Turbo (recomendado, 1.3 GB)")
+    if has_gpu and vram >= 6000:
+        print("    [G] Baixar SDXL Turbo (GPU, melhor qualidade, 3.5 GB)")
+    print(f"    [T] Baixar todos que cabem ({len(available)} modelos)")
+    print("    [E] Escolher manualmente")
+    print("    [P] Pular")
+    print()
+
+    choice = input("  Escolha [R/G/T/E/P]: ").strip().upper()
+
+    selected = []
+    if choice == "R":
+        selected = [m for m in available if m["id"] == "sd21-turbo"]
+        if not selected:
+            selected = available[:1]  # fallback to first available
+    elif choice == "G":
+        selected = [m for m in available if m["id"] == "sdxl-turbo"]
+        if not selected:
+            print("  SDXL Turbo nao disponivel (espaco ou GPU insuficiente).")
+            return
+    elif choice == "T":
+        selected = list(available)
+    elif choice == "E":
+        nums = input("  Numeros separados por virgula (ex: 1,2): ").strip()
+        try:
+            indices = [int(n.strip()) - 1 for n in nums.split(",") if n.strip()]
+            selected = [available[i] for i in indices if 0 <= i < len(available)]
+        except (ValueError, IndexError):
+            print("  Entrada invalida.")
+            return
+    elif choice == "P":
+        print("  [OK] Modelos de imagem pulados.")
+        return
+    else:
+        print("  Opcao invalida.")
+        return
+
+    if not selected:
+        print("  Nenhum modelo selecionado.")
+        return
+
+    total_size = sum(m["size_gb"] for m in selected)
+    print(f"\n  Baixando {len(selected)} modelo(s) SD — {format_size(total_size)} total")
+    print("-" * 60)
+
+    ok = 0
+    for m in selected:
+        m_copy = dict(m)
+        # Reuse existing download_model but with sd_models dir
+        filepath = os.path.join(SD_MODELS_DIR, m["filename"])
+        if os.path.exists(filepath):
+            existing_size = os.path.getsize(filepath) / (1024 ** 3)
+            if existing_size > m["size_gb"] * 0.9:
+                print(f"  [OK] {m['name']} ja existe")
+                ok += 1
+                continue
+
+        print(f"  [..] Baixando {m['name']} ({format_size(m['size_gb'])})...")
+        try:
+            req = urllib.request.Request(m["url"], headers={"User-Agent": "BunkerAI/4.0"})
+            with urllib.request.urlopen(req, timeout=3600) as resp:
+                total = int(resp.headers.get("Content-Length", 0))
+                dl = 0
+                chunk_size = 1024 * 512
+                last_pct = -1
+                with open(filepath, "wb") as f:
+                    while True:
+                        chunk = resp.read(chunk_size)
+                        if not chunk:
+                            break
+                        f.write(chunk)
+                        dl += len(chunk)
+                        if total > 0:
+                            pct = int(dl * 100 / total)
+                            if pct != last_pct and pct % 5 == 0:
+                                bar = "#" * (pct // 5) + "-" * (20 - pct // 5)
+                                print(f"\r  [{bar}] {pct}%", end="", flush=True)
+                                last_pct = pct
+            print(f"\r  [OK] {m['name']} baixado!                    ")
+            ok += 1
+        except Exception as e:
+            print(f"\r  [ERRO] {m['name']}: {e}")
+            if os.path.exists(filepath):
+                os.unlink(filepath)
+
+    print(f"\n  {ok}/{len(selected)} modelos SD prontos!")
+    all_sd = get_sd_already_downloaded()
+    if all_sd:
+        total_sz = sum(os.path.getsize(os.path.join(SD_MODELS_DIR, f)) / (1024**3) for f in all_sd)
+        print(f"  Total em sd_models/: {len(all_sd)} ({format_size(total_sz)})")
+    print()
+
+
 # ─── Games / ROMs section ────────────────────────────────────────────────────
 
 GAMES_BASE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static", "games")
@@ -714,8 +910,9 @@ def offer_maps_download():
 
 
 def main_with_games():
-    """Extended main that also offers games and maps after models."""
+    """Extended main that also offers games, images, and maps after models."""
     main()
+    offer_sd_models()
     offer_games_download()
     offer_emulator_download()
     offer_maps_download()

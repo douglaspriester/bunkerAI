@@ -2617,6 +2617,22 @@ body::after {
   box-shadow: 0 0 12px var(--accent-glow);
 }
 
+/* ─── Imagine Style Buttons ─── */
+.imagine-style {
+  font-size: 11px;
+  padding: 3px 8px;
+  transition: all 0.15s;
+}
+.imagine-style.active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+.imagine-style:hover:not(.active) {
+  border-color: var(--border-bright);
+}
+
 /* ═══════════════════════════════════════════════════════════════
    PHASE 4 — Supply edit button + Journal navigation
    ═══════════════════════════════════════════════════════════════ */

@@ -5604,81 +5604,627 @@ function paintFloodFill(ctx, startX, startY, fillColor) {
 // IMAGE GENERATOR (stable-diffusion.cpp via sd-server)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-let _imagineHistory = [];
+// ─── Imagine — Intelligent Image Generator ──────────────────────────────────
+
+let _imagineStyle = "";
+let _imagineLastUrl = "";
+let _imagineLastPrompt = "";
+let _imagineLastNeg = "";
+let _imagineBusy = false;
+let _imagineAbort = null; // AbortController for cancelling generation
 
 function imagineInit() {
-  // Check if sd-server is available
   fetch("/api/imagine/status").then(r => r.json()).then(d => {
-    const st = document.getElementById("imagineStatus");
-    if (st) {
-      st.textContent = d.available ? "sd-server conectado" : "sd-server offline";
-      st.style.color = d.available ? "var(--green)" : "var(--text-muted)";
+    if (d.available) {
+      _imagineShowMode("generate");
+    } else {
+      _imagineShowMode("setup");
+      // Auto-install binary if missing
+      if (d.need_binary) {
+        const step1 = document.getElementById("imagineStep1");
+        if (step1) step1.style.display = "block";
+        // Auto-start download immediately
+        _imagineAutoInstallBinary();
+      }
+      const step2Title = document.getElementById("imagineStep2Title");
+      if (d.need_binary && step2Title) {
+        step2Title.textContent = "Passo 2 — Modelo de imagem";
+      }
+      imagineLoadModels();
     }
-  }).catch(() => {});
-  // Load history
+  }).catch(() => {
+    _imagineShowMode("setup");
+    imagineLoadModels();
+  });
   imagineLoadHistory();
 }
 
-async function imagineGenerate() {
+function _imagineAutoInstallBinary() {
+  // Check if auto-download is available, then start it silently
+  fetch("/api/imagine/binary/status").then(r => r.json()).then(d => {
+    if (d.has_binary) {
+      // Already installed — hide step 1
+      const step1 = document.getElementById("imagineStep1");
+      if (step1) step1.style.display = "none";
+      return;
+    }
+    if (!d.download_available) {
+      // Can't auto-download for this platform — show manual instructions
+      const content = document.getElementById("imagineStep1Content");
+      if (content) content.innerHTML = `<div style="font-size:11px;color:var(--text-muted);">
+        Baixe <b>sd-server</b> manualmente para ${d.platform}/${d.arch}:<br>
+        <a href="${d.releases_url}" target="_blank" style="color:var(--accent);">GitHub Releases</a>
+        &nbsp;→ coloque em <code>tools/</code>
+      </div>`;
+      return;
+    }
+    // Auto-download
+    const content = document.getElementById("imagineStep1Content");
+    if (content) content.innerHTML = `<div style="font-size:11px;color:var(--accent);">Instalando sd-server automaticamente...</div>
+      <div style="margin-top:6px;">
+        <div style="height:5px;background:var(--border);border-radius:3px;overflow:hidden;">
+          <div id="imagineBinaryFill" style="height:100%;width:0%;background:var(--accent);transition:width 0.3s;"></div>
+        </div>
+        <div id="imagineBinaryPct" style="font-size:10px;color:var(--text-muted);margin-top:2px;">Baixando...</div>
+      </div>`;
+
+    fetch("/api/imagine/binary/download", { method: "POST" }).then(r => r.json()).then(() => {
+      if (_imagineBinaryPoll) clearInterval(_imagineBinaryPoll);
+      _imagineBinaryPoll = setInterval(() => {
+        fetch("/api/imagine/binary/progress").then(r => r.json()).then(p => {
+          const fill = document.getElementById("imagineBinaryFill");
+          const pct = document.getElementById("imagineBinaryPct");
+          if (fill) fill.style.width = `${p.percent || 0}%`;
+          if (pct) pct.textContent = p.status === "extracting" ? "Extraindo..." : `${Math.round(p.percent || 0)}%`;
+          if (p.status === "complete" || p.percent >= 100) {
+            clearInterval(_imagineBinaryPoll);
+            _imagineBinaryPoll = null;
+            const step1 = document.getElementById("imagineStep1");
+            if (step1) step1.style.display = "none";
+            // Re-check: maybe model is also ready → go to generate mode
+            setTimeout(() => imagineInit(), 1500);
+          }
+          if (p.error || p.status === "error") {
+            clearInterval(_imagineBinaryPoll);
+            _imagineBinaryPoll = null;
+            if (pct) pct.textContent = "Erro. Baixe manualmente.";
+          }
+        });
+      }, 1000);
+    });
+  }).catch(() => {});
+}
+
+function _imagineShowMode(mode) {
+  const setup = document.getElementById("imagineSetup");
+  const gen = document.getElementById("imagineGenerator");
+  if (mode === "generate") {
+    if (setup) setup.style.display = "none";
+    if (gen) gen.style.display = "flex";
+  } else {
+    if (setup) setup.style.display = "flex";
+    if (gen) gen.style.display = "none";
+  }
+}
+
+function imagineLoadModels() {
+  fetch("/api/imagine/models").then(r => r.json()).then(d => {
+    const el = document.getElementById("imagineModelList");
+    if (!el) return;
+    const hasGpu = d.has_gpu;
+
+    el.innerHTML = d.models.map(m => {
+      if (m.downloaded) {
+        return `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(0,200,100,0.06);border:1px solid rgba(0,200,100,0.3);border-radius:var(--radius);">
+          <div style="font-size:18px;">✅</div>
+          <div style="flex:1;">
+            <div style="font-size:12px;font-weight:600;color:var(--green);">${m.name}</div>
+            <div style="font-size:10px;color:var(--text-muted);">${m.size_gb} GB · Pronto para usar</div>
+          </div>
+          <button class="btn-sm" onclick="imagineDeleteModel('${m.id}')" style="font-size:10px;padding:2px 6px;opacity:0.5;">✕</button>
+        </div>`;
+      }
+      if (m.downloading) {
+        return `<div style="padding:8px 10px;background:var(--accent-dim);border:1px solid var(--accent);border-radius:var(--radius);">
+          <div style="font-size:12px;color:var(--accent);font-weight:500;">Baixando ${m.name}...</div>
+        </div>`;
+      }
+      const gpuTag = m.requires_gpu && !hasGpu ? '<span style="color:var(--warning);font-size:9px;border:1px solid var(--warning);padding:0 4px;border-radius:3px;margin-left:4px;">GPU</span>' : '';
+      const recTag = m.recommended ? '<span style="color:var(--green);font-size:9px;border:1px solid var(--green);padding:0 4px;border-radius:3px;margin-left:4px;">RECOMENDADO</span>' : '';
+      return `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);">
+        <div style="font-size:18px;opacity:0.4;">🖼</div>
+        <div style="flex:1;">
+          <div style="font-size:12px;font-weight:500;">${m.name}${recTag}${gpuTag}</div>
+          <div style="font-size:10px;color:var(--text-muted);">${m.size_gb} GB · ${m.desc || ''}</div>
+        </div>
+        <button class="btn-sm btn-accent" onclick="imagineDownloadModel('${m.id}')" style="font-size:11px;padding:4px 12px;">Baixar</button>
+      </div>`;
+    }).join("");
+  }).catch(() => {});
+}
+
+let _imagineDownloadPoll = null;
+
+function imagineDownloadModel(modelId) {
+  fetch("/api/imagine/models/download", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model_id: modelId }),
+  }).then(r => r.json()).then(d => {
+    if (d.status === "already_downloaded") {
+      imagineLoadModels();
+      return;
+    }
+    // Show progress
+    const ds = document.getElementById("imagineDownloadStatus");
+    if (ds) ds.style.display = "block";
+    // Poll progress
+    if (_imagineDownloadPoll) clearInterval(_imagineDownloadPoll);
+    _imagineDownloadPoll = setInterval(() => {
+      fetch(`/api/imagine/models/progress/${modelId}`).then(r => r.json()).then(p => {
+        const fill = document.getElementById("imagineDownloadFill");
+        const pct = document.getElementById("imagineDownloadPct");
+        const spd = document.getElementById("imagineDownloadSpeed");
+        if (fill) fill.style.width = `${p.percent || 0}%`;
+        if (pct) pct.textContent = `${Math.round(p.percent || 0)}%`;
+        if (spd) spd.textContent = p.speed || "";
+        if (p.status === "complete" || p.percent >= 100) {
+          clearInterval(_imagineDownloadPoll);
+          _imagineDownloadPoll = null;
+          if (ds) ds.style.display = "none";
+          imagineLoadModels();
+          // Re-check status (might auto-start sd-server)
+          setTimeout(() => imagineInit(), 2000);
+        }
+        if (p.error) {
+          clearInterval(_imagineDownloadPoll);
+          _imagineDownloadPoll = null;
+          if (ds) ds.style.display = "none";
+          alert("Erro no download: " + p.error);
+        }
+      });
+    }, 1000);
+  });
+}
+
+function imagineDeleteModel(modelId) {
+  if (!confirm("Remover este modelo de imagem?")) return;
+  fetch(`/api/imagine/models/${modelId}`, { method: "DELETE" }).then(() => imagineLoadModels());
+}
+
+function imagineCheckBinary() {
+  fetch("/api/imagine/binary/status").then(r => r.json()).then(d => {
+    const nb = document.getElementById("imagineNoBinary");
+    if (d.has_binary) {
+      if (nb) nb.style.display = "none";
+      return;
+    }
+    if (nb) nb.style.display = "block";
+    const autoEl = document.getElementById("imagineNoBinaryAuto");
+    const manualEl = document.getElementById("imagineNoBinaryManual");
+    if (d.download_available) {
+      if (autoEl) autoEl.style.display = "block";
+      if (manualEl) manualEl.innerHTML = `Ou baixe manualmente: <a href="${d.releases_url}" target="_blank" style="color:var(--accent);">GitHub Releases</a> (${d.platform}/${d.arch})`;
+    }
+  }).catch(() => {});
+}
+
+let _imagineBinaryPoll = null;
+
+function imagineDownloadBinary() {
+  const btn = document.getElementById("imagineBtnDlBinary");
+  if (btn) { btn.disabled = true; btn.textContent = "Baixando..."; }
+  const prog = document.getElementById("imagineBinaryProgress");
+  if (prog) prog.style.display = "block";
+
+  fetch("/api/imagine/binary/download", { method: "POST" }).then(r => r.json()).then(d => {
+    if (d.status === "started" || d.status === "already_downloading") {
+      if (_imagineBinaryPoll) clearInterval(_imagineBinaryPoll);
+      _imagineBinaryPoll = setInterval(() => {
+        fetch("/api/imagine/binary/progress").then(r => r.json()).then(p => {
+          const fill = document.getElementById("imagineBinaryFill");
+          const pct = document.getElementById("imagineBinaryPct");
+          if (fill) fill.style.width = `${p.percent || 0}%`;
+          if (pct) pct.textContent = `${p.status === "extracting" ? "Extraindo..." : Math.round(p.percent || 0) + "%"}`;
+          if (p.status === "complete" || p.percent >= 100) {
+            clearInterval(_imagineBinaryPoll);
+            _imagineBinaryPoll = null;
+            const nb = document.getElementById("imagineNoBinary");
+            if (nb) nb.style.display = "none";
+            // Re-init to check everything
+            setTimeout(() => imagineInit(), 1000);
+          }
+          if (p.error || p.status === "error") {
+            clearInterval(_imagineBinaryPoll);
+            _imagineBinaryPoll = null;
+            if (btn) { btn.disabled = false; btn.textContent = "Tentar novamente"; }
+            if (pct) pct.textContent = "Erro: " + (p.error || "falha");
+          }
+        });
+      }, 1000);
+    }
+  }).catch(() => {
+    if (btn) { btn.disabled = false; btn.textContent = "Tentar novamente"; }
+  });
+}
+
+function imagineCancel() {
+  if (_imagineAbort) {
+    _imagineAbort.abort();
+    _imagineAbort = null;
+  }
+  _imagineStopProgress();
+  _imagineSetBusy(false);
+  const result = document.getElementById("imagineResult");
+  if (result) result.innerHTML = `<div style="text-align:center;color:var(--text-muted);font-size:12px;">Geração cancelada</div>`;
+}
+
+window.imagineCancel = imagineCancel;
+window.imagineLoadModels = imagineLoadModels;
+window.imagineDownloadModel = imagineDownloadModel;
+window.imagineDeleteModel = imagineDeleteModel;
+window.imagineDownloadBinary = imagineDownloadBinary;
+window.imagineCheckBinary = imagineCheckBinary;
+
+function imagineSetStyle(btn) {
+  document.querySelectorAll(".imagine-style").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  _imagineStyle = btn.dataset.style || "";
+}
+
+function _imagineGetSize() {
+  const v = document.getElementById("imagineSize")?.value || "512x512";
+  const [w, h] = v.split("x").map(Number);
+  return { width: w || 512, height: h || 512 };
+}
+
+function _imagineSetBusy(busy, msg) {
+  _imagineBusy = busy;
+  const btn = document.getElementById("imagineBtnGenerate");
+  const btnE = document.getElementById("imagineBtnEnhance");
+  const btnCancel = document.getElementById("imagineBtnCancel");
+  if (btn) { btn.disabled = busy; btn.style.display = busy ? "none" : ""; }
+  if (btnE) { btnE.disabled = busy; }
+  if (btnCancel) btnCancel.style.display = busy ? "" : "none";
+  if (!busy) _imagineAbort = null;
+  if (msg) {
+    const st = document.getElementById("imagineStatus");
+    if (st) { st.textContent = msg; st.style.color = "var(--accent)"; }
+  }
+}
+
+function _imagineShowResult(url, prompt) {
+  _imagineStopProgress();
+  const result = document.getElementById("imagineResult");
+  if (!result) return;
+  _imagineLastUrl = url;
+  result.innerHTML = `<img src="${url}" alt="Generated" style="max-width:100%;max-height:100%;object-fit:contain;cursor:pointer;" onclick="window.open('${url}','_blank')">`;
+  const actions = document.getElementById("imagineActions");
+  if (actions) actions.style.display = "flex";
+  const st = document.getElementById("imagineStatus");
+  if (st) { st.textContent = "● Pronto!"; st.style.color = "var(--green)"; }
+}
+
+function _imagineShowError(msg) {
+  _imagineStopProgress();
+  const result = document.getElementById("imagineResult");
+  if (result) result.innerHTML = `<div style="text-align:center;color:var(--danger);font-size:13px;padding:20px;">
+    <div style="font-size:24px;margin-bottom:8px;">⚠</div>${msg}
+  </div>`;
+  const st = document.getElementById("imagineStatus");
+  if (st) { st.textContent = "Erro"; st.style.color = "var(--danger)"; }
+}
+
+let _imagineProgressInterval = null;
+let _imagineProgressStart = 0;
+
+function _imagineShowLoading(msg, totalSteps) {
+  const result = document.getElementById("imagineResult");
+  if (!result) return;
+
+  const steps = totalSteps || parseInt(document.getElementById("imagineSteps")?.value || "4");
+  // Estimate: ~2s/step on GPU, ~8s/step on CPU for SD 2.1 Turbo
+  const estSecsPerStep = steps <= 4 ? 3 : 5;
+  const estTotal = steps * estSecsPerStep;
+
+  result.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:20px;width:80%;max-width:300px;">
+    <div style="font-size:28px;animation:media-pulse 1.5s infinite;">🎨</div>
+    <div style="font-size:13px;color:var(--text);font-weight:500;" id="imagineLoadMsg">${msg}</div>
+    <div style="width:100%;height:6px;background:var(--border);border-radius:3px;overflow:hidden;">
+      <div id="imagineGenBar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--accent),#a855f7);border-radius:3px;transition:width 0.5s ease;"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;width:100%;font-size:10px;color:var(--text-muted);">
+      <span id="imagineGenStep">Preparando...</span>
+      <span id="imagineGenTime">~${estTotal}s</span>
+    </div>
+  </div>`;
+
+  _imagineProgressStart = Date.now();
+  if (_imagineProgressInterval) clearInterval(_imagineProgressInterval);
+
+  let phase = 0; // 0=preparing, 1=generating, 2=finalizing
+  const phases = [
+    { at: 0, pct: 5, label: "Carregando modelo..." },
+    { at: 0.05, pct: 10, label: `Gerando (${steps} steps)...` },
+    { at: 0.95, pct: 95, label: "Finalizando imagem..." },
+  ];
+
+  _imagineProgressInterval = setInterval(() => {
+    const elapsed = (Date.now() - _imagineProgressStart) / 1000;
+    const progress = Math.min(elapsed / estTotal, 0.98);
+    const pct = Math.round(progress * 100);
+
+    const bar = document.getElementById("imagineGenBar");
+    const stepEl = document.getElementById("imagineGenStep");
+    const timeEl = document.getElementById("imagineGenTime");
+
+    if (bar) bar.style.width = `${pct}%`;
+
+    // Update phase label
+    if (progress < 0.05) {
+      if (stepEl) stepEl.textContent = "Carregando modelo...";
+    } else if (progress < 0.95) {
+      const currentStep = Math.min(Math.floor(progress * steps / 0.9), steps);
+      if (stepEl) stepEl.textContent = `Step ${currentStep}/${steps}`;
+    } else {
+      if (stepEl) stepEl.textContent = "Decodificando VAE...";
+    }
+
+    const remaining = Math.max(0, Math.round(estTotal - elapsed));
+    if (timeEl) timeEl.textContent = remaining > 0 ? `~${remaining}s` : "quase...";
+  }, 500);
+}
+
+function _imagineShowSimpleLoading(icon, msg) {
+  _imagineStopProgress();
+  const result = document.getElementById("imagineResult");
+  if (result) result.innerHTML = `<div style="text-align:center;color:var(--accent);">
+    <div style="font-size:28px;animation:media-pulse 1.5s infinite;">${icon}</div>
+    <div style="font-size:12px;margin-top:8px;">${msg}</div>
+  </div>`;
+}
+
+function _imagineStopProgress() {
+  if (_imagineProgressInterval) {
+    clearInterval(_imagineProgressInterval);
+    _imagineProgressInterval = null;
+  }
+  // Flash to 100%
+  const bar = document.getElementById("imagineGenBar");
+  if (bar) bar.style.width = "100%";
+}
+
+async function _imagineCallEnhance(prompt, style) {
+  const resp = await fetch("/api/imagine/enhance", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt, style }),
+  });
+  return resp.json();
+}
+
+async function _imagineCallGenerate(prompt, negPrompt, originalPrompt) {
+  const { width, height } = _imagineGetSize();
+  const steps = parseInt(document.getElementById("imagineSteps")?.value || "20");
+  const cfg = parseFloat(document.getElementById("imagineCfg")?.value || "7");
+  const seed = parseInt(document.getElementById("imagineSeed")?.value || "-1");
+
+  _imagineAbort = new AbortController();
+  const resp = await fetch("/api/imagine/generate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      prompt, negative_prompt: negPrompt, original_prompt: originalPrompt,
+      steps, width, height, cfg_scale: cfg, seed,
+    }),
+    signal: _imagineAbort.signal,
+  });
+  return resp.json();
+}
+
+/** Main flow: enhance prompt with LLM, then generate image */
+async function imagineEnhanceAndGenerate() {
+  if (_imagineBusy) return;
   const prompt = document.getElementById("imaginePrompt")?.value?.trim();
   if (!prompt) return;
 
-  const steps = parseInt(document.getElementById("imagineSteps")?.value || "20");
-  const size = parseInt(document.getElementById("imagineSize")?.value || "512");
-  const status = document.getElementById("imagineStatus");
-  const result = document.getElementById("imagineResult");
-
-  if (status) { status.textContent = "Gerando..."; status.style.color = "var(--accent)"; }
-  if (result) result.innerHTML = `<div style="text-align:center;color:var(--accent);">
-    <div style="font-size:32px;animation:media-pulse 1.5s infinite;">🎨</div>
-    <div style="font-size:12px;margin-top:8px;">Gerando imagem... (${steps} steps)</div>
-  </div>`;
+  _imagineSetBusy(true, "🧠 Melhorando prompt...");
+  _imagineShowSimpleLoading("🧠", "Melhorando prompt com IA...");
 
   try {
-    const resp = await fetch("/api/imagine/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt, steps, width: size, height: size }),
-    });
-    const data = await resp.json();
-    if (data.error) {
-      if (result) result.innerHTML = `<div style="text-align:center;color:var(--danger);font-size:13px;padding:20px;">
-        <div style="font-size:24px;margin-bottom:8px;">⚠</div>${data.error}
-      </div>`;
-      if (status) { status.textContent = "Erro"; status.style.color = "var(--danger)"; }
-      return;
+    const enhanced = await _imagineCallEnhance(prompt, _imagineStyle);
+    if (enhanced.error === "no_llm") {
+      // No LLM available — generate directly with style keywords
+      return imagineGenerateDirect();
     }
+    if (enhanced.error) { _imagineShowError(enhanced.error || enhanced.message); _imagineSetBusy(false); return; }
+
+    const ep = enhanced.enhanced_prompt || prompt;
+    const neg = enhanced.negative_prompt || "";
+    _imagineLastPrompt = ep;
+    _imagineLastNeg = neg;
+
+    // Show enhanced prompt
+    const epEl = document.getElementById("imagineEnhancedPrompt");
+    const negEl = document.getElementById("imagineNegPrompt");
+    const container = document.getElementById("imagineEnhanced");
+    if (epEl) epEl.value = ep;
+    if (negEl) negEl.value = neg;
+    if (container) container.style.display = "flex";
+
+    // Now generate
+    _imagineSetBusy(true, "🎨 Gerando imagem...");
+    _imagineShowLoading("Gerando imagem...");
+
+    const data = await _imagineCallGenerate(ep, neg, prompt);
+    if (data.error) { _imagineShowError(data.error); _imagineSetBusy(false); return; }
     if (data.image) {
-      if (result) result.innerHTML = `<img src="${data.image}" alt="${prompt}" style="max-width:100%;max-height:100%;object-fit:contain;cursor:pointer;" onclick="window.open('${data.image}','_blank')">`;
-      if (status) { status.textContent = "Pronto!"; status.style.color = "var(--green)"; }
+      _imagineShowResult(data.image, ep);
       imagineLoadHistory();
     }
   } catch (e) {
-    if (result) result.innerHTML = `<div style="text-align:center;color:var(--danger);font-size:13px;padding:20px;">
-      <div style="font-size:24px;margin-bottom:8px;">⚠</div>
-      sd-server não está rodando.<br>
-      <code style="font-size:11px;">sd-server -m modelo.gguf --listen-port 7860</code>
-    </div>`;
-    if (status) { status.textContent = "Offline"; status.style.color = "var(--danger)"; }
+    if (e.name === "AbortError") return;
+    _imagineShowError("sd-server offline ou erro de conexao.");
   }
+  _imagineSetBusy(false);
+}
+
+/** Generate without LLM enhancement — just add style keywords */
+async function imagineGenerateDirect() {
+  if (_imagineBusy) return;
+  const prompt = document.getElementById("imaginePrompt")?.value?.trim();
+  if (!prompt) return;
+
+  // Append style keywords if a preset is selected
+  const styleMap = {
+    "photorealistic": "photorealistic, 8k uhd, highly detailed, natural lighting, masterpiece",
+    "anime": "anime style, vibrant colors, cel shading, masterpiece, best quality",
+    "pixel art": "pixel art, 16-bit, retro game style, clean pixels",
+    "oil painting": "oil painting on canvas, classical art, textured brushstrokes, masterpiece",
+    "watercolor": "watercolor painting, soft edges, pastel colors, delicate, artistic",
+    "concept art": "concept art, digital painting, artstation trending, highly detailed",
+    "photography": "professional photography, DSLR, bokeh, f/1.8, sharp focus, 8k",
+    "sci-fi": "sci-fi, futuristic, neon lighting, cyberpunk, detailed, 8k",
+  };
+
+  let fullPrompt = prompt;
+  if (_imagineStyle && styleMap[_imagineStyle]) {
+    fullPrompt = `${prompt}, ${styleMap[_imagineStyle]}`;
+  }
+
+  _imagineLastPrompt = fullPrompt;
+  _imagineLastNeg = "";
+  _imagineSetBusy(true, "🎨 Gerando imagem...");
+  _imagineShowLoading("Gerando imagem...");
+
+  try {
+    const data = await _imagineCallGenerate(fullPrompt, "", prompt);
+    if (data.error) { _imagineShowError(data.error); _imagineSetBusy(false); return; }
+    if (data.image) {
+      _imagineShowResult(data.image, fullPrompt);
+      imagineLoadHistory();
+    }
+  } catch (e) {
+    if (e.name === "AbortError") return;
+    _imagineShowError("sd-server offline ou erro de conexao.");
+  }
+  _imagineSetBusy(false);
+}
+
+/** Only enhance prompt (preview), don't generate yet */
+async function imagineEnhanceOnly() {
+  if (_imagineBusy) return;
+  const prompt = document.getElementById("imaginePrompt")?.value?.trim();
+  if (!prompt) return;
+
+  _imagineSetBusy(true, "🧠 Melhorando prompt...");
+
+  try {
+    const enhanced = await _imagineCallEnhance(prompt, _imagineStyle);
+    if (enhanced.error) {
+      const st = document.getElementById("imagineStatus");
+      if (st) { st.textContent = enhanced.message || enhanced.error; st.style.color = "var(--danger)"; }
+      _imagineSetBusy(false);
+      return;
+    }
+
+    const ep = enhanced.enhanced_prompt || prompt;
+    const neg = enhanced.negative_prompt || "";
+    _imagineLastPrompt = ep;
+    _imagineLastNeg = neg;
+
+    const epEl = document.getElementById("imagineEnhancedPrompt");
+    const negEl = document.getElementById("imagineNegPrompt");
+    const container = document.getElementById("imagineEnhanced");
+    if (epEl) epEl.value = ep;
+    if (negEl) negEl.value = neg;
+    if (container) container.style.display = "flex";
+
+    const st = document.getElementById("imagineStatus");
+    if (st) { st.textContent = "Prompt melhorado!"; st.style.color = "var(--green)"; }
+  } catch (e) {
+    const st = document.getElementById("imagineStatus");
+    if (st) { st.textContent = "Erro ao melhorar prompt"; st.style.color = "var(--danger)"; }
+  }
+  _imagineSetBusy(false);
+}
+
+function imagineToggleNeg() {
+  const el = document.getElementById("imagineNegPrompt");
+  if (el) el.style.display = el.style.display === "none" ? "block" : "none";
+}
+
+function imagineSaveImage() {
+  if (_imagineLastUrl) window.open(_imagineLastUrl, "_blank");
+}
+
+function imagineCopyPrompt() {
+  const ep = document.getElementById("imagineEnhancedPrompt")?.value || _imagineLastPrompt;
+  if (ep) {
+    navigator.clipboard.writeText(ep).then(() => {
+      const st = document.getElementById("imagineStatus");
+      if (st) { st.textContent = "Prompt copiado!"; st.style.color = "var(--green)"; }
+    });
+  }
+}
+
+function imagineVariation() {
+  // Re-generate with same prompt but random seed
+  document.getElementById("imagineSeed").value = "-1";
+  const ep = document.getElementById("imagineEnhancedPrompt")?.value || _imagineLastPrompt;
+  const neg = document.getElementById("imagineNegPrompt")?.value || _imagineLastNeg;
+  if (!ep) return;
+
+  _imagineSetBusy(true, "🎨 Gerando variação...");
+  _imagineShowLoading("Gerando variação...");
+
+  _imagineCallGenerate(ep, neg, document.getElementById("imaginePrompt")?.value || "").then(data => {
+    if (data.error) { _imagineShowError(data.error); }
+    else if (data.image) { _imagineShowResult(data.image, ep); imagineLoadHistory(); }
+    _imagineSetBusy(false);
+  }).catch(() => {
+    _imagineShowError("sd-server offline");
+    _imagineSetBusy(false);
+  });
+}
+
+function imagineRandom() {
+  document.getElementById("imagineSeed").value = "-1";
+  imagineEnhanceAndGenerate();
 }
 
 function imagineLoadHistory() {
   fetch("/api/imagine/history").then(r => r.json()).then(d => {
     const el = document.getElementById("imagineHistory");
     if (!el) return;
-    if (!d.images || d.images.length === 0) {
-      el.innerHTML = "";
-      return;
-    }
-    el.innerHTML = d.images.slice(0, 20).map(img =>
-      `<img src="${img.url}" alt="${img.filename}" style="width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:pointer;flex-shrink:0;" onclick="document.getElementById('imagineResult').innerHTML='<img src=\\'${img.url}\\' style=\\'max-width:100%;max-height:100%;object-fit:contain;\\'>'">`
-    ).join("");
+    if (!d.images || d.images.length === 0) { el.innerHTML = ""; return; }
+    el.innerHTML = d.images.slice(0, 24).map(img => {
+      const title = img.meta?.original_prompt || img.filename;
+      const safeTitle = title.replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+      return `<img src="${img.url}" alt="${safeTitle}" title="${safeTitle}" style="width:50px;height:50px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:pointer;flex-shrink:0;transition:border-color 0.15s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'" onclick="imagineShowHistoryItem('${img.url}','${safeTitle}')">`;
+    }).join("");
   }).catch(() => {});
 }
 
+function imagineShowHistoryItem(url, title) {
+  _imagineLastUrl = url;
+  const result = document.getElementById("imagineResult");
+  if (result) result.innerHTML = `<img src="${url}" alt="${title}" style="max-width:100%;max-height:100%;object-fit:contain;cursor:pointer;" onclick="window.open('${url}','_blank')">`;
+  const actions = document.getElementById("imagineActions");
+  if (actions) actions.style.display = "flex";
+}
+
 window.imagineInit = imagineInit;
-window.imagineGenerate = imagineGenerate;
+window.imagineEnhanceAndGenerate = imagineEnhanceAndGenerate;
+window.imagineGenerateDirect = imagineGenerateDirect;
+window.imagineEnhanceOnly = imagineEnhanceOnly;
+window.imagineSetStyle = imagineSetStyle;
+window.imagineToggleNeg = imagineToggleNeg;
+window.imagineSaveImage = imagineSaveImage;
+window.imagineCopyPrompt = imagineCopyPrompt;
+window.imagineVariation = imagineVariation;
+window.imagineRandom = imagineRandom;
+window.imagineShowHistoryItem = imagineShowHistoryItem;
 
 // ─── Expose mutable state to window for main.js close callbacks ─────────────
 // These use defineProperty so main.js always reads the current value.
