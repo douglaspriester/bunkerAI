@@ -200,6 +200,7 @@ function wireAppCallbacks() {
     companion:  () => initCompanion(),
     weather:    () => window.weatherInit?.(),
     pendrive:   () => window.pendriveInit?.(),
+    firstaid:   () => window.firstaidInit?.(),
   };
   Object.entries(openMap).forEach(([appId, fn]) => registerAppOpen(appId, fn));
 
@@ -235,6 +236,9 @@ function wireAppCallbacks() {
   });
   registerAppClose('companion', () => {
     destroyCompanion();
+  });
+  registerAppClose('firstaid', () => {
+    window.firstaidCprClose?.();
   });
 }
 

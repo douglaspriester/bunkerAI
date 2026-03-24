@@ -7645,3 +7645,594 @@ window.weatherAddReading = weatherAddReading;
 window.weatherClearHistory = weatherClearHistory;
 window.weatherCalcWindChill = weatherCalcWindChill;
 window.weatherCalcHeatIndex = weatherCalcHeatIndex;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ██████  First Aid Guide — Primeiros Socorros Offline  ██████
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const FIRSTAID_PROCEDURES = [
+  // ── CARDIAC ──
+  {
+    id: 'cpr-adult', cat: 'cardiac', triage: 'red',
+    title: 'RCP — Adulto', icon: '\u{1F49F}',
+    summary: 'Reanimacao cardiopulmonar para adultos sem pulso',
+    steps: [
+      { text: 'SEGURANCA: Verifique se o local e seguro para voce e para a vitima.', warn: true },
+      { text: 'Toque nos ombros e pergunte alto: "Voce esta bem?"' },
+      { text: 'Sem resposta? Peca para alguem ligar 192/193. Se sozinho, ligue no viva-voz.' },
+      { text: 'Verifique a respiracao por NO MAXIMO 10 segundos. Olhe o peito, ouca, sinta.' },
+      { text: 'Sem respiracao normal? Inicie compressoes AGORA.', warn: true },
+      { text: 'POSICAO: Coloque a vitima de costas em superficie dura e plana.' },
+      { text: 'MAOS: Entrelace os dedos, base da mao no centro do peito (entre os mamilos).' },
+      { text: 'COMPRIMA: Bracos esticados, ombros sobre as maos, comprima 5-6 cm de profundidade.' },
+      { text: 'RITMO: 100-120 compressoes por minuto (use o metronomo abaixo).', action: 'cpr_metro' },
+      { text: '30 COMPRESSOES + 2 VENTILACOES: Incline a cabeca, levante o queixo, sopre ate o peito subir.' },
+      { text: 'Se nao quiser/puder ventilar: faca APENAS compressoes sem parar.' },
+      { text: 'CONTINUE ate: chegar socorro, a vitima reagir, ou voce nao aguentar mais.' },
+      { text: 'REVEZAMENTO: Troque quem comprime a cada 2 minutos para manter qualidade.' },
+      { text: 'DEA: Se disponivel, ligue e siga as instrucoes de voz. Nao pare RCP ate o DEA analisar.', warn: true },
+    ]
+  },
+  {
+    id: 'cpr-child', cat: 'cardiac', triage: 'red',
+    title: 'RCP — Crianca (1-8 anos)', icon: '\u{1F476}',
+    summary: 'Reanimacao cardiopulmonar para criancas',
+    steps: [
+      { text: 'SEGURANCA primeiro. Verifique o local.', warn: true },
+      { text: 'Estimule a crianca: toque, chame pelo nome em voz alta.' },
+      { text: 'Sem resposta? Grite por ajuda. Se sozinho, faca 2 min de RCP antes de ligar 192.' },
+      { text: 'Verifique respiracao (max 10 seg). Se nao respira ou so "gasping", inicie RCP.' },
+      { text: 'Use UMA mao para compressoes no centro do peito.' },
+      { text: 'Comprima cerca de 5 cm de profundidade.' },
+      { text: 'RITMO: 100-120/min. 30 compressoes + 2 ventilacoes.' },
+      { text: 'Ventilacao: Incline a cabeca GENTILMENTE (menos que adulto). Sopre ate o peito subir.' },
+      { text: 'Continue ate chegar socorro ou a crianca reagir.' },
+    ]
+  },
+  {
+    id: 'choking-adult', cat: 'cardiac', triage: 'red',
+    title: 'Engasgo — Adulto', icon: '\u{1F6AB}',
+    summary: 'Desobstrucao de vias aereas (Heimlich)',
+    steps: [
+      { text: 'Pergunte: "Voce esta engasgado? Posso ajudar?"' },
+      { text: 'Se a pessoa TOSSE COM FORCA: incentive a continuar tossindo. NAO bata nas costas.', warn: true },
+      { text: 'Se NAO CONSEGUE tossir, falar ou respirar:' },
+      { text: 'POSICIONE-SE atras da vitima, com um pe entre os dela.' },
+      { text: 'PUNHO: Coloque o punho (lado do polegar) acima do umbigo, abaixo do esterno.' },
+      { text: 'ABRACE o punho com a outra mao.' },
+      { text: 'COMPRIMA para dentro e para CIMA com forca (manobra de Heimlich).' },
+      { text: 'Repita ate o objeto sair ou a vitima perder a consciencia.' },
+      { text: 'Se desmaiou: coloque no chao e inicie RCP. A cada vez que abrir a via aerea, olhe na boca.', warn: true },
+    ]
+  },
+  // ── BLEEDING ──
+  {
+    id: 'severe-bleed', cat: 'bleeding', triage: 'red',
+    title: 'Hemorragia Grave', icon: '\u{1FA78}',
+    summary: 'Controle de sangramento grave com risco de vida',
+    steps: [
+      { text: 'SEGURANCA: Use luvas ou saco plastico. Evite contato direto com sangue.', warn: true },
+      { text: 'PRESSAO DIRETA: Coloque um pano limpo sobre o ferimento e pressione COM FORCA.' },
+      { text: 'NAO REMOVA o pano mesmo se encharcar — coloque mais pano POR CIMA.' },
+      { text: 'ELEVE o membro ferido acima do nivel do coracao se possivel.' },
+      { text: 'TORNIQUETE (se sangramento nao para em membro): Amarre um pano largo 5-8cm acima do ferimento.', warn: true },
+      { text: 'Aperte o torniquete usando um bastao (caneta, galho) girando ate parar de sangrar.' },
+      { text: 'ANOTE A HORA que colocou o torniquete. NAO afrouxe.', warn: true },
+      { text: 'Mantenha a vitima deitada, pernas elevadas (exceto se trauma na cabeca/peito).' },
+      { text: 'Cubra a vitima para manter aquecida — choque hemorragico causa hipotermia.' },
+      { text: 'NAO de liquidos pela boca se suspeitar de cirurgia necessaria.' },
+    ]
+  },
+  {
+    id: 'nosebleed', cat: 'bleeding', triage: 'green',
+    title: 'Sangramento Nasal', icon: '\u{1F443}',
+    summary: 'Epistaxe — como parar sangramento do nariz',
+    steps: [
+      { text: 'Sente a pessoa com a cabeca LEVEMENTE inclinada para FRENTE (nao para tras!).' },
+      { text: 'Aperte FIRME as duas narinas com polegar e indicador.' },
+      { text: 'Mantenha por 10-15 minutos SEM soltar para verificar.' },
+      { text: 'Respire pela boca. Cuspa qualquer sangue que escorrer para a garganta.' },
+      { text: 'Aplique gelo/pano frio na ponte do nariz.' },
+      { text: 'Apos parar: nao assoar o nariz por varias horas.' },
+      { text: 'PROCURE SOCORRO se: nao parar em 20 min, foi causado por trauma, ou e recorrente.', warn: true },
+    ]
+  },
+  // ── FRACTURE ──
+  {
+    id: 'fracture-gen', cat: 'fracture', triage: 'yellow',
+    title: 'Fratura — Geral', icon: '\u{1F9B4}',
+    summary: 'Imobilizacao de fraturas em membros',
+    steps: [
+      { text: 'NAO tente realinhar o osso! Imobilize na posicao que esta.', warn: true },
+      { text: 'SINAIS: Dor intensa, inchaço, deformidade, incapacidade de mover, crepitacao.' },
+      { text: 'IMPROVISE tala com: tabua, revista enrolada, galho reto, papelao, travesseiro.' },
+      { text: 'A tala deve ir de UMA articulacao acima ate UMA abaixo da fratura.' },
+      { text: 'Amarre a tala com tiras de pano, cintos, cordas — firme mas sem cortar circulacao.' },
+      { text: 'VERIFIQUE circulacao: Dedos devem ter cor normal, estar mornos, sentir quando tocados.' },
+      { text: 'Aplique gelo envolto em pano (15 min com, 15 min sem) para reduzir inchaço.' },
+      { text: 'FRATURA EXPOSTA (osso visivel): Cubra com pano limpo umido. NAO empurre o osso.', warn: true },
+      { text: 'Mantenha o membro elevado se possivel.' },
+    ]
+  },
+  {
+    id: 'spinal', cat: 'fracture', triage: 'red',
+    title: 'Lesao de Coluna', icon: '\u26A0\uFE0F',
+    summary: 'Suspeita de lesao na coluna vertebral',
+    steps: [
+      { text: 'NAO MOVA A VITIMA! A menos que haja perigo imediato (fogo, desabamento).', warn: true },
+      { text: 'SUSPEITE se: queda de altura, acidente de carro, mergulho, trauma na cabeca.' },
+      { text: 'Peca a vitima para NÃO se mover. Mantenha calma.' },
+      { text: 'ESTABILIZE a cabeca: Segure firme com as duas maos, uma de cada lado, alinhada com o corpo.' },
+      { text: 'NAO incline, gire ou flexione o pescoco.' },
+      { text: 'Se precisar virar (vomito): role o corpo INTEIRO como um bloco (tecnica de rolamento).' },
+      { text: 'IMPROVISE colar cervical: toalha enrolada ao redor do pescoco (nao aperte a frente).' },
+      { text: 'Mantenha aquecido e aguarde socorro profissional.' },
+    ]
+  },
+  // ── BURN ──
+  {
+    id: 'burn-thermal', cat: 'burn', triage: 'yellow',
+    title: 'Queimadura Termica', icon: '\u{1F525}',
+    summary: 'Queimaduras por fogo, agua quente ou objetos',
+    steps: [
+      { text: 'AFASTE a fonte de calor. Remova roupas que nao estejam grudadas na pele.' },
+      { text: 'RESFRIE com agua corrente FRIA (nao gelada!) por 10-20 minutos.', warn: true },
+      { text: 'NAO use gelo, manteiga, pasta de dente ou qualquer "receita caseira".', warn: true },
+      { text: '1o GRAU (vermelhidao): Apenas resfrie e hidrate. Cura sozinha.' },
+      { text: '2o GRAU (bolhas): NAO estoure bolhas! Cubra com gaze esteril solta.' },
+      { text: '3o GRAU (pele branca/preta, sem dor): Emergencia! Cubra com pano limpo, va ao hospital.', warn: true },
+      { text: 'Queimadura maior que a palma da mao da vitima = PROCURE SOCORRO.' },
+      { text: 'Queimaduras em rosto, maos, pes, genitais ou articulacoes = SEMPRE hospital.' },
+      { text: 'Mantenha hidratado — queimaduras causam perda de liquidos.' },
+    ]
+  },
+  {
+    id: 'burn-chemical', cat: 'burn', triage: 'red',
+    title: 'Queimadura Quimica', icon: '\u2623\uFE0F',
+    summary: 'Contato com acidos, bases ou produtos quimicos',
+    steps: [
+      { text: 'PROTEJA-SE! Use luvas. Nao toque no produto diretamente.', warn: true },
+      { text: 'REMOVA roupas contaminadas imediatamente (corte se preciso).' },
+      { text: 'LAVE com agua corrente ABUNDANTE por no minimo 20 minutos.' },
+      { text: 'Se atingiu os olhos: lave com agua por 20 min, palpebras abertas, do canto interno para fora.', warn: true },
+      { text: 'IDENTIFIQUE o produto se possivel (leve a embalagem ao hospital).' },
+      { text: 'NAO tente neutralizar (acido com base ou vice-versa). Apenas lave.' },
+      { text: 'Cubra a area com pano limpo e umido.' },
+      { text: 'Procure atendimento medico URGENTE.' },
+    ]
+  },
+  // ── RESPIRATORY ──
+  {
+    id: 'asthma-attack', cat: 'respiratory', triage: 'yellow',
+    title: 'Crise de Asma', icon: '\u{1FAC1}',
+    summary: 'Dificuldade respiratoria por asma',
+    steps: [
+      { text: 'Mantenha a calma. Ajude a pessoa a sentar-se ereta (nao deitada!).' },
+      { text: 'Se tem bombinha: ajude a usar. Agite, expire, acione ao inspirar. 4-8 puffs.' },
+      { text: 'Espere 4 minutos. Se nao melhorar, repita mais 4-8 puffs.' },
+      { text: 'Afrouxe roupas apertadas no peito e pescoco.' },
+      { text: 'Respiracao com labios semicerrados: inspire pelo nariz, expire devagar pela boca.' },
+      { text: 'EMERGENCIA se: labios/unhas azulados, nao consegue falar, bombinha nao funciona.', warn: true },
+      { text: 'Sem melhora em 15 min = 192/193 imediatamente.' },
+    ]
+  },
+  {
+    id: 'drowning', cat: 'respiratory', triage: 'red',
+    title: 'Afogamento', icon: '\u{1F30A}',
+    summary: 'Resgate e primeiros socorros pos-afogamento',
+    steps: [
+      { text: 'NAO entre na agua a menos que saiba nadar e tenha treinamento!', warn: true },
+      { text: 'LANCE algo que flutue: boia, garrafa PET, cooler, prancha.' },
+      { text: 'ESTENDA galho, corda, toalha ou cinto para a pessoa agarrar.' },
+      { text: 'Ao retirar da agua: CUIDADO com a coluna cervical se houve mergulho.' },
+      { text: 'Deite de costas. Verifique se respira (max 10 seg).' },
+      { text: 'Se NAO respira: inicie RCP com 5 ventilacoes de resgate primeiro.', warn: true },
+      { text: 'Depois siga 30 compressoes + 2 ventilacoes normalmente.' },
+      { text: 'NAO tente "tirar agua dos pulmoes" virando de cabeca para baixo.' },
+      { text: 'Mesmo que a pessoa parecam bem, leve ao hospital — edema pulmonar tardio pode matar.', warn: true },
+    ]
+  },
+  // ── POISONING ──
+  {
+    id: 'poisoning-oral', cat: 'poisoning', triage: 'red',
+    title: 'Envenenamento Oral', icon: '\u2620\uFE0F',
+    summary: 'Ingestao de substancia toxica ou veneno',
+    steps: [
+      { text: 'Identifique O QUE foi ingerido, QUANDO e QUANTO (se possivel).', warn: true },
+      { text: 'NAO provoque vomito! Especialmente se: produto corrosivo, derivado de petroleo, ou vitima inconsciente.', warn: true },
+      { text: 'Ligue 0800-722-6001 (CIATOX) ou 192 (SAMU).' },
+      { text: 'Se a pessoa esta consciente e o produto NAO e corrosivo: de pequenos goles de agua.' },
+      { text: 'Se inconsciente: coloque em posicao lateral de seguranca (PLS).' },
+      { text: 'Se parar de respirar: inicie RCP.' },
+      { text: 'LEVE a embalagem do produto ao hospital.' },
+      { text: 'Lave a boca se teve contato com produto corrosivo (sem engolir).' },
+    ]
+  },
+  {
+    id: 'snakebite', cat: 'poisoning', triage: 'red',
+    title: 'Picada de Cobra', icon: '\u{1F40D}',
+    summary: 'Mordida de serpente peconhenta',
+    steps: [
+      { text: 'AFASTE-SE da cobra. Nao tente capturar ou matar.' },
+      { text: 'Mantenha a vitima CALMA e IMÓVEL. Movimento espalha o veneno.' },
+      { text: 'REMOVA aneis, pulseiras e relogios do membro afetado (vai inchar).' },
+      { text: 'IMOBILIZE o membro como se fosse uma fratura, mantendo ABAIXO do nivel do coracao.' },
+      { text: 'NAO: corte, chupe, faca torniquete, aplique gelo ou qualquer substância.', warn: true },
+      { text: 'LAVE o local com agua e sabao.' },
+      { text: 'Se possivel, FOTOGRAFE a cobra (a distancia segura) para identificacao.' },
+      { text: 'Leve ao hospital COM URGENCIA. O soro antipeconhento e o unico tratamento.', warn: true },
+      { text: 'ANOTE a hora da picada e sintomas que aparecerem.' },
+    ]
+  },
+  // ── ENVIRONMENTAL ──
+  {
+    id: 'heatstroke', cat: 'environmental', triage: 'red',
+    title: 'Insolacao / Hipertermia', icon: '\u{1F321}\uFE0F',
+    summary: 'Temperatura corporal perigosamente alta',
+    steps: [
+      { text: 'SINAIS: Pele vermelha e SECA (sem suor), confusao, temperatura >40°C, desmaio.', warn: true },
+      { text: 'MOVA para local fresco e sombreado imediatamente.' },
+      { text: 'REMOVA roupas excesso.' },
+      { text: 'RESFRIE AGRESSIVAMENTE: agua fria no corpo, panos umidos em axilas/virilha/pescoco.' },
+      { text: 'VENTILE com o que tiver: leque, papelao, abanar com pano.' },
+      { text: 'Se consciente: de agua FRIA em pequenos goles.' },
+      { text: 'Se inconsciente: posicao lateral de seguranca. NAO de liquidos.' },
+      { text: 'EMERGENCIA MEDICA. Ligue 192/193.' },
+    ]
+  },
+  {
+    id: 'hypothermia', cat: 'environmental', triage: 'red',
+    title: 'Hipotermia', icon: '\u{1F976}',
+    summary: 'Temperatura corporal perigosamente baixa',
+    steps: [
+      { text: 'SINAIS: Tremores intensos, confusao, fala enrolada, pele fria, sonolência.', warn: true },
+      { text: 'MOVA para local aquecido e protegido do vento/chuva.' },
+      { text: 'REMOVA roupas molhadas. Seque o corpo.' },
+      { text: 'AQUECA GRADUALMENTE: cobertores, sacos de dormir, cobertores termicos.' },
+      { text: 'Aplique fontes de calor nas axilas, virilha e pescoco (garrafas de agua quente envoltas em pano).' },
+      { text: 'Se consciente: de liquidos MORNOS e doces (cha, chocolate). NAO de alcool.', warn: true },
+      { text: 'NAO esfregue os membros. NAO coloque em agua quente (choque termico).', warn: true },
+      { text: 'Se sem pulso: RCP. Lembre: "ninguem esta morto ate estar quente e morto".' },
+      { text: 'Procure socorro medico. Hipotermia severa requer reaquecimento hospitalar.' },
+    ]
+  },
+  {
+    id: 'dehydration', cat: 'environmental', triage: 'yellow',
+    title: 'Desidratacao', icon: '\u{1F4A7}',
+    summary: 'Perda excessiva de liquidos corporais',
+    steps: [
+      { text: 'SINAIS: Sede intensa, boca seca, urina escura, tontura, fraqueza, pele sem elasticidade.' },
+      { text: 'LEVE: De soro caseiro — 1 litro de agua + 1 colher de cha de sal + 8 colheres de cha de acucar.' },
+      { text: 'Ofereca em pequenos goles frequentes (nao tudo de uma vez).' },
+      { text: 'Agua de coco e excelente reidratante natural.' },
+      { text: 'Mantenha em local fresco e sombreado.' },
+      { text: 'GRAVE: Pele sem elasticidade, olhos fundos, confusao, nao urina = HOSPITAL.', warn: true },
+      { text: 'Em criancas: fralda seca por 3h+ e choro sem lagrima = emergencia.', warn: true },
+    ]
+  },
+  // ── OTHER ──
+  {
+    id: 'seizure', cat: 'other', triage: 'yellow',
+    title: 'Convulsao', icon: '\u26A1',
+    summary: 'Crise convulsiva — o que fazer e NAO fazer',
+    steps: [
+      { text: 'NAO segure a pessoa. NAO coloque nada na boca.', warn: true },
+      { text: 'Afaste objetos perigosos (moveis, quinas, vidros).' },
+      { text: 'Proteja a cabeca com algo macio (roupa, travesseiro).' },
+      { text: 'CRONOMETRE a duracao da convulsao.' },
+      { text: 'Quando parar: coloque em posicao lateral de seguranca (PLS).' },
+      { text: 'Fique ao lado, fale calmamente quando a pessoa despertar (estara confusa).' },
+      { text: 'LIGUE 192 se: primeira convulsao, dura mais de 5 min, nao acorda, uma apos a outra, gravida.', warn: true },
+    ]
+  },
+  {
+    id: 'recovery-position', cat: 'other', triage: 'green',
+    title: 'Posicao Lateral de Seguranca', icon: '\u{1F6CF}\uFE0F',
+    summary: 'PLS — para vitimas inconscientes que respiram',
+    steps: [
+      { text: 'USE quando a pessoa esta inconsciente MAS respira normalmente.' },
+      { text: 'Ajoelhe ao lado da vitima.' },
+      { text: 'Estenda o braco mais proximo de voce em angulo reto com o corpo (palma para cima).' },
+      { text: 'Pegue a mao do outro braco e coloque no rosto da vitima (costas da mao na bochecha).' },
+      { text: 'Com a outra mao, puxe o joelho mais distante para cima (pe no chao).' },
+      { text: 'Puxe pelo joelho, rolando a vitima para o seu lado.' },
+      { text: 'Ajuste a perna de cima em angulo reto para estabilizar.' },
+      { text: 'Incline a cabeca para tras para manter a via aerea aberta.' },
+      { text: 'Verifique a respiracao regularmente.' },
+    ]
+  },
+  {
+    id: 'allergic-reaction', cat: 'other', triage: 'red',
+    title: 'Reacao Alergica Grave (Anafilaxia)', icon: '\u{1F4A5}',
+    summary: 'Choque anafilatico — risco iminente de vida',
+    steps: [
+      { text: 'SINAIS: Inchaço de rosto/labios/lingua, dificuldade respirar, urticaria, pressao baixa, desmaio.', warn: true },
+      { text: 'EPINEFRINA (EpiPen): Se disponivel, aplique NA COXA (lateral, meio). Pode ser sobre a roupa.' },
+      { text: 'Segure o autoinjector por 10 segundos. Massageie o local.' },
+      { text: 'LIGUE 192/193 imediatamente mesmo apos usar epinefrina.' },
+      { text: 'Mantenha deitado com pernas elevadas (exceto se dificuldade respiratoria — mantenha sentado).' },
+      { text: 'Se piora apos 5-15 min: segunda dose de epinefrina se disponivel.' },
+      { text: 'Anti-histaminico (difenidramina) ajuda nos sintomas leves mas NAO substitui epinefrina em anafilaxia.', warn: true },
+      { text: 'Se parar de respirar: inicie RCP.' },
+    ]
+  },
+  {
+    id: 'wound-care', cat: 'other', triage: 'green',
+    title: 'Cuidado de Ferimentos', icon: '\u{1FA79}',
+    summary: 'Limpeza e curativo de cortes e feridas comuns',
+    steps: [
+      { text: 'Lave bem as maos ou use luvas antes de tocar na ferida.' },
+      { text: 'LAVE o ferimento com agua limpa abundante (agua corrente, soro fisiologico).' },
+      { text: 'Remova sujeira visivel com pinça esterilizada (se superficial).' },
+      { text: 'PARE o sangramento com pressao direta por 10-15 minutos.' },
+      { text: 'Aplique antisseptico (iodo-povidona, clorexidina) ao redor (nao dentro) da ferida.' },
+      { text: 'Cubra com gaze esteril ou pano limpo.' },
+      { text: 'Troque o curativo diariamente ou se ficar umido/sujo.' },
+      { text: 'PROCURE SOCORRO se: corte profundo (>2cm), nao para de sangrar, sujeira que nao sai, mordida animal.', warn: true },
+      { text: 'SINAIS DE INFECCAO: vermelhidao crescente, calor, pus, febre, listras vermelhas saindo do ferimento.' },
+    ]
+  },
+];
+
+let _firstaidActiveCat = 'all';
+let _firstaidActiveTriage = null;
+let _firstaidCprInterval = null;
+let _firstaidCprCount = 0;
+let _firstaidCprRunning = false;
+
+function firstaidInit() {
+  firstaidRenderCards();
+}
+
+function firstaidRenderCards() {
+  const container = document.getElementById('firstaidCards');
+  if (!container) return;
+
+  const search = (document.getElementById('firstaidSearch')?.value || '').toLowerCase();
+  let procs = FIRSTAID_PROCEDURES;
+
+  // Filter by category
+  if (_firstaidActiveCat !== 'all') {
+    procs = procs.filter(p => p.cat === _firstaidActiveCat);
+  }
+
+  // Filter by triage
+  if (_firstaidActiveTriage) {
+    procs = procs.filter(p => p.triage === _firstaidActiveTriage);
+  }
+
+  // Filter by search
+  if (search.length >= 2) {
+    procs = procs.filter(p =>
+      p.title.toLowerCase().includes(search) ||
+      p.summary.toLowerCase().includes(search) ||
+      p.steps.some(s => s.text.toLowerCase().includes(search))
+    );
+  }
+
+  if (procs.length === 0) {
+    container.innerHTML = '<div class="firstaid-empty">Nenhum procedimento encontrado.</div>';
+    return;
+  }
+
+  const triageLabels = { red: 'CRITICO', yellow: 'URGENTE', green: 'MENOR' };
+
+  container.innerHTML = procs.map(p => `
+    <div class="firstaid-card triage-border-${p.triage}" onclick="firstaidOpen('${p.id}')">
+      <div class="firstaid-card-icon">${p.icon}</div>
+      <div class="firstaid-card-body">
+        <div class="firstaid-card-title">${escapeHtml(p.title)}</div>
+        <div class="firstaid-card-summary">${escapeHtml(p.summary)}</div>
+      </div>
+      <div class="firstaid-card-triage triage-badge-${p.triage}">${triageLabels[p.triage]}</div>
+    </div>
+  `).join('');
+}
+
+function firstaidShowCat(cat) {
+  _firstaidActiveCat = cat;
+  _firstaidActiveTriage = null;
+
+  // Update tab active state
+  document.querySelectorAll('.firstaid-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.cat === cat);
+  });
+  // Reset triage buttons
+  document.querySelectorAll('.firstaid-triage-btn').forEach(b => b.classList.remove('active'));
+
+  firstaidRenderCards();
+}
+
+function firstaidShowTriage(level) {
+  if (_firstaidActiveTriage === level) {
+    _firstaidActiveTriage = null;
+    document.querySelectorAll('.firstaid-triage-btn').forEach(b => b.classList.remove('active'));
+  } else {
+    _firstaidActiveTriage = level;
+    document.querySelectorAll('.firstaid-triage-btn').forEach(b => {
+      b.classList.toggle('active', b.classList.contains('triage-' + level));
+    });
+  }
+  // Reset cat tabs
+  _firstaidActiveCat = 'all';
+  document.querySelectorAll('.firstaid-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.cat === 'all');
+  });
+  firstaidRenderCards();
+}
+
+function firstaidFilter(val) {
+  firstaidRenderCards();
+}
+
+function firstaidOpen(id) {
+  const proc = FIRSTAID_PROCEDURES.find(p => p.id === id);
+  if (!proc) return;
+
+  const detail = document.getElementById('firstaidDetail');
+  const cards = document.getElementById('firstaidCards');
+  const tabs = document.getElementById('firstaidTabs');
+  const triage = document.getElementById('firstaidTriage');
+  const search = document.querySelector('.firstaid-search-bar');
+
+  cards.classList.add('hidden');
+  tabs.classList.add('hidden');
+  triage.classList.add('hidden');
+  if (search) search.classList.add('hidden');
+  detail.classList.remove('hidden');
+
+  const triageLabels = { red: 'CRITICO', yellow: 'URGENTE', green: 'MENOR' };
+
+  let html = `
+    <div class="firstaid-detail-header">
+      <span class="firstaid-detail-icon">${proc.icon}</span>
+      <div>
+        <h3 class="firstaid-detail-title">${escapeHtml(proc.title)}</h3>
+        <span class="firstaid-detail-badge triage-badge-${proc.triage}">${triageLabels[proc.triage]}</span>
+      </div>
+    </div>
+    <p class="firstaid-detail-summary">${escapeHtml(proc.summary)}</p>
+    <div class="firstaid-steps">
+  `;
+
+  proc.steps.forEach((step, i) => {
+    const warnClass = step.warn ? ' firstaid-step-warn' : '';
+    const actionHtml = step.action === 'cpr_metro'
+      ? ' <button class="firstaid-step-action" onclick="firstaidCprShow()">Abrir Metronomo</button>'
+      : '';
+
+    html += `
+      <div class="firstaid-step${warnClass}">
+        <div class="firstaid-step-num">${i + 1}</div>
+        <div class="firstaid-step-text">${escapeHtml(step.text)}${actionHtml}</div>
+      </div>
+    `;
+  });
+
+  html += '</div>';
+
+  // If cardiac category, add CPR quick-access
+  if (proc.cat === 'cardiac') {
+    html += `
+      <div class="firstaid-cpr-quick">
+        <button class="btn-sm btn-accent" onclick="firstaidCprShow()">
+          \u{1F49F} Abrir Metronomo RCP (100-120 BPM)
+        </button>
+      </div>
+    `;
+  }
+
+  document.getElementById('firstaidDetailContent').innerHTML = html;
+}
+
+function firstaidBack() {
+  const detail = document.getElementById('firstaidDetail');
+  const cards = document.getElementById('firstaidCards');
+  const tabs = document.getElementById('firstaidTabs');
+  const triage = document.getElementById('firstaidTriage');
+  const search = document.querySelector('.firstaid-search-bar');
+
+  detail.classList.add('hidden');
+  cards.classList.remove('hidden');
+  tabs.classList.remove('hidden');
+  triage.classList.remove('hidden');
+  if (search) search.classList.remove('hidden');
+
+  firstaidCprClose();
+}
+
+// ─── CPR Metronome ────────────────────────────────────────────────────────────
+function firstaidCprShow() {
+  document.getElementById('firstaidCprMetro')?.classList.remove('hidden');
+}
+
+function firstaidCprClose() {
+  firstaidCprStop();
+  document.getElementById('firstaidCprMetro')?.classList.add('hidden');
+  _firstaidCprCount = 0;
+  const countEl = document.getElementById('firstaidCprCount');
+  if (countEl) countEl.textContent = '0';
+}
+
+function firstaidCprToggle() {
+  if (_firstaidCprRunning) {
+    firstaidCprStop();
+  } else {
+    firstaidCprStart();
+  }
+}
+
+function firstaidCprStart() {
+  _firstaidCprRunning = true;
+  const btn = document.getElementById('firstaidCprToggle');
+  if (btn) btn.textContent = 'Parar';
+  const indicator = document.getElementById('firstaidCprIndicator');
+
+  // 110 BPM = ~545ms per beat (middle of 100-120 range)
+  const bpm = 110;
+  const interval = Math.round(60000 / bpm);
+
+  _firstaidCprInterval = setInterval(() => {
+    _firstaidCprCount++;
+    const countEl = document.getElementById('firstaidCprCount');
+    if (countEl) countEl.textContent = _firstaidCprCount;
+
+    // Visual pulse
+    if (indicator) {
+      indicator.classList.add('pulse');
+      setTimeout(() => indicator.classList.remove('pulse'), 200);
+    }
+
+    // Audio beep using Web Audio API
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      // Every 30 compressions, make a different sound for ventilation reminder
+      if (_firstaidCprCount % 30 === 0) {
+        osc.frequency.value = 880;  // Higher pitch
+        gain.gain.value = 0.3;
+        osc.start();
+        osc.stop(ctx.currentTime + 0.3);
+      } else {
+        osc.frequency.value = 440;
+        gain.gain.value = 0.15;
+        osc.start();
+        osc.stop(ctx.currentTime + 0.08);
+      }
+    } catch (e) { /* no audio support */ }
+
+  }, interval);
+}
+
+function firstaidCprStop() {
+  _firstaidCprRunning = false;
+  if (_firstaidCprInterval) {
+    clearInterval(_firstaidCprInterval);
+    _firstaidCprInterval = null;
+  }
+  const btn = document.getElementById('firstaidCprToggle');
+  if (btn) btn.textContent = 'Iniciar';
+}
+
+function firstaidCprReset() {
+  firstaidCprStop();
+  _firstaidCprCount = 0;
+  const countEl = document.getElementById('firstaidCprCount');
+  if (countEl) countEl.textContent = '0';
+}
+
+// Exports
+window.firstaidInit = firstaidInit;
+window.firstaidShowCat = firstaidShowCat;
+window.firstaidShowTriage = firstaidShowTriage;
+window.firstaidFilter = firstaidFilter;
+window.firstaidOpen = firstaidOpen;
+window.firstaidBack = firstaidBack;
+window.firstaidCprShow = firstaidCprShow;
+window.firstaidCprClose = firstaidCprClose;
+window.firstaidCprToggle = firstaidCprToggle;
+window.firstaidCprReset = firstaidCprReset;
