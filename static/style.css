@@ -7343,3 +7343,607 @@ body {
   background: var(--bg-elevated);
   flex-shrink: 0;
 }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   RATIONS CALCULATOR
+   ═══════════════════════════════════════════════════════════════ */
+
+.rations-app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg);
+}
+
+.rations-header {
+  padding: 18px 20px 0;
+  flex-shrink: 0;
+}
+
+.rations-hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.rations-hero-icon {
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 8px rgba(0,229,255,0.3));
+}
+
+.rations-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-bright);
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.rations-subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin: 2px 0 0;
+}
+
+/* Tabs */
+.rations-tabs {
+  display: flex;
+  gap: 0;
+  padding: 10px 20px 0;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.rations-tab {
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.rations-tab:hover {
+  color: var(--text);
+  background: var(--surface);
+}
+
+.rations-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+/* Body */
+.rations-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+
+.rations-panel.hidden { display: none; }
+
+.rations-info-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--accent-dim);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 11px;
+  color: var(--text);
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.rations-info-badge svg { flex-shrink: 0; color: var(--accent); }
+
+/* Form grid */
+.rations-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.rations-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rations-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.rations-input {
+  padding: 8px 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-bright);
+  font-size: 14px;
+  font-family: var(--font-mono);
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.rations-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-dim);
+}
+
+.rations-select {
+  padding: 8px 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-bright);
+  font-size: 12px;
+  outline: none;
+  cursor: pointer;
+}
+
+.rations-select:focus {
+  border-color: var(--accent);
+}
+
+/* Live summary cards */
+.rations-live-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.rations-summary-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.rations-summary-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+.rations-summary-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--accent);
+  font-family: var(--font-mono);
+}
+
+/* Stock panel */
+.rations-quick-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.rations-quick-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.rations-quick-btn {
+  padding: 5px 10px;
+  font-size: 11px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.rations-quick-btn:hover {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Stock table */
+.rations-stock-header {
+  display: flex;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius) var(--radius) 0 0;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.rations-stock-list {
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 var(--radius) var(--radius);
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.rations-stock-row {
+  display: flex;
+  gap: 8px;
+  padding: 7px 10px;
+  align-items: center;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 12px;
+  color: var(--text);
+  transition: background 0.15s;
+}
+
+.rations-stock-row:hover {
+  background: var(--surface);
+}
+
+.rations-stock-row:last-child { border-bottom: none; }
+
+.rations-stock-row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rations-stock-row .stock-name { flex: 2; color: var(--text-bright); font-weight: 500; }
+.rations-stock-row .stock-qty { flex: 1; font-family: var(--font-mono); }
+.rations-stock-row .stock-unit { flex: 1; color: var(--text-muted); }
+.rations-stock-row .stock-kcal { flex: 1; font-family: var(--font-mono); color: var(--amber); }
+.rations-stock-row .stock-type { flex: 1; }
+
+.stock-type-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.stock-type-badge.food {
+  background: rgba(255,140,0,0.12);
+  color: var(--amber);
+  border: 1px solid rgba(255,140,0,0.25);
+}
+
+.stock-type-badge.water {
+  background: rgba(0,212,255,0.1);
+  color: var(--accent);
+  border: 1px solid rgba(0,212,255,0.25);
+}
+
+.rations-stock-del {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.15s;
+}
+
+.rations-stock-del:hover {
+  background: var(--danger-dim);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+/* Add row */
+.rations-add-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  align-items: center;
+}
+
+.rations-add-row .rations-input,
+.rations-add-row .rations-select {
+  font-size: 12px;
+  padding: 7px 8px;
+}
+
+.rations-btn-add {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--green-dim);
+  border: 1px solid var(--green);
+  border-radius: var(--radius);
+  color: var(--green);
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.rations-btn-add:hover {
+  background: rgba(57,255,20,0.2);
+  box-shadow: 0 0 8px var(--green-glow);
+}
+
+/* Stock totals */
+.rations-stock-totals {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.rations-total-card {
+  text-align: center;
+  padding: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.rations-total-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  display: block;
+}
+
+.rations-total-value {
+  font-size: 18px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  display: block;
+  margin-top: 2px;
+}
+
+/* Result panel */
+.rations-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.rations-result-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.rations-result-card {
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  text-align: center;
+}
+
+.rations-result-card.critical {
+  border-color: var(--danger);
+  background: var(--danger-dim);
+}
+
+.rations-result-card.warning {
+  border-color: var(--amber);
+  background: var(--amber-dim);
+}
+
+.rations-result-card.ok {
+  border-color: var(--green);
+  background: var(--green-dim);
+}
+
+.rations-result-icon {
+  font-size: 28px;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.rations-result-val {
+  font-size: 28px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  display: block;
+}
+
+.rations-result-card.critical .rations-result-val { color: var(--danger); }
+.rations-result-card.warning .rations-result-val { color: var(--amber); }
+.rations-result-card.ok .rations-result-val { color: var(--green); }
+
+.rations-result-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  display: block;
+  margin-top: 4px;
+}
+
+.rations-result-sublabel {
+  font-size: 10px;
+  color: var(--text-muted);
+  display: block;
+  margin-top: 2px;
+}
+
+/* Progress bar for rations */
+.rations-progress {
+  margin: 16px 0;
+}
+
+.rations-progress-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.rations-progress-bar {
+  height: 18px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  overflow: hidden;
+  position: relative;
+}
+
+.rations-progress-fill {
+  height: 100%;
+  border-radius: 9px;
+  transition: width 0.5s ease;
+  position: relative;
+}
+
+.rations-progress-fill.green { background: linear-gradient(90deg, #39ff14, #28c40e); }
+.rations-progress-fill.amber { background: linear-gradient(90deg, #ff8c00, #cc7000); }
+.rations-progress-fill.red   { background: linear-gradient(90deg, #ff1a47, #cc0030); }
+
+.rations-progress-text {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--bg);
+  font-family: var(--font-mono);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+}
+
+/* Warnings */
+.rations-warnings {
+  margin-top: 14px;
+}
+
+.rations-warning-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-bottom: 6px;
+  border-radius: var(--radius);
+  font-size: 12px;
+}
+
+.rations-warning-item.critical {
+  background: var(--danger-dim);
+  border: 1px solid rgba(255,26,71,0.3);
+  color: var(--danger);
+}
+
+.rations-warning-item.warning {
+  background: var(--amber-dim);
+  border: 1px solid rgba(255,140,0,0.3);
+  color: var(--amber);
+}
+
+.rations-warning-item.tip {
+  background: var(--green-dim);
+  border: 1px solid rgba(57,255,20,0.2);
+  color: var(--green);
+}
+
+/* Reference tables */
+.rations-ref-title {
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.rations-ref-table {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.rations-ref-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  padding: 7px 12px;
+  font-size: 12px;
+  color: var(--text);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.rations-ref-row:last-child { border-bottom: none; }
+
+.rations-ref-row.rations-ref-header {
+  background: var(--surface-2);
+  font-weight: 600;
+  color: var(--text-bright);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.rations-ref-row span:first-child {
+  font-weight: 500;
+  color: var(--text-bright);
+}
+
+.rations-tips-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.rations-tips-list li {
+  padding: 8px 12px;
+  margin-bottom: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.6;
+}
+
+.rations-tips-list li strong {
+  color: var(--accent);
+}
+
+/* Statusbar */
+.rations-statusbar {
+  padding: 5px 18px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+}

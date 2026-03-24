@@ -2137,6 +2137,254 @@ Responda no idioma do usuario. Use markdown.</textarea>
       </div>
     </div>
 
+    <!-- ═══ RATIONS CALCULATOR ═══ -->
+    <div class="panel-view hidden" id="rationsView">
+      <div class="rations-app" id="rationsApp">
+        <!-- Header -->
+        <div class="rations-header">
+          <div class="rations-hero">
+            <div class="rations-hero-icon">
+              <svg width="44" height="44" viewBox="0 0 48 48" fill="none">
+                <rect x="4" y="4" width="40" height="40" rx="8" stroke="#00e5ff" stroke-width="2" fill="rgba(0,229,255,0.08)"/>
+                <path d="M14 16h20v4H14z" fill="rgba(0,229,255,0.3)" stroke="#00e5ff" stroke-width="1.5"/>
+                <path d="M16 24h16v2H16zm0 5h12v2H16zm0 5h8v2H16z" fill="#00e5ff" opacity="0.5"/>
+                <circle cx="36" cy="36" r="6" fill="rgba(57,255,20,0.15)" stroke="#39ff14" stroke-width="1.5"/>
+                <path d="M36 33v6m-3-3h6" stroke="#39ff14" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div>
+              <h2 class="rations-title">Calculadora de Racoes</h2>
+              <p class="rations-subtitle">Controle seus suprimentos. Calcule quanto tempo voce sobrevive.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="rations-tabs">
+          <button class="rations-tab active" onclick="rationsTab('group')" id="rationsTabGroup">Grupo & Perfil</button>
+          <button class="rations-tab" onclick="rationsTab('stock')" id="rationsTabStock">Estoque</button>
+          <button class="rations-tab" onclick="rationsTab('result')" id="rationsTabResult">Resultado</button>
+          <button class="rations-tab" onclick="rationsTab('ref')" id="rationsTabRef">Tabela Referencia</button>
+        </div>
+
+        <!-- Body -->
+        <div class="rations-body">
+
+          <!-- ── Group/Profile Panel ── -->
+          <div class="rations-panel" id="rationsPanel-group">
+            <div class="rations-info-badge">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4m0-4h.01"/></svg>
+              Configure o grupo de sobreviventes: quantidade de pessoas, nivel de atividade e clima.
+            </div>
+
+            <div class="rations-form-grid">
+              <div class="rations-field">
+                <label class="rations-label">Adultos</label>
+                <input type="number" id="rationsAdults" class="rations-input" value="2" min="0" max="50" oninput="rationsCalc()">
+              </div>
+              <div class="rations-field">
+                <label class="rations-label">Criancas (5-12)</label>
+                <input type="number" id="rationsKids" class="rations-input" value="0" min="0" max="30" oninput="rationsCalc()">
+              </div>
+              <div class="rations-field">
+                <label class="rations-label">Bebes (0-4)</label>
+                <input type="number" id="rationsBabies" class="rations-input" value="0" min="0" max="10" oninput="rationsCalc()">
+              </div>
+              <div class="rations-field">
+                <label class="rations-label">Idosos (65+)</label>
+                <input type="number" id="rationsElderly" class="rations-input" value="0" min="0" max="20" oninput="rationsCalc()">
+              </div>
+            </div>
+
+            <div class="rations-form-grid" style="margin-top:12px">
+              <div class="rations-field">
+                <label class="rations-label">Nivel de Atividade</label>
+                <select id="rationsActivity" class="rations-select" onchange="rationsCalc()">
+                  <option value="sedentary">Sedentario (abrigo)</option>
+                  <option value="light" selected>Leve (campo base)</option>
+                  <option value="moderate">Moderado (caminhada)</option>
+                  <option value="heavy">Intenso (construcao/fuga)</option>
+                </select>
+              </div>
+              <div class="rations-field">
+                <label class="rations-label">Clima</label>
+                <select id="rationsClimate" class="rations-select" onchange="rationsCalc()">
+                  <option value="cold">Frio (< 10C)</option>
+                  <option value="temperate" selected>Temperado (10-30C)</option>
+                  <option value="hot">Quente (> 30C)</option>
+                  <option value="extreme">Extremo (> 40C)</option>
+                </select>
+              </div>
+              <div class="rations-field">
+                <label class="rations-label">Modo de Racionamento</label>
+                <select id="rationsMode" class="rations-select" onchange="rationsCalc()">
+                  <option value="normal">Normal (100%)</option>
+                  <option value="rationed">Racionado (75%)</option>
+                  <option value="emergency">Emergencia (50%)</option>
+                  <option value="starvation">Sobrevivencia (33%)</option>
+                </select>
+              </div>
+              <div class="rations-field">
+                <label class="rations-label">Dias planejados</label>
+                <input type="number" id="rationsDays" class="rations-input" value="7" min="1" max="365" oninput="rationsCalc()">
+              </div>
+            </div>
+
+            <!-- Live summary -->
+            <div class="rations-live-summary" id="rationsGroupSummary">
+              <div class="rations-summary-card">
+                <span class="rations-summary-label">Pessoas</span>
+                <span class="rations-summary-value" id="rationsTotalPeople">2</span>
+              </div>
+              <div class="rations-summary-card">
+                <span class="rations-summary-label">kcal/dia</span>
+                <span class="rations-summary-value" id="rationsTotalKcal">--</span>
+              </div>
+              <div class="rations-summary-card">
+                <span class="rations-summary-label">Agua L/dia</span>
+                <span class="rations-summary-value" id="rationsTotalWater">--</span>
+              </div>
+              <div class="rations-summary-card">
+                <span class="rations-summary-label">Total dias</span>
+                <span class="rations-summary-value" id="rationsTargetDays">7</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Stock Panel ── -->
+          <div class="rations-panel hidden" id="rationsPanel-stock">
+            <div class="rations-info-badge">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4m0-4h.01"/></svg>
+              Adicione seus suprimentos reais. O sistema calcula quanto tempo duram.
+            </div>
+
+            <!-- Quick add presets -->
+            <div class="rations-quick-add">
+              <span class="rations-quick-label">Adicao Rapida:</span>
+              <button class="rations-quick-btn" onclick="rationsQuickAdd('water5')">Galao 5L</button>
+              <button class="rations-quick-btn" onclick="rationsQuickAdd('water20')">Galao 20L</button>
+              <button class="rations-quick-btn" onclick="rationsQuickAdd('rice5')">Arroz 5kg</button>
+              <button class="rations-quick-btn" onclick="rationsQuickAdd('beans2')">Feijao 2kg</button>
+              <button class="rations-quick-btn" onclick="rationsQuickAdd('canned')">Lata Conserva</button>
+              <button class="rations-quick-btn" onclick="rationsQuickAdd('crackers')">Pacote Biscoitos</button>
+              <button class="rations-quick-btn" onclick="rationsQuickAdd('mre')">MRE/Ration Pack</button>
+            </div>
+
+            <!-- Stock table -->
+            <div class="rations-stock-header">
+              <span style="flex:2">Item</span>
+              <span style="flex:1">Qtd</span>
+              <span style="flex:1">Unidade</span>
+              <span style="flex:1">kcal/un</span>
+              <span style="flex:1">Tipo</span>
+              <span style="width:36px"></span>
+            </div>
+            <div class="rations-stock-list" id="rationsStockList">
+              <!-- Populated by JS -->
+            </div>
+
+            <!-- Add custom item -->
+            <div class="rations-add-row">
+              <input type="text" id="rationsNewName" class="rations-input" placeholder="Nome do item" style="flex:2">
+              <input type="number" id="rationsNewQty" class="rations-input" placeholder="Qtd" value="1" min="0.1" step="0.5" style="flex:1">
+              <select id="rationsNewUnit" class="rations-select" style="flex:1">
+                <option value="kg">kg</option>
+                <option value="L">L</option>
+                <option value="un">un</option>
+                <option value="lata">lata</option>
+                <option value="pacote">pacote</option>
+              </select>
+              <input type="number" id="rationsNewKcal" class="rations-input" placeholder="kcal" value="350" min="0" style="flex:1">
+              <select id="rationsNewType" class="rations-select" style="flex:1">
+                <option value="food">Comida</option>
+                <option value="water">Agua</option>
+              </select>
+              <button class="rations-btn-add" onclick="rationsAddItem()">+</button>
+            </div>
+
+            <div class="rations-stock-totals" id="rationsStockTotals">
+              <!-- Computed by JS -->
+            </div>
+          </div>
+
+          <!-- ── Result Panel ── -->
+          <div class="rations-panel hidden" id="rationsPanel-result">
+            <div id="rationsResultContent">
+              <div class="rations-empty">Configure o grupo e adicione suprimentos para ver os resultados.</div>
+            </div>
+          </div>
+
+          <!-- ── Reference Panel ── -->
+          <div class="rations-panel hidden" id="rationsPanel-ref">
+            <div class="rations-info-badge">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4m0-4h.01"/></svg>
+              Necessidades diarias minimas baseadas em guias da OMS, Cruz Vermelha e FEMA.
+            </div>
+
+            <h4 class="rations-ref-title">Necessidades Caloricas Diarias (kcal)</h4>
+            <div class="rations-ref-table">
+              <div class="rations-ref-row rations-ref-header">
+                <span>Perfil</span><span>Sedentario</span><span>Leve</span><span>Moderado</span><span>Intenso</span>
+              </div>
+              <div class="rations-ref-row"><span>Adulto homem</span><span>1800</span><span>2200</span><span>2600</span><span>3200</span></div>
+              <div class="rations-ref-row"><span>Adulto mulher</span><span>1500</span><span>1800</span><span>2200</span><span>2600</span></div>
+              <div class="rations-ref-row"><span>Crianca 5-12</span><span>1200</span><span>1500</span><span>1800</span><span>2000</span></div>
+              <div class="rations-ref-row"><span>Bebe 0-4</span><span>800</span><span>900</span><span>1000</span><span>1100</span></div>
+              <div class="rations-ref-row"><span>Idoso 65+</span><span>1500</span><span>1700</span><span>2000</span><span>2400</span></div>
+            </div>
+
+            <h4 class="rations-ref-title" style="margin-top:18px">Necessidades de Agua (L/dia)</h4>
+            <div class="rations-ref-table">
+              <div class="rations-ref-row rations-ref-header">
+                <span>Clima</span><span>Minimo</span><span>Recomendado</span><span>Com higiene</span>
+              </div>
+              <div class="rations-ref-row"><span>Frio</span><span>1.5 L</span><span>2.0 L</span><span>3.5 L</span></div>
+              <div class="rations-ref-row"><span>Temperado</span><span>2.0 L</span><span>3.0 L</span><span>5.0 L</span></div>
+              <div class="rations-ref-row"><span>Quente</span><span>3.0 L</span><span>4.5 L</span><span>7.0 L</span></div>
+              <div class="rations-ref-row"><span>Extremo</span><span>4.0 L</span><span>6.0 L</span><span>9.0 L</span></div>
+            </div>
+
+            <h4 class="rations-ref-title" style="margin-top:18px">Calorias de Alimentos Comuns</h4>
+            <div class="rations-ref-table">
+              <div class="rations-ref-row rations-ref-header">
+                <span>Alimento</span><span>kcal/100g</span><span>Duracao</span><span>Nota</span>
+              </div>
+              <div class="rations-ref-row"><span>Arroz cru</span><span>360</span><span>Anos</span><span>Base essencial</span></div>
+              <div class="rations-ref-row"><span>Feijao seco</span><span>340</span><span>Anos</span><span>Proteina vegetal</span></div>
+              <div class="rations-ref-row"><span>Macarrao seco</span><span>350</span><span>1-2 anos</span><span>Carboidrato rapido</span></div>
+              <div class="rations-ref-row"><span>Farinha trigo</span><span>365</span><span>6-12 meses</span><span>Versátil</span></div>
+              <div class="rations-ref-row"><span>Aveia</span><span>380</span><span>2 anos</span><span>Nutritiva</span></div>
+              <div class="rations-ref-row"><span>Lata conserva</span><span>100-200</span><span>2-5 anos</span><span>Pronta p/ comer</span></div>
+              <div class="rations-ref-row"><span>Sardinha lata</span><span>210</span><span>3-5 anos</span><span>Omega-3</span></div>
+              <div class="rations-ref-row"><span>Leite em po</span><span>500</span><span>1-2 anos</span><span>Calcio</span></div>
+              <div class="rations-ref-row"><span>Mel</span><span>304</span><span>Infinito</span><span>Energia + medicinal</span></div>
+              <div class="rations-ref-row"><span>Sal</span><span>0</span><span>Infinito</span><span>Eletrolitos vital</span></div>
+              <div class="rations-ref-row"><span>Acucar</span><span>387</span><span>Infinito</span><span>Energia rapida</span></div>
+              <div class="rations-ref-row"><span>MRE militar</span><span>~1200/un</span><span>5+ anos</span><span>Refeicao completa</span></div>
+            </div>
+
+            <div class="rations-ref-tips">
+              <h4 class="rations-ref-title" style="margin-top:18px">Regras de Sobrevivencia</h4>
+              <ul class="rations-tips-list">
+                <li><strong>Regra dos 3:</strong> 3 min sem ar, 3 horas sem abrigo (frio extremo), 3 dias sem agua, 3 semanas sem comida.</li>
+                <li><strong>Agua primeiro:</strong> Desidratacao mata antes da fome. Priorize agua SEMPRE.</li>
+                <li><strong>Racionamento gradual:</strong> Reduza 25% por vez, nunca corte pela metade de uma vez.</li>
+                <li><strong>Proteina importa:</strong> Sem proteina o corpo consome musculos. Feijao + arroz = proteina completa.</li>
+                <li><strong>Sal e acucar:</strong> Nao esqueca eletrolitos. Solucao de reidratacao: 1L agua + 6 colheres acucar + 0.5 colher sal.</li>
+              </ul>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Status bar -->
+        <div class="rations-statusbar" id="rationsStatusbar">
+          <span id="rationsStatus">Pronto</span>
+          <span id="rationsLastSaved"></span>
+        </div>
+      </div>
+    </div>
+
   </main>
 
   </div><!-- /desktop -->

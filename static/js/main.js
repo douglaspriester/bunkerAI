@@ -202,6 +202,7 @@ function wireAppCallbacks() {
     pendrive:   () => window.pendriveInit?.(),
     firstaid:   () => window.firstaidInit?.(),
     crypto:     () => window.cryptoInit?.(),
+    rations:    () => window.rationsInit?.(),
   };
   Object.entries(openMap).forEach(([appId, fn]) => registerAppOpen(appId, fn));
 

@@ -8621,3 +8621,410 @@ window.cryptoSwap = cryptoSwap;
 window.cryptoTogglePassword = cryptoTogglePassword;
 window.cryptoGenPassword = cryptoGenPassword;
 window.cryptoSetStatus = cryptoSetStatus;
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ═══ RATIONS CALCULATOR ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
+
+let _rationsStock = [];
+const RATIONS_STORAGE_KEY = 'bunker_rations_data';
+
+// ── Calorie tables (OMS/FEMA averages per activity level) ──
+const RATIONS_KCAL = {
+  // average of male/female per profile
+  adult:   { sedentary: 1650, light: 2000, moderate: 2400, heavy: 2900 },
+  kid:     { sedentary: 1200, light: 1500, moderate: 1800, heavy: 2000 },
+  baby:    { sedentary: 800,  light: 900,  moderate: 1000, heavy: 1100 },
+  elderly: { sedentary: 1500, light: 1700, moderate: 2000, heavy: 2400 },
+};
+
+// ── Water needs per person per day (liters) by climate ──
+const RATIONS_WATER = {
+  cold:      { sedentary: 1.5, light: 2.0, moderate: 2.5, heavy: 3.0 },
+  temperate: { sedentary: 2.0, light: 2.5, moderate: 3.0, heavy: 3.5 },
+  hot:       { sedentary: 3.0, light: 3.5, moderate: 4.5, heavy: 5.5 },
+  extreme:   { sedentary: 4.0, light: 5.0, moderate: 6.0, heavy: 7.0 },
+};
+
+// ── Rationing multipliers ──
+const RATIONS_MODE = {
+  normal: 1.0,
+  rationed: 0.75,
+  emergency: 0.50,
+  starvation: 0.33,
+};
+
+// ── Quick-add presets (name, qty, unit, kcal_per_unit, type) ──
+const RATIONS_PRESETS = {
+  water5:   { name: 'Galao de Agua 5L',    qty: 5,    unit: 'L',      kcal: 0,    type: 'water' },
+  water20:  { name: 'Galao de Agua 20L',   qty: 20,   unit: 'L',      kcal: 0,    type: 'water' },
+  rice5:    { name: 'Arroz 5kg',            qty: 5,    unit: 'kg',     kcal: 3600, type: 'food'  },
+  beans2:   { name: 'Feijao 2kg',           qty: 2,    unit: 'kg',     kcal: 3400, type: 'food'  },
+  canned:   { name: 'Lata de Conserva',     qty: 1,    unit: 'lata',   kcal: 250,  type: 'food'  },
+  crackers: { name: 'Pacote Biscoitos',     qty: 1,    unit: 'pacote', kcal: 600,  type: 'food'  },
+  mre:      { name: 'MRE / Ration Pack',   qty: 1,    unit: 'un',     kcal: 1200, type: 'food'  },
+};
+
+function rationsInit() {
+  // Load persisted data
+  try {
+    const saved = localStorage.getItem(RATIONS_STORAGE_KEY);
+    if (saved) {
+      const data = JSON.parse(saved);
+      _rationsStock = data.stock || [];
+      // Restore form values
+      if (data.form) {
+        const fields = ['rationsAdults','rationsKids','rationsBabies','rationsElderly',
+                        'rationsActivity','rationsClimate','rationsMode','rationsDays'];
+        fields.forEach(f => {
+          const el = document.getElementById(f);
+          if (el && data.form[f] !== undefined) el.value = data.form[f];
+        });
+      }
+    }
+  } catch(e) { console.warn('Rations load failed:', e); }
+
+  rationsRenderStock();
+  rationsCalc();
+  rationsSetStatus('Calculadora de racoes iniciada');
+}
+
+function rationsSave() {
+  try {
+    const form = {};
+    ['rationsAdults','rationsKids','rationsBabies','rationsElderly',
+     'rationsActivity','rationsClimate','rationsMode','rationsDays'].forEach(f => {
+      const el = document.getElementById(f);
+      if (el) form[f] = el.value;
+    });
+    localStorage.setItem(RATIONS_STORAGE_KEY, JSON.stringify({ stock: _rationsStock, form }));
+    const el = document.getElementById('rationsLastSaved');
+    if (el) el.textContent = 'Salvo ' + new Date().toLocaleTimeString();
+  } catch(e) {}
+}
+
+function rationsTab(tabId) {
+  document.querySelectorAll('.rations-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.rations-panel').forEach(p => p.classList.add('hidden'));
+  const tabEl = document.getElementById('rationsTab' + tabId.charAt(0).toUpperCase() + tabId.slice(1));
+  const panelEl = document.getElementById('rationsPanel-' + tabId);
+  if (tabEl) tabEl.classList.add('active');
+  if (panelEl) panelEl.classList.remove('hidden');
+
+  if (tabId === 'result') rationsRenderResult();
+}
+
+function rationsCalc() {
+  const adults  = parseInt(document.getElementById('rationsAdults')?.value) || 0;
+  const kids    = parseInt(document.getElementById('rationsKids')?.value) || 0;
+  const babies  = parseInt(document.getElementById('rationsBabies')?.value) || 0;
+  const elderly = parseInt(document.getElementById('rationsElderly')?.value) || 0;
+  const activity = document.getElementById('rationsActivity')?.value || 'light';
+  const climate  = document.getElementById('rationsClimate')?.value || 'temperate';
+  const mode     = document.getElementById('rationsMode')?.value || 'normal';
+  const days     = parseInt(document.getElementById('rationsDays')?.value) || 7;
+
+  const totalPeople = adults + kids + babies + elderly;
+  const modeMultiplier = RATIONS_MODE[mode] || 1;
+
+  // Calculate daily kcal need
+  const dailyKcal = Math.round((
+    adults  * RATIONS_KCAL.adult[activity] +
+    kids    * RATIONS_KCAL.kid[activity] +
+    babies  * RATIONS_KCAL.baby[activity] +
+    elderly * RATIONS_KCAL.elderly[activity]
+  ) * modeMultiplier);
+
+  // Calculate daily water need (liters)
+  const waterPerPerson = RATIONS_WATER[climate]?.[activity] || 2.5;
+  // Kids/babies need less water
+  const dailyWater = parseFloat((
+    (adults + elderly) * waterPerPerson +
+    kids * waterPerPerson * 0.7 +
+    babies * waterPerPerson * 0.4
+  ).toFixed(1)) * modeMultiplier;
+
+  // Update live summary
+  const elPeople = document.getElementById('rationsTotalPeople');
+  const elKcal   = document.getElementById('rationsTotalKcal');
+  const elWater  = document.getElementById('rationsTotalWater');
+  const elDays   = document.getElementById('rationsTargetDays');
+  if (elPeople) elPeople.textContent = totalPeople;
+  if (elKcal)   elKcal.textContent = dailyKcal.toLocaleString();
+  if (elWater)  elWater.textContent = dailyWater.toFixed(1);
+  if (elDays)   elDays.textContent = days;
+
+  // Update stock totals
+  rationsRenderStockTotals();
+  rationsSave();
+}
+
+function rationsGetNeeds() {
+  const adults  = parseInt(document.getElementById('rationsAdults')?.value) || 0;
+  const kids    = parseInt(document.getElementById('rationsKids')?.value) || 0;
+  const babies  = parseInt(document.getElementById('rationsBabies')?.value) || 0;
+  const elderly = parseInt(document.getElementById('rationsElderly')?.value) || 0;
+  const activity = document.getElementById('rationsActivity')?.value || 'light';
+  const climate  = document.getElementById('rationsClimate')?.value || 'temperate';
+  const mode     = document.getElementById('rationsMode')?.value || 'normal';
+  const days     = parseInt(document.getElementById('rationsDays')?.value) || 7;
+
+  const totalPeople = adults + kids + babies + elderly;
+  const modeMultiplier = RATIONS_MODE[mode] || 1;
+
+  const dailyKcal = Math.round((
+    adults  * RATIONS_KCAL.adult[activity] +
+    kids    * RATIONS_KCAL.kid[activity] +
+    babies  * RATIONS_KCAL.baby[activity] +
+    elderly * RATIONS_KCAL.elderly[activity]
+  ) * modeMultiplier);
+
+  const waterPerPerson = RATIONS_WATER[climate]?.[activity] || 2.5;
+  const dailyWater = parseFloat((
+    (adults + elderly) * waterPerPerson +
+    kids * waterPerPerson * 0.7 +
+    babies * waterPerPerson * 0.4
+  ).toFixed(1)) * modeMultiplier;
+
+  // Total stock
+  let totalStockKcal = 0;
+  let totalStockWater = 0;
+  for (const item of _rationsStock) {
+    if (item.type === 'water') {
+      totalStockWater += item.qty;
+    } else {
+      totalStockKcal += item.qty * item.kcal;
+    }
+  }
+
+  return {
+    totalPeople, adults, kids, babies, elderly,
+    activity, climate, mode, days, modeMultiplier,
+    dailyKcal, dailyWater,
+    totalStockKcal, totalStockWater,
+    foodDays: dailyKcal > 0 ? totalStockKcal / dailyKcal : 0,
+    waterDays: dailyWater > 0 ? totalStockWater / dailyWater : 0,
+    neededKcal: dailyKcal * days,
+    neededWater: dailyWater * days,
+  };
+}
+
+function rationsQuickAdd(presetId) {
+  const preset = RATIONS_PRESETS[presetId];
+  if (!preset) return;
+  _rationsStock.push({ ...preset, id: Date.now() + Math.random() });
+  rationsRenderStock();
+  rationsCalc();
+  rationsSetStatus('Adicionado: ' + preset.name);
+}
+
+function rationsAddItem() {
+  const name = document.getElementById('rationsNewName')?.value?.trim();
+  if (!name) { rationsSetStatus('Digite o nome do item'); return; }
+  const qty  = parseFloat(document.getElementById('rationsNewQty')?.value) || 1;
+  const unit = document.getElementById('rationsNewUnit')?.value || 'un';
+  const kcal = parseInt(document.getElementById('rationsNewKcal')?.value) || 0;
+  const type = document.getElementById('rationsNewType')?.value || 'food';
+
+  _rationsStock.push({ id: Date.now() + Math.random(), name, qty, unit, kcal, type });
+  document.getElementById('rationsNewName').value = '';
+  rationsRenderStock();
+  rationsCalc();
+  rationsSetStatus('Adicionado: ' + name);
+}
+
+function rationsDeleteItem(id) {
+  _rationsStock = _rationsStock.filter(i => i.id !== id);
+  rationsRenderStock();
+  rationsCalc();
+  rationsSetStatus('Item removido');
+}
+
+function rationsRenderStock() {
+  const list = document.getElementById('rationsStockList');
+  if (!list) return;
+
+  if (_rationsStock.length === 0) {
+    list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:12px">Nenhum suprimento adicionado. Use os botoes acima ou adicione manualmente.</div>';
+    return;
+  }
+
+  list.innerHTML = _rationsStock.map(item => `
+    <div class="rations-stock-row">
+      <span class="stock-name">${escapeHtml(item.name)}</span>
+      <span class="stock-qty">${item.qty}</span>
+      <span class="stock-unit">${escapeHtml(item.unit)}</span>
+      <span class="stock-kcal">${item.type === 'water' ? '--' : (item.qty * item.kcal).toLocaleString()}</span>
+      <span class="stock-type"><span class="stock-type-badge ${item.type}">${item.type === 'water' ? 'Agua' : 'Comida'}</span></span>
+      <button class="rations-stock-del" onclick="rationsDeleteItem(${item.id})" title="Remover">&times;</button>
+    </div>
+  `).join('');
+}
+
+function rationsRenderStockTotals() {
+  const el = document.getElementById('rationsStockTotals');
+  if (!el) return;
+
+  let totalKcal = 0, totalWater = 0, totalItems = _rationsStock.length;
+  for (const item of _rationsStock) {
+    if (item.type === 'water') totalWater += item.qty;
+    else totalKcal += item.qty * item.kcal;
+  }
+
+  el.innerHTML = `
+    <div class="rations-total-card">
+      <span class="rations-total-label">Total Itens</span>
+      <span class="rations-total-value" style="color:var(--text-bright)">${totalItems}</span>
+    </div>
+    <div class="rations-total-card">
+      <span class="rations-total-label">Total kcal</span>
+      <span class="rations-total-value" style="color:var(--amber)">${totalKcal.toLocaleString()}</span>
+    </div>
+    <div class="rations-total-card">
+      <span class="rations-total-label">Total Agua (L)</span>
+      <span class="rations-total-value" style="color:var(--accent)">${totalWater.toFixed(1)}</span>
+    </div>
+  `;
+}
+
+function rationsRenderResult() {
+  const el = document.getElementById('rationsResultContent');
+  if (!el) return;
+
+  const n = rationsGetNeeds();
+
+  if (n.totalPeople === 0) {
+    el.innerHTML = '<div class="rations-empty">Configure o numero de pessoas na aba "Grupo & Perfil".</div>';
+    return;
+  }
+
+  if (_rationsStock.length === 0) {
+    el.innerHTML = '<div class="rations-empty">Adicione suprimentos na aba "Estoque" para ver os resultados.</div>';
+    return;
+  }
+
+  const foodPct  = n.neededKcal > 0 ? Math.min(100, (n.totalStockKcal / n.neededKcal) * 100) : 0;
+  const waterPct = n.neededWater > 0 ? Math.min(100, (n.totalStockWater / n.neededWater) * 100) : 0;
+
+  const foodStatus  = n.foodDays >= n.days ? 'ok' : n.foodDays >= n.days * 0.5 ? 'warning' : 'critical';
+  const waterStatus = n.waterDays >= n.days ? 'ok' : n.waterDays >= n.days * 0.5 ? 'warning' : 'critical';
+
+  const foodBarColor  = foodStatus === 'ok' ? 'green' : foodStatus === 'warning' ? 'amber' : 'red';
+  const waterBarColor = waterStatus === 'ok' ? 'green' : waterStatus === 'warning' ? 'amber' : 'red';
+
+  const modeLabels = { normal: 'Normal (100%)', rationed: 'Racionado (75%)', emergency: 'Emergencia (50%)', starvation: 'Sobrevivencia (33%)' };
+
+  let html = `
+    <div style="margin-bottom:10px;font-size:11px;color:var(--text-muted)">
+      ${n.totalPeople} pessoas &middot; ${modeLabels[n.mode]} &middot; Meta: ${n.days} dias
+    </div>
+
+    <div class="rations-result-grid">
+      <div class="rations-result-card ${foodStatus}">
+        <span class="rations-result-icon">🍚</span>
+        <span class="rations-result-val">${n.foodDays.toFixed(1)}</span>
+        <span class="rations-result-label">Dias de Comida</span>
+        <span class="rations-result-sublabel">${n.totalStockKcal.toLocaleString()} kcal no estoque</span>
+      </div>
+      <div class="rations-result-card ${waterStatus}">
+        <span class="rations-result-icon">💧</span>
+        <span class="rations-result-val">${n.waterDays.toFixed(1)}</span>
+        <span class="rations-result-label">Dias de Agua</span>
+        <span class="rations-result-sublabel">${n.totalStockWater.toFixed(1)} L no estoque</span>
+      </div>
+      <div class="rations-result-card ${foodStatus}">
+        <span class="rations-result-icon">🔥</span>
+        <span class="rations-result-val">${n.dailyKcal.toLocaleString()}</span>
+        <span class="rations-result-label">kcal/dia (grupo)</span>
+        <span class="rations-result-sublabel">Precisa: ${n.neededKcal.toLocaleString()} kcal total</span>
+      </div>
+      <div class="rations-result-card ${waterStatus}">
+        <span class="rations-result-icon">🚰</span>
+        <span class="rations-result-val">${n.dailyWater.toFixed(1)}</span>
+        <span class="rations-result-label">Litros/dia (grupo)</span>
+        <span class="rations-result-sublabel">Precisa: ${n.neededWater.toFixed(1)} L total</span>
+      </div>
+    </div>
+
+    <div class="rations-progress">
+      <div class="rations-progress-label">
+        <span>Comida: ${n.totalStockKcal.toLocaleString()} / ${n.neededKcal.toLocaleString()} kcal</span>
+        <span>${foodPct.toFixed(0)}%</span>
+      </div>
+      <div class="rations-progress-bar">
+        <div class="rations-progress-fill ${foodBarColor}" style="width:${foodPct}%">
+          ${foodPct > 15 ? `<span class="rations-progress-text">${foodPct.toFixed(0)}%</span>` : ''}
+        </div>
+      </div>
+    </div>
+
+    <div class="rations-progress">
+      <div class="rations-progress-label">
+        <span>Agua: ${n.totalStockWater.toFixed(1)} / ${n.neededWater.toFixed(1)} L</span>
+        <span>${waterPct.toFixed(0)}%</span>
+      </div>
+      <div class="rations-progress-bar">
+        <div class="rations-progress-fill ${waterBarColor}" style="width:${waterPct}%">
+          ${waterPct > 15 ? `<span class="rations-progress-text">${waterPct.toFixed(0)}%</span>` : ''}
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Warnings & tips
+  const warnings = [];
+
+  if (n.waterDays < 3) {
+    warnings.push({ level: 'critical', icon: '⚠️', msg: `CRITICO: Agua dura apenas ${n.waterDays.toFixed(1)} dias. Desidratacao e fatal em 3 dias!` });
+  } else if (n.waterDays < n.days) {
+    warnings.push({ level: 'warning', icon: '⚡', msg: `Agua insuficiente para ${n.days} dias. Faltam ${(n.neededWater - n.totalStockWater).toFixed(1)} L.` });
+  }
+
+  if (n.foodDays < 7) {
+    warnings.push({ level: 'critical', icon: '⚠️', msg: `Comida dura apenas ${n.foodDays.toFixed(1)} dias. Corpo entra em catabolismo apos 1 semana.` });
+  } else if (n.foodDays < n.days) {
+    warnings.push({ level: 'warning', icon: '⚡', msg: `Comida insuficiente para ${n.days} dias. Faltam ${(n.neededKcal - n.totalStockKcal).toLocaleString()} kcal.` });
+  }
+
+  if (n.mode === 'starvation') {
+    warnings.push({ level: 'warning', icon: '💀', msg: 'Modo sobrevivencia (33%): risco de fraqueza extrema, confusao mental e hipotermia.' });
+  }
+
+  if (n.babies > 0 && n.mode !== 'normal') {
+    warnings.push({ level: 'critical', icon: '👶', msg: 'BEBES nao devem ser racionados! Mantenha alimentacao normal para criancas pequenas.' });
+  }
+
+  if (n.foodDays >= n.days && n.waterDays >= n.days) {
+    warnings.push({ level: 'tip', icon: '✅', msg: `Suprimentos suficientes para ${n.days} dias. Considere estocar para ${Math.ceil(n.days * 1.5)} dias como margem de seguranca.` });
+  }
+
+  // Suggestion: next ration mode
+  if (n.foodDays < n.days && n.mode === 'normal') {
+    const rationedDays = (n.totalStockKcal / (n.dailyKcal / RATIONS_MODE.normal * RATIONS_MODE.rationed)).toFixed(1);
+    warnings.push({ level: 'tip', icon: '💡', msg: `Dica: no modo racionado (75%), comida duraria ~${rationedDays} dias.` });
+  }
+
+  if (warnings.length > 0) {
+    html += '<div class="rations-warnings">';
+    for (const w of warnings) {
+      html += `<div class="rations-warning-item ${w.level}">${w.icon} ${w.msg}</div>`;
+    }
+    html += '</div>';
+  }
+
+  el.innerHTML = html;
+}
+
+function rationsSetStatus(msg) {
+  const el = document.getElementById('rationsStatus');
+  if (el) el.textContent = msg;
+}
+
+// ── Exports ──
+window.rationsInit = rationsInit;
+window.rationsTab = rationsTab;
+window.rationsCalc = rationsCalc;
+window.rationsQuickAdd = rationsQuickAdd;
+window.rationsAddItem = rationsAddItem;
+window.rationsDeleteItem = rationsDeleteItem;
