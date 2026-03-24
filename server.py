@@ -2101,6 +2101,13 @@ def _init_db():
             mood TEXT DEFAULT 'neutral',
             created_at TEXT DEFAULT (datetime('now','localtime'))
         );
+        CREATE TABLE IF NOT EXISTS journal_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            content TEXT DEFAULT '',
+            category TEXT DEFAULT 'nota',
+            mood TEXT DEFAULT '',
+            created_at TEXT DEFAULT (datetime('now','localtime'))
+        );
         CREATE TABLE IF NOT EXISTS notes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             title TEXT DEFAULT 'Sem titulo',
@@ -2442,6 +2449,45 @@ async def upsert_journal(request: Request):
     row = conn.execute("SELECT * FROM journal WHERE date = ?", (entry_date,)).fetchone()
     conn.close()
     return dict(row)
+
+
+# ─── Survival Journal (multi-entry log) ──────────────────────────────────────
+
+@app.get("/api/journal/logs")
+async def list_journal_logs(limit: int = 200):
+    """List survival journal log entries, newest first"""
+    conn = _db()
+    rows = conn.execute("SELECT * FROM journal_logs ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+@app.post("/api/journal/logs")
+async def create_journal_log(request: Request):
+    """Create a new survival journal log entry"""
+    body = await request.json()
+    content = body.get("content", "")
+    category = body.get("category", "nota")
+    mood = body.get("mood", "")
+    conn = _db()
+    conn.execute(
+        "INSERT INTO journal_logs (content, category, mood) VALUES (?, ?, ?)",
+        (content, category, mood),
+    )
+    conn.commit()
+    row = conn.execute("SELECT * FROM journal_logs ORDER BY id DESC LIMIT 1").fetchone()
+    conn.close()
+    return dict(row)
+
+
+@app.delete("/api/journal/logs/{log_id}")
+async def delete_journal_log(log_id: int):
+    """Delete a survival journal log entry"""
+    conn = _db()
+    conn.execute("DELETE FROM journal_logs WHERE id = ?", (log_id,))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
 
 
 # ─── Kiwix status ────────────────────────────────────────────────────────────

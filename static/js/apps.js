@@ -2813,7 +2813,21 @@ async function openWikiPanel() {
   openApp('wiki');
 }
 
-// ─── Journal ────────────────────────────────────────────────────────────────
+// ─── Survival Journal ───────────────────────────────────────────────────────
+// Multi-entry survival log with categories, search, export, day counter
+
+const JOURNAL_CATEGORIES = {
+  evento:   { icon: '⚡', label: 'Evento',    color: '#ff6b35' },
+  recurso:  { icon: '📦', label: 'Recurso',   color: '#39ff14' },
+  saude:    { icon: '🩺', label: 'Saude',     color: '#ff4757' },
+  clima:    { icon: '🌤️', label: 'Clima',     color: '#54a0ff' },
+  contato:  { icon: '👥', label: 'Contato',   color: '#9b59b6' },
+  perigo:   { icon: '☠️', label: 'Perigo',    color: '#ff3838' },
+  nota:     { icon: '📝', label: 'Nota',      color: '#00d4ff' },
+};
+
+let _journalLogs = [];
+let _journalFilter = { category: '', text: '' };
 let _journalMood = null;
 let _journalCurrentDate = new Date().toISOString().slice(0, 10);
 let _journalEntries = [];
@@ -2830,363 +2844,347 @@ window._journalInit = loadJournal;
 async function loadJournal() {
   const content = document.getElementById('journalContent');
   if (!content) return;
-  content.innerHTML = '<div class="guide-loading">Carregando diário...</div>';
+  content.innerHTML = '<div class="guide-loading">Carregando diario de sobrevivencia...</div>';
+
+  // Load from localStorage first (offline-first)
   try {
-    const r = await fetch('/api/journal');
+    const cached = localStorage.getItem('bunker_journal_logs');
+    if (cached) _journalLogs = JSON.parse(cached);
+  } catch {}
+
+  // Then try server
+  try {
+    const r = await fetch('/api/journal/logs');
     const d = await r.json();
-    _journalEntries = Array.isArray(d) ? d : (d.entries || []);
-    renderJournal(_journalEntries);
-  } catch(e) {
-    content.innerHTML = `<div class="guide-error">Erro: ${e.message}</div>`;
-  }
+    if (Array.isArray(d) && d.length > 0) {
+      _journalLogs = d;
+      _saveJournalLocal();
+    }
+  } catch {}
+
+  // Also load legacy entries for backward compat
+  try {
+    const r2 = await fetch('/api/journal');
+    const d2 = await r2.json();
+    _journalEntries = Array.isArray(d2) ? d2 : (d2.entries || []);
+  } catch {}
+
+  renderSurvivalJournal();
 }
 
-function renderJournal(entries) {
+function _saveJournalLocal() {
+  try { localStorage.setItem('bunker_journal_logs', JSON.stringify(_journalLogs)); } catch {}
+}
+
+function _journalDayCount() {
+  if (_journalLogs.length === 0) return 0;
+  const oldest = _journalLogs.reduce((a, b) =>
+    (a.created_at || '') < (b.created_at || '') ? a : b
+  );
+  const first = new Date(oldest.created_at || Date.now());
+  const now = new Date();
+  return Math.max(1, Math.floor((now - first) / 86400000) + 1);
+}
+
+function _journalCategorySummary() {
+  const counts = {};
+  for (const cat of Object.keys(JOURNAL_CATEGORIES)) counts[cat] = 0;
+  for (const log of _journalLogs) {
+    const c = log.category || 'nota';
+    counts[c] = (counts[c] || 0) + 1;
+  }
+  return counts;
+}
+
+function _journalFilteredLogs() {
+  let logs = [..._journalLogs];
+  if (_journalFilter.category) {
+    logs = logs.filter(l => l.category === _journalFilter.category);
+  }
+  if (_journalFilter.text) {
+    const q = _journalFilter.text.toLowerCase();
+    logs = logs.filter(l => (l.content || '').toLowerCase().includes(q));
+  }
+  return logs;
+}
+
+function renderSurvivalJournal() {
   const content = document.getElementById('journalContent');
   if (!content) return;
-  _journalEntries = entries;
+
+  const dayCount = _journalDayCount();
+  const summary = _journalCategorySummary();
+  const total = _journalLogs.length;
 
   let html = '';
 
-  // ── Clock bar ──
-  html += '<div class="journal-clock-bar">';
-  html += '<div id="journalClock" class="journal-clock">00:00:00</div>';
+  // ── Header: clock + day counter ──
+  html += '<div class="sj-header">';
+  html += '<div class="sj-header-left">';
+  html += `<div class="sj-day-counter">${dayCount > 0 ? `DIA ${dayCount}` : 'DIA 0'} <span class="sj-day-label">DE SOBREVIVENCIA</span></div>`;
+  html += `<div class="sj-total-entries">${total} registro${total !== 1 ? 's' : ''} no diario</div>`;
+  html += '</div>';
+  html += '<div class="sj-header-right">';
+  html += '<div id="sjClock" class="sj-clock">00:00:00</div>';
+  html += '</div>';
   html += '</div>';
 
-  // ── Two-column layout: calendar left, editor+timeline right ──
-  html += '<div class="journal-layout">';
-
-  // Left column: calendar + status
-  html += '<div class="journal-left">';
-  html += '<div id="journalCalendar" class="journal-cal"></div>';
-  html += '<div id="journalStatus" class="journal-status-card"><div class="guide-loading">Carregando status...</div></div>';
-  html += '</div>';
-
-  // Right column: editor + timeline
-  html += '<div class="journal-right">';
-  html += '<div id="journalEditor" class="journal-editor"></div>';
-  if (entries.length > 0) {
-    html += '<div class="journal-timeline">';
-    html += '<div class="journal-timeline-title">Entradas anteriores</div>';
-    for (const e of entries.slice(0, 30)) {
-      const preview = (e.content || '').slice(0, 100) + ((e.content||'').length > 100 ? '…' : '');
-      const isActive = e.date === _journalCurrentDate;
-      html += `<div class="journal-entry${isActive ? ' active' : ''}" onclick="loadJournalDate('${e.date}')">
-        <div class="journal-entry-date">${e.date}</div>
-        <div class="journal-entry-mood">${e.mood || ''}</div>
-        <div class="journal-entry-preview">${escapeHtml(preview)}</div>
-      </div>`;
-    }
-    html += '</div>';
+  // ── Category summary bar ──
+  html += '<div class="sj-summary-bar">';
+  for (const [cat, info] of Object.entries(JOURNAL_CATEGORIES)) {
+    const count = summary[cat] || 0;
+    const isActive = _journalFilter.category === cat;
+    html += `<button class="sj-summary-chip${isActive ? ' active' : ''}" style="--chip-color:${info.color}" onclick="toggleJournalCatFilter('${cat}')" title="${info.label}: ${count}">`;
+    html += `<span class="sj-chip-icon">${info.icon}</span>`;
+    html += `<span class="sj-chip-count">${count}</span>`;
+    html += '</button>';
   }
-  html += '</div>'; // .journal-right
+  if (_journalFilter.category) {
+    html += '<button class="sj-clear-filter" onclick="clearJournalFilter()">✕ Limpar filtro</button>';
+  }
+  html += '</div>';
 
-  html += '</div>'; // .journal-layout
+  // ── Search + export toolbar ──
+  html += '<div class="sj-toolbar">';
+  html += '<div class="sj-search-wrap">';
+  html += `<input type="text" class="sj-search" id="sjSearch" placeholder="Buscar no diario..." value="${escapeHtml(_journalFilter.text)}" oninput="onJournalSearch(this.value)">`;
+  html += '<span class="sj-search-icon">🔍</span>';
+  html += '</div>';
+  html += '<div class="sj-toolbar-btns">';
+  html += '<button class="btn-sm sj-export-btn" onclick="exportJournal(\'clipboard\')" title="Copiar para clipboard">📋 Copiar</button>';
+  html += '<button class="btn-sm sj-export-btn" onclick="exportJournal(\'file\')" title="Baixar .txt">💾 Exportar .txt</button>';
+  html += '</div>';
+  html += '</div>';
+
+  // ── New entry form ──
+  html += '<div class="sj-new-entry">';
+  html += '<div class="sj-new-header">NOVO REGISTRO</div>';
+  html += '<div class="sj-cat-selector" id="sjCatSelector">';
+  for (const [cat, info] of Object.entries(JOURNAL_CATEGORIES)) {
+    html += `<button class="sj-cat-btn${cat === 'nota' ? ' active' : ''}" data-cat="${cat}" style="--cat-color:${info.color}" onclick="selectJournalCat('${cat}')">`;
+    html += `${info.icon} ${info.label}`;
+    html += '</button>';
+  }
+  html += '</div>';
+  html += '<textarea id="sjNewText" class="sj-textarea" placeholder="Registrar observacao, evento, recurso encontrado..."></textarea>';
+  html += '<div class="sj-new-footer">';
+  html += '<span class="sj-timestamp-preview" id="sjTimestamp"></span>';
+  html += '<button class="btn-sm btn-accent sj-save-btn" onclick="saveJournalLog()">⚡ Registrar</button>';
+  html += '</div>';
+  html += '</div>';
+
+  // ── Log entries ──
+  html += '<div class="sj-log-list" id="sjLogList">';
+  html += _renderLogEntries();
+  html += '</div>';
 
   content.innerHTML = html;
-  renderJournalEditor();
-  renderJournalCalendar();
-  loadJournalStatus();
+
+  // Start clock
+  _startSjClock();
+  _updateSjTimestamp();
 }
 
-function _journalNavDates() {
-  const today = new Date().toISOString().slice(0, 10);
-  const existingDates = _journalEntries.map(e => e.date);
-  // Always include today even if no entry yet
-  return [...new Set([...existingDates, today])].sort();
-}
-
-// ── Live clock ──
-function _startClock() {
-  clearInterval(_clockInterval);
-  _updateClock();
-  _clockInterval = setInterval(_updateClock, 1000);
-}
-
-function _updateClock() {
-  const el = document.getElementById('journalClock');
-  if (!el) { clearInterval(_clockInterval); return; }
-  const now = new Date();
-  const hh = String(now.getHours()).padStart(2, '0');
-  const mm = String(now.getMinutes()).padStart(2, '0');
-  const ss = String(now.getSeconds()).padStart(2, '0');
-  el.textContent = `${hh}:${mm}:${ss}`;
-}
-
-// ── Mini calendar ──
-function renderJournalCalendar() {
-  const cal = document.getElementById('journalCalendar');
-  if (!cal) return;
-
-  const now = new Date();
-  const today = now.toISOString().slice(0, 10);
-  const year  = _calYear  ?? now.getFullYear();
-  const month = _calMonth ?? now.getMonth();   // 0-indexed
-
-  const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
-                      'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-  const dayLetters = ['D','S','T','Q','Q','S','S'];
-
-  // Days that have journal entries this month
-  const entryDates = new Set(_journalEntries.map(e => e.date));
-
-  const firstDay = new Date(year, month, 1).getDay(); // 0=Sun
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-  let html = '<div class="journal-cal-header">';
-  html += `<button class="journal-cal-nav" onclick="shiftCalMonth(-1)">◀</button>`;
-  html += `<span class="journal-cal-title">${monthNames[month]} ${year}</span>`;
-  html += `<button class="journal-cal-nav" onclick="shiftCalMonth(1)">▶</button>`;
-  html += '</div>';
-
-  html += '<div class="journal-cal-weekdays">';
-  for (const d of dayLetters) html += `<div class="journal-cal-wd">${d}</div>`;
-  html += '</div>';
-
-  html += '<div class="journal-cal-grid">';
-  // Empty cells before first day
-  for (let i = 0; i < firstDay; i++) html += '<div class="journal-cal-day empty"></div>';
-  // Days
-  for (let d = 1; d <= daysInMonth; d++) {
-    const isoDate = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const classes = ['journal-cal-day'];
-    if (isoDate === today) classes.push('today');
-    if (isoDate === _journalCurrentDate) classes.push('selected');
-    if (entryDates.has(isoDate)) classes.push('has-entry');
-    html += `<div class="${classes.join(' ')}" onclick="loadJournalDate('${isoDate}')">${d}</div>`;
+function _renderLogEntries() {
+  const logs = _journalFilteredLogs();
+  if (logs.length === 0) {
+    return '<div class="sj-empty">Nenhum registro encontrado. Comece seu diario de sobrevivencia!</div>';
   }
-  html += '</div>';
-
-  cal.innerHTML = html;
-}
-
-function shiftCalMonth(dir) {
-  const now = new Date();
-  _calMonth = (_calMonth ?? now.getMonth()) + dir;
-  _calYear  = _calYear ?? now.getFullYear();
-  if (_calMonth > 11) { _calMonth = 0;  _calYear++; }
-  if (_calMonth < 0)  { _calMonth = 11; _calYear--; }
-  renderJournalCalendar();
-}
-
-// ── Server status card ──
-async function loadJournalStatus() {
-  const el = document.getElementById('journalStatus');
-  if (!el) return;
-  try {
-    const r = await fetch('/api/status');
-    const d = await r.json();
-    renderJournalStatus(d);
-  } catch(e) {
-    el.innerHTML = '<div class="guide-error">Status indisponível</div>';
-  }
-}
-
-function _uptimeStr(sec) {
-  if (sec < 60) return `${sec}s`;
-  if (sec < 3600) return `${Math.floor(sec/60)}m ${sec%60}s`;
-  const h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60);
-  return `${h}h ${m}m`;
-}
-
-function _statusBar(pct, cls) {
-  const p = Math.max(0, Math.min(100, pct || 0));
-  const col = p > 85 ? 'danger' : p > 60 ? 'warn' : 'ok';
-  return `<div class="status-bar"><div class="status-bar-fill ${col}" style="width:${p}%"></div></div>`;
-}
-
-function renderJournalStatus(d) {
-  const el = document.getElementById('journalStatus');
-  if (!el) return;
-
-  const hasPsutil = d.cpu_pct != null;
-  let html = '<div class="status-card-title">📡 Status do Servidor</div>';
-  html += '<div class="status-grid">';
-
-  // IP + Port
-  html += `<div class="status-item"><span class="status-label">IP</span><span class="status-val">${d.ip}:${d.port}</span></div>`;
-  // Uptime
-  html += `<div class="status-item"><span class="status-label">Uptime</span><span class="status-val">${_uptimeStr(d.uptime_sec)}</span></div>`;
-  // OS
-  html += `<div class="status-item"><span class="status-label">SO</span><span class="status-val">${d.os}</span></div>`;
-  // Python
-  html += `<div class="status-item"><span class="status-label">Python</span><span class="status-val">${d.python}</span></div>`;
-
-  if (hasPsutil) {
-    // CPU
-    html += `<div class="status-item full"><span class="status-label">CPU</span><span class="status-val">${d.cpu_pct}%</span>${_statusBar(d.cpu_pct)}</div>`;
-    // RAM
-    const ramUsed = d.ram_used_mb >= 1024 ? `${(d.ram_used_mb/1024).toFixed(1)} GB` : `${d.ram_used_mb} MB`;
-    const ramTotal = d.ram_total_mb >= 1024 ? `${(d.ram_total_mb/1024).toFixed(1)} GB` : `${d.ram_total_mb} MB`;
-    html += `<div class="status-item full"><span class="status-label">RAM</span><span class="status-val">${ramUsed} / ${ramTotal} (${d.ram_pct}%)</span>${_statusBar(d.ram_pct)}</div>`;
-    // Disk
-    html += `<div class="status-item full"><span class="status-label">Disco livre</span><span class="status-val">${d.disk_free_gb} GB / ${d.disk_total_gb} GB (${d.disk_pct}%)</span>${_statusBar(d.disk_pct)}</div>`;
-  } else {
-    html += `<div class="status-item full"><span class="status-label">Métricas</span><span class="status-val status-dim">Instale psutil para detalhes</span></div>`;
-  }
-
-  // Content summary
-  if (d.content) {
-    const c = d.content;
-    html += `<div class="status-item full status-content">`;
-    html += `<span class="status-label">Conteúdo offline</span>`;
-    html += `<div class="status-content-grid">`;
-    html += `<span>📋 ${c.guides} guias</span><span>🚨 ${c.protocols} protocolos</span>`;
-    html += `<span>📚 ${c.books} livros</span><span>🎮 ${c.games} jogos</span>`;
-    html += `<span>🗺️ ${c.maps} mapas</span><span>🌐 ${c.zim_files} ZIM</span>`;
-    html += `</div></div>`;
-  }
-
-  html += '</div>'; // .status-grid
-  html += `<button class="status-refresh-btn" onclick="loadJournalStatus()">⟳ Atualizar</button>`;
-
-  el.innerHTML = html;
-}
-
-function renderJournalEditor() {
-  const editorEl = document.getElementById('journalEditor');
-  if (!editorEl) return;
-
-  const today = new Date().toISOString().slice(0, 10);
-  const isToday = _journalCurrentDate === today;
-  const entry = _journalEntries.find(e => e.date === _journalCurrentDate);
-  _journalMood = entry?.mood || null;
-
-  const allDates = _journalNavDates();
-  const idx = allDates.indexOf(_journalCurrentDate);
-  const hasPrev = idx > 0;
-  const hasNext = idx < allDates.length - 1;
-
-  const moods = [['😊','Bem'],['😐','Normal'],['😟','Preocupado'],['😰','Ansioso'],['😤','Irritado']];
 
   let html = '';
+  let lastDate = '';
+  for (const log of logs) {
+    const dt = new Date(log.created_at);
+    const dateStr = dt.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const timeStr = dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const cat = JOURNAL_CATEGORIES[log.category] || JOURNAL_CATEGORIES.nota;
 
-  // Date nav row
-  html += '<div class="journal-date-nav">';
-  html += `<button class="journal-nav-btn" onclick="navigateJournal(-1)"${hasPrev ? '' : ' disabled'}>◀</button>`;
-  html += `<div class="journal-date">${_journalCurrentDate}${isToday ? ' <span class="journal-today-badge">hoje</span>' : ''}</div>`;
-  html += `<button class="journal-nav-btn" onclick="navigateJournal(1)"${hasNext ? '' : ' disabled'}>▶</button>`;
-  html += '</div>';
-
-  // Mood selector
-  html += '<div class="journal-mood-bar">';
-  for (const [emoji, label] of moods) {
-    const active = _journalMood === emoji ? ' active' : '';
-    html += `<span class="journal-mood${active}" onclick="setJournalMood('${emoji}')" title="${label}">${emoji}</span>`;
-  }
-  html += '</div>';
-
-  // Textarea
-  html += `<textarea id="journalText" class="journal-textarea" placeholder="Como foi seu dia no bunker...">${escapeHtml(entry?.content || '')}</textarea>`;
-
-  // Audio recording + voice-to-text
-  html += '<div class="journal-audio-row">';
-  html += '<button class="btn-sm journal-audio-btn" id="journalRecordBtn" onclick="toggleJournalAudio()" title="Gravar audio">🎤 Gravar</button>';
-  html += '<button class="btn-sm" id="journalDictateBtn" onclick="toggleJournalDictate()" title="Falar para texto — transcreve sua voz direto no diario">🗣️ Ditar</button>';
-  html += '<span class="journal-audio-status" id="journalAudioStatus"></span>';
-  html += '</div>';
-  // Audio entries
-  const audioEntries = (entry?.audio || []);
-  if (audioEntries.length > 0) {
-    html += '<div class="journal-audio-list">';
-    for (let i = 0; i < audioEntries.length; i++) {
-      const hasTranscript = audioEntries[i].transcript;
-      html += `<div class="journal-audio-item">
-        <audio controls src="${audioEntries[i].url}" style="height:32px;flex:1"></audio>
-        <span style="font-size:10px;color:var(--text-muted)">${audioEntries[i].time || ''}</span>
-        <button class="btn-sm" onclick="transcribeJournalAudio(${i})" title="Transcrever audio para texto" id="journalTranscribeBtn${i}">${hasTranscript ? '✓' : '📝'}</button>
-        <button class="btn-sm" onclick="removeJournalAudio(${i})" title="Remover">✕</button>
-      </div>`;
-      if (hasTranscript) {
-        html += `<div class="journal-audio-transcript">${escapeHtml(audioEntries[i].transcript)}</div>`;
-      }
+    // Date separator
+    const isoDate = dt.toISOString().slice(0, 10);
+    if (isoDate !== lastDate) {
+      lastDate = isoDate;
+      html += `<div class="sj-date-separator"><span>${dateStr}</span></div>`;
     }
+
+    html += `<div class="sj-log-entry" style="--entry-color:${cat.color}">`;
+    html += `<div class="sj-log-icon">${cat.icon}</div>`;
+    html += '<div class="sj-log-body">';
+    html += `<div class="sj-log-meta">`;
+    html += `<span class="sj-log-cat" style="color:${cat.color}">${cat.label}</span>`;
+    html += `<span class="sj-log-time">${timeStr}</span>`;
+    html += '</div>';
+    html += `<div class="sj-log-text">${escapeHtml(log.content || '')}</div>`;
+    html += '</div>';
+    html += `<button class="sj-log-delete" onclick="deleteJournalLog(${log.id})" title="Apagar registro">✕</button>`;
     html += '</div>';
   }
-
-  // Save row
-  html += '<div class="journal-save-row">';
-  html += '<span class="journal-saved" id="journalSaved">✓ Salvo</span>';
-  html += '<button class="btn-sm btn-accent" onclick="saveJournal()">Salvar entrada</button>';
-  html += '</div>';
-
-  editorEl.innerHTML = html;
+  return html;
 }
 
-function navigateJournal(dir) {
-  const allDates = _journalNavDates();
-  const idx = allDates.indexOf(_journalCurrentDate);
-  const newIdx = idx + dir;
-  if (newIdx < 0 || newIdx >= allDates.length) return;
-  _journalCurrentDate = allDates[newIdx];
-  const d = new Date(_journalCurrentDate + 'T00:00:00');
-  _calYear  = d.getFullYear();
-  _calMonth = d.getMonth();
-  renderJournalEditor();
-  renderJournalCalendar();
-  // Sync active highlight in timeline
-  document.querySelectorAll('.journal-entry').forEach(el => {
-    const ed = el.querySelector('.journal-entry-date')?.textContent?.trim();
-    el.classList.toggle('active', ed === _journalCurrentDate);
+let _sjSelectedCat = 'nota';
+
+function selectJournalCat(cat) {
+  _sjSelectedCat = cat;
+  document.querySelectorAll('.sj-cat-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.cat === cat);
   });
 }
 
-function loadJournalDate(date) {
-  _journalCurrentDate = date;
-  // Sync calendar month to show the selected date
-  const d = new Date(date + 'T00:00:00');
-  _calYear  = d.getFullYear();
-  _calMonth = d.getMonth();
-  renderJournalEditor();
-  renderJournalCalendar();
-  // Sync active highlight in timeline
-  document.querySelectorAll('.journal-entry').forEach(el => {
-    const ed = el.querySelector('.journal-entry-date')?.textContent?.trim();
-    el.classList.toggle('active', ed === date);
-  });
-  document.getElementById('journalEditor')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+function toggleJournalCatFilter(cat) {
+  _journalFilter.category = _journalFilter.category === cat ? '' : cat;
+  renderSurvivalJournal();
 }
 
-function setJournalMood(emoji) {
-  _journalMood = emoji;
-  document.querySelectorAll('.journal-mood').forEach(b =>
-    b.classList.toggle('active', b.textContent === emoji)
-  );
+function clearJournalFilter() {
+  _journalFilter = { category: '', text: '' };
+  renderSurvivalJournal();
 }
 
-async function saveJournal() {
-  const text = document.getElementById('journalText')?.value || '';
+let _sjSearchTimeout = null;
+function onJournalSearch(val) {
+  clearTimeout(_sjSearchTimeout);
+  _sjSearchTimeout = setTimeout(() => {
+    _journalFilter.text = val;
+    const list = document.getElementById('sjLogList');
+    if (list) list.innerHTML = _renderLogEntries();
+  }, 250);
+}
+
+async function saveJournalLog() {
+  const textarea = document.getElementById('sjNewText');
+  const text = (textarea?.value || '').trim();
+  if (!text) return;
+
+  const entry = {
+    content: text,
+    category: _sjSelectedCat,
+    mood: '',
+    created_at: new Date().toISOString().replace('T', ' ').slice(0, 19),
+  };
+
+  // Try server first
   try {
-    await fetch('/api/journal', {
+    const r = await fetch('/api/journal/logs', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ date: _journalCurrentDate, content: text, mood: _journalMood })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(entry),
     });
-    // Update local cache so re-renders are accurate without a full reload
-    const idx = _journalEntries.findIndex(e => e.date === _journalCurrentDate);
-    if (idx >= 0) {
-      _journalEntries[idx] = { ..._journalEntries[idx], content: text, mood: _journalMood };
-    } else {
-      _journalEntries.push({ date: _journalCurrentDate, content: text, mood: _journalMood });
-      _journalEntries.sort((a, b) => b.date.localeCompare(a.date));
-    }
-    // Refresh timeline item preview
-    document.querySelectorAll('.journal-entry').forEach(el => {
-      const d = el.querySelector('.journal-entry-date')?.textContent?.trim();
-      if (d === _journalCurrentDate) {
-        const prev = el.querySelector('.journal-entry-preview');
-        if (prev) prev.textContent = text.slice(0, 100) + (text.length > 100 ? '…' : '');
-        const moodEl = el.querySelector('.journal-entry-mood');
-        if (moodEl) moodEl.textContent = _journalMood || '';
-      }
-    });
-    const indicator = document.getElementById('journalSaved');
-    if (indicator) {
-      indicator.classList.add('show');
-      setTimeout(() => indicator.classList.remove('show'), 2000);
-    }
-  } catch(e) { alert('Erro: ' + e.message); }
+    const saved = await r.json();
+    if (saved.id) entry.id = saved.id;
+    if (saved.created_at) entry.created_at = saved.created_at;
+  } catch {
+    // Offline — assign local ID
+    entry.id = Date.now();
+  }
+
+  _journalLogs.unshift(entry);
+  _saveJournalLocal();
+
+  // Clear form and re-render
+  if (textarea) textarea.value = '';
+  renderSurvivalJournal();
 }
+
+async function deleteJournalLog(id) {
+  _journalLogs = _journalLogs.filter(l => l.id !== id);
+  _saveJournalLocal();
+
+  try { await fetch(`/api/journal/logs/${id}`, { method: 'DELETE' }); } catch {}
+
+  const list = document.getElementById('sjLogList');
+  if (list) list.innerHTML = _renderLogEntries();
+
+  // Update summary
+  renderSurvivalJournal();
+}
+
+function exportJournal(mode) {
+  const logs = _journalFilteredLogs();
+  const dayCount = _journalDayCount();
+  let text = `=== DIARIO DE SOBREVIVENCIA ===\n`;
+  text += `Exportado em: ${new Date().toLocaleString('pt-BR')}\n`;
+  text += `Total: ${logs.length} registros | Dia ${dayCount} de sobrevivencia\n`;
+  text += '='.repeat(40) + '\n\n';
+
+  let lastDate = '';
+  for (const log of logs) {
+    const dt = new Date(log.created_at);
+    const isoDate = dt.toISOString().slice(0, 10);
+    const timeStr = dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const cat = JOURNAL_CATEGORIES[log.category] || JOURNAL_CATEGORIES.nota;
+
+    if (isoDate !== lastDate) {
+      lastDate = isoDate;
+      text += `--- ${dt.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} ---\n`;
+    }
+    text += `[${timeStr}] [${cat.icon} ${cat.label}] ${log.content}\n`;
+  }
+
+  if (mode === 'clipboard') {
+    navigator.clipboard.writeText(text).then(() => {
+      _sjFlash('Copiado para clipboard!');
+    }).catch(() => {
+      _sjFlash('Erro ao copiar');
+    });
+  } else {
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `diario-sobrevivencia-dia${_journalDayCount()}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    _sjFlash('Arquivo baixado!');
+  }
+}
+
+function _sjFlash(msg) {
+  const el = document.createElement('div');
+  el.className = 'sj-flash';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.classList.add('show'), 10);
+  setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 300); }, 2000);
+}
+
+function _startSjClock() {
+  clearInterval(_clockInterval);
+  _updateSjClock();
+  _clockInterval = setInterval(_updateSjClock, 1000);
+}
+
+function _updateSjClock() {
+  const el = document.getElementById('sjClock');
+  if (!el) { clearInterval(_clockInterval); return; }
+  const now = new Date();
+  el.textContent = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+function _updateSjTimestamp() {
+  const el = document.getElementById('sjTimestamp');
+  if (el) el.textContent = new Date().toLocaleString('pt-BR');
+  setTimeout(_updateSjTimestamp, 10000);
+}
+
+// Keep legacy compat functions
+function renderJournal(entries) {
+  _journalEntries = entries;
+  renderSurvivalJournal();
+}
+
+// Legacy compat stubs — old functions kept as no-ops
+function _journalNavDates() { return []; }
+function _startClock() {}
+function _updateClock() {}
+function renderJournalCalendar() {}
+function shiftCalMonth() {}
+function loadJournalStatus() {}
+function renderJournalStatus() {}
+function renderJournalEditor() {}
+function navigateJournal() {}
+function loadJournalDate() {}
+function setJournalMood() {}
+async function saveJournal() { await saveJournalLog(); }
 
 // ─── Journal Audio Recording ────────────────────────────────────────────────
 

@@ -8,7 +8,7 @@ export const OS_APPS = [
   { id: 'guides',     name: 'Guias',          icon: '\u{1F4CB}', width: 700, height: 500, viewId: 'guideView' },
   { id: 'protocols',  name: 'Protocolos',     icon: '\u{1F6A8}', width: 600, height: 500, viewId: 'protocolView' },
   { id: 'supplies',   name: 'Suprimentos',    icon: '\u{1F4E6}', width: 780, height: 520, viewId: 'suppliesView' },
-  { id: 'journal',    name: 'Di\u00E1rio',    icon: '\u{1F4D3}', width: 800, height: 560, viewId: 'journalView' },
+  { id: 'journal',    name: 'Di\u00E1rio de Sobreviv\u00EAncia', icon: '\u{1F4D3}', width: 850, height: 620, viewId: 'journalView' },
   { id: 'books',      name: 'Biblioteca',     icon: '\u{1F4DA}', width: 700, height: 500, viewId: 'booksView' },
   { id: 'bookReader', name: 'Leitor',         icon: '\u{1F4D6}', width: 750, height: 550, viewId: 'bookReaderView', hidden: true },
   { id: 'games',      name: 'Jogos',          icon: '\u{1F3AE}', width: 620, height: 520, viewId: 'gamesView' },
