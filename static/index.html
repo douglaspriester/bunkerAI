@@ -79,16 +79,95 @@
 
   <!-- Emergency Quick Panel (desktop widget) -->
   <div id="sosWidget" class="sos-widget">
-    <button class="sos-toggle" onclick="toggleSosWidget()" title="Painel de Emergencia">🆘</button>
-    <div class="sos-panel hidden" id="sosPanel">
-      <div class="sos-title">⚡ Acesso Rapido</div>
-      <button class="sos-btn sos-critical" onclick="openApp('chat');setAIMode('medical');setInput('Alguem esta sangrando muito, o que faco AGORA?')">🏥 Hemorragia</button>
-      <button class="sos-btn sos-critical" onclick="openApp('chat');setAIMode('medical');setInput('Preciso fazer RCP agora, me guie passo a passo')">💓 RCP</button>
-      <button class="sos-btn sos-critical" onclick="openApp('firstaid')">🩺 Primeiros Socorros</button>
-      <button class="sos-btn" onclick="openApp('chat');setAIMode('survival');setInput('Estou perdido sem agua nem comida, prioridades imediatas?')">🏕️ Perdido</button>
-      <button class="sos-btn" onclick="openApp('radio')">📻 Frequencias</button>
-      <button class="sos-btn" onclick="openApp('morse')">📡 SOS Morse</button>
-      <button class="sos-btn" onclick="openApp('map')">🗺️ Mapas</button>
+    <button class="sos-toggle" onclick="openSosEmergency()" title="EMERGENCIA - Clique para procedimentos criticos">🆘</button>
+  </div>
+
+  <!-- SOS Fullscreen Emergency Overlay -->
+  <div id="sosEmergencyOverlay" class="sos-emergency-overlay hidden">
+    <div class="sos-emergency-header">
+      <div class="sos-emergency-title">🆘 EMERGENCIA — PROCEDIMENTOS CRITICOS</div>
+      <div class="sos-emergency-actions">
+        <button class="sos-open-firstaid-btn" onclick="closeSosEmergency();openApp('firstaid')">🩺 Abrir Primeiros Socorros</button>
+        <button class="sos-close-btn" onclick="closeSosEmergency()" title="Fechar (ESC)">✕</button>
+      </div>
+    </div>
+    <div class="sos-emergency-grid">
+      <!-- Card 1: RCP -->
+      <div class="sos-card">
+        <div class="sos-card-icon">💓</div>
+        <div class="sos-card-title">RCP — Adulto</div>
+        <ol class="sos-card-steps">
+          <li>Verifique consciencia: chacoalhe ombros e pergunte alto</li>
+          <li>Ligue 192 (SAMU) ou peca para alguem ligar</li>
+          <li>Posicione maos entrelagadas no centro do peito</li>
+          <li>Comprima 5-6 cm, ritmo 100-120/min (use o metronomo abaixo)</li>
+          <li>30 compressoes → 2 ventilacoes. Nao pare ate ajuda chegar</li>
+        </ol>
+        <button class="sos-metronome-btn" onclick="toggleCprMetronome(this)">
+          <span class="sos-metronome-icon">♥</span> Metronomo RCP (110 bpm)
+        </button>
+      </div>
+      <!-- Card 2: Hemorragia Severa -->
+      <div class="sos-card">
+        <div class="sos-card-icon">🩸</div>
+        <div class="sos-card-title">Hemorragia Severa</div>
+        <ol class="sos-card-steps">
+          <li>Vista luvas ou use pano limpo como barreira</li>
+          <li>Pressione firmemente o ferimento com compressa ou pano</li>
+          <li>Mantenha pressao constante — NAO remova o pano</li>
+          <li>Se o sangue passar, coloque mais pano POR CIMA</li>
+          <li>Eleve o membro acima do coracao se possivel</li>
+        </ol>
+      </div>
+      <!-- Card 3: Engasgo (Heimlich) -->
+      <div class="sos-card">
+        <div class="sos-card-icon">😤</div>
+        <div class="sos-card-title">Engasgo — Heimlich</div>
+        <ol class="sos-card-steps">
+          <li>Pergunte: "Voce esta engasgado?" — se nao fala, aja</li>
+          <li>Fique atras da pessoa, abrace na altura do estomago</li>
+          <li>Punho fechado acima do umbigo, outra mao por cima</li>
+          <li>Pressione para dentro e para CIMA com forca (J invertido)</li>
+          <li>Repita ate o objeto sair ou a pessoa desmaiar (inicie RCP)</li>
+        </ol>
+      </div>
+      <!-- Card 4: Posicao de Recuperacao -->
+      <div class="sos-card">
+        <div class="sos-card-icon">🛏️</div>
+        <div class="sos-card-title">Posicao de Recuperacao</div>
+        <ol class="sos-card-steps">
+          <li>Para inconscientes que RESPIRAM — NAO use se suspeitar de lesao na coluna</li>
+          <li>Ajoelhe ao lado. Braco mais proximo em angulo reto</li>
+          <li>Mao oposta na bochecha, puxe o joelho distante para cima</li>
+          <li>Role a pessoa para o lado apoiando com o joelho</li>
+          <li>Incline a cabeca para tras para abrir vias aereas</li>
+        </ol>
+      </div>
+      <!-- Card 5: Queimadura Grave -->
+      <div class="sos-card">
+        <div class="sos-card-icon">🔥</div>
+        <div class="sos-card-title">Queimadura Grave</div>
+        <ol class="sos-card-steps">
+          <li>Afaste da fonte de calor. Remova roupas so se NAO grudadas</li>
+          <li>Resfrie com agua corrente (morna/fria) por 20 minutos</li>
+          <li>NAO use gelo, pasta de dente, manteiga ou algodao</li>
+          <li>Cubra com pano limpo e umido sem apertar</li>
+          <li>Queimadura grande ou no rosto/maos/genitais → 192 URGENTE</li>
+        </ol>
+      </div>
+      <!-- Card 6: Ligar Emergencia -->
+      <div class="sos-card sos-card-phone">
+        <div class="sos-card-icon">📞</div>
+        <div class="sos-card-title">Ligar Emergencia</div>
+        <div class="sos-phone-list">
+          <div class="sos-phone-item"><span class="sos-phone-number">192</span><span>SAMU (Saude)</span></div>
+          <div class="sos-phone-item"><span class="sos-phone-number">193</span><span>Bombeiros</span></div>
+          <div class="sos-phone-item"><span class="sos-phone-number">190</span><span>Policia Militar</span></div>
+          <div class="sos-phone-item"><span class="sos-phone-number">112</span><span>Emergencia Internacional</span></div>
+          <div class="sos-phone-item"><span class="sos-phone-number">911</span><span>Emergencia (EUA/Canada)</span></div>
+        </div>
+        <div class="sos-phone-tip">Ao ligar: diga LOCAL, O QUE ACONTECEU, QUANTAS VITIMAS, SEU NOME</div>
+      </div>
     </div>
   </div>
 

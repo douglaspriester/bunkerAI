@@ -6727,21 +6727,88 @@ function survRefFilter(query) {
 }
 window.survRefFilter = survRefFilter;
 
-// ═══ SOS Widget ══════════════════════════════════════════════════════════════
-function toggleSosWidget() {
-  const panel = document.getElementById('sosPanel');
-  if (panel) panel.classList.toggle('hidden');
-}
-window.toggleSosWidget = toggleSosWidget;
+// ═══ SOS Emergency Fullscreen Mode ═══════════════════════════════════════════
+let _cprMetronomeInterval = null;
+let _cprAudioCtx = null;
 
-// Close SOS panel when clicking outside
-document.addEventListener('click', (e) => {
-  const widget = document.getElementById('sosWidget');
-  const panel = document.getElementById('sosPanel');
-  if (widget && panel && !widget.contains(e.target)) {
-    panel.classList.add('hidden');
+function openSosEmergency() {
+  const overlay = document.getElementById('sosEmergencyOverlay');
+  if (overlay) {
+    overlay.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+  }
+}
+window.openSosEmergency = openSosEmergency;
+
+function closeSosEmergency() {
+  const overlay = document.getElementById('sosEmergencyOverlay');
+  if (overlay) {
+    overlay.classList.add('hidden');
+    document.body.style.overflow = '';
+  }
+  // Stop metronome if running
+  stopCprMetronome();
+}
+window.closeSosEmergency = closeSosEmergency;
+
+// ESC key closes the overlay
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    const overlay = document.getElementById('sosEmergencyOverlay');
+    if (overlay && !overlay.classList.contains('hidden')) {
+      closeSosEmergency();
+    }
   }
 });
+
+// CPR Metronome: 110 bpm audible beat using Web Audio API (offline-safe)
+function toggleCprMetronome(btn) {
+  if (_cprMetronomeInterval) {
+    stopCprMetronome();
+    if (btn) btn.classList.remove('active');
+    return;
+  }
+  if (btn) btn.classList.add('active');
+  // 110 bpm = 545ms interval
+  const bpm = 110;
+  const interval = 60000 / bpm;
+  // Create audio context for click sounds
+  try {
+    _cprAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  } catch(e) { /* no audio support, visual only */ }
+
+  function playBeat() {
+    if (!_cprAudioCtx) return;
+    try {
+      const osc = _cprAudioCtx.createOscillator();
+      const gain = _cprAudioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(_cprAudioCtx.destination);
+      osc.frequency.value = 880;
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(0.5, _cprAudioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, _cprAudioCtx.currentTime + 0.1);
+      osc.start(_cprAudioCtx.currentTime);
+      osc.stop(_cprAudioCtx.currentTime + 0.1);
+    } catch(e) {}
+  }
+  playBeat(); // immediate first beat
+  _cprMetronomeInterval = setInterval(playBeat, interval);
+}
+window.toggleCprMetronome = toggleCprMetronome;
+
+function stopCprMetronome() {
+  if (_cprMetronomeInterval) {
+    clearInterval(_cprMetronomeInterval);
+    _cprMetronomeInterval = null;
+  }
+  if (_cprAudioCtx) {
+    try { _cprAudioCtx.close(); } catch(e) {}
+    _cprAudioCtx = null;
+  }
+  // Reset any active button state
+  document.querySelectorAll('.sos-metronome-btn.active').forEach(b => b.classList.remove('active'));
+}
 
 // ═══ Radio Frequency Filter ═══════════════════════════════════════════════
 function radioFilter(query) {
