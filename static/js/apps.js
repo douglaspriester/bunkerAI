@@ -12914,3 +12914,1004 @@ window.shelterInit = shelterInit;
 window.shelterSetSection = shelterSetSection;
 window.shelterShowType = shelterShowType;
 window.shelterHideDetail = shelterHideDetail;
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ENERGY & ELECTRICITY APP
+// ═══════════════════════════════════════════════════════════════════════════════
+
+let _energySection = 'circuits';
+let _energyFireDetail = null;
+
+function energyInit() {
+  _energySection = 'circuits';
+  energyRender();
+}
+
+function energySetSection(section) {
+  _energySection = section;
+  document.querySelectorAll('.energy-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.section === section);
+  });
+  energyRender();
+  const c = document.getElementById('energyContent');
+  if (c) c.scrollTop = 0;
+  const labels = {
+    circuits: 'Circuitos basicos', batteries: 'Baterias & armazenamento',
+    solar: 'Energia solar', generator: 'Gerador improvisado',
+    conservation: 'Conservacao de energia', fire: 'Fogo & calor',
+    calculator: 'Calculadora solar'
+  };
+  const s = document.getElementById('energyStatus');
+  if (s) s.textContent = '\u26A1 ' + (labels[section] || 'Pronto');
+}
+
+function energyRender() {
+  const el = document.getElementById('energyContent');
+  if (!el) return;
+  const renderers = {
+    circuits: energyRenderCircuits,
+    batteries: energyRenderBatteries,
+    solar: energyRenderSolar,
+    generator: energyRenderGenerator,
+    conservation: energyRenderConservation,
+    fire: energyRenderFire,
+    calculator: energyRenderCalculator,
+  };
+  const fn = renderers[_energySection];
+  el.innerHTML = fn ? fn() : '';
+}
+
+// ─── 1. CIRCUITS ─────────────────────────────────────────────────────────────
+
+function energyRenderCircuits() {
+  return `
+    <div class="energy-section">
+      <div class="energy-section-title">\u26A1 Leis Fundamentais</div>
+
+      <div class="energy-formula">
+        <div class="energy-formula-symbol">V=IR</div>
+        <div class="energy-formula-desc">
+          <strong>Lei de Ohm</strong><br>
+          Tensao (V) = Corrente (I) x Resistencia (R)<br>
+          <em>V em Volts, I em Amperes, R em Ohms</em>
+        </div>
+      </div>
+
+      <div class="energy-formula">
+        <div class="energy-formula-symbol">P=VI</div>
+        <div class="energy-formula-desc">
+          <strong>Potencia</strong><br>
+          Potencia (W) = Tensao (V) x Corrente (A)<br>
+          Tambem: <code>P = I\u00B2R</code> e <code>P = V\u00B2/R</code>
+        </div>
+      </div>
+    </div>
+
+    <div class="energy-section">
+      <div class="energy-section-title">\u{1F50C} Calculadora Ohm / Potencia</div>
+      <div class="energy-card">
+        <div class="energy-card-title">Calcular valores</div>
+        <div class="energy-calc-group">
+          <div class="energy-calc-field">
+            <label>Tensao (V)</label>
+            <input type="number" id="energyOhmV" placeholder="ex: 12" step="any">
+          </div>
+          <div class="energy-calc-field">
+            <label>Corrente (A)</label>
+            <input type="number" id="energyOhmI" placeholder="ex: 2" step="any">
+          </div>
+          <div class="energy-calc-field">
+            <label>Resistencia (\u03A9)</label>
+            <input type="number" id="energyOhmR" placeholder="ex: 6" step="any">
+          </div>
+          <div class="energy-calc-field">
+            <label>Potencia (W)</label>
+            <input type="number" id="energyOhmP" placeholder="auto" step="any">
+          </div>
+        </div>
+        <button class="energy-calc-btn" onclick="energyCalcOhm()">Calcular</button>
+        <div class="energy-calc-result" id="energyOhmResult">Preencha 2 valores e clique calcular.</div>
+      </div>
+    </div>
+
+    <div class="energy-section">
+      <div class="energy-section-title">\u{1F504} Circuito em Serie</div>
+      <div class="energy-card">
+        <div class="energy-diagram">  +---[R1]---[R2]---[R3]---+
+  |                         |
+ [+] Bateria             [-]
+  |_________________________|</div>
+        <div class="energy-card-body">
+          <ul>
+            <li><strong>Corrente</strong>: igual em todos os componentes</li>
+            <li><strong>Tensao</strong>: divide-se entre componentes (V = V1+V2+V3)</li>
+            <li><strong>Resistencia total</strong>: <code>Rt = R1+R2+R3</code></li>
+            <li>Se um componente queimar, o circuito todo para</li>
+            <li><strong>Baterias em serie</strong>: voltagem soma, capacidade nao muda</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="energy-section">
+      <div class="energy-section-title">\u{1F504} Circuito em Paralelo</div>
+      <div class="energy-card">
+        <div class="energy-diagram">       +---[R1]---+
+       |           |
+  +----+---[R2]---+----+
+  |    |           |    |
+  |    +---[R3]---+    |
+  |                     |
+ [+] Bateria         [-]
+  |_____________________|</div>
+        <div class="energy-card-body">
+          <ul>
+            <li><strong>Tensao</strong>: igual em todos os componentes</li>
+            <li><strong>Corrente</strong>: divide-se entre ramos (I = I1+I2+I3)</li>
+            <li><strong>Resistencia total</strong>: <code>1/Rt = 1/R1 + 1/R2 + 1/R3</code></li>
+            <li>Se um componente queimar, os outros continuam</li>
+            <li><strong>Baterias em paralelo</strong>: capacidade soma, voltagem nao muda</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="energy-info">
+      <strong>\u{1F4A1} Dica:</strong> Na duvida, use paralelo para baterias (mais capacidade, mesma voltagem).
+      Use serie quando precisar de voltagem maior (ex: 4x pilha AA = 6V).
+    </div>
+  `;
+}
+
+function energyCalcOhm() {
+  const vEl = document.getElementById('energyOhmV');
+  const iEl = document.getElementById('energyOhmI');
+  const rEl = document.getElementById('energyOhmR');
+  const pEl = document.getElementById('energyOhmP');
+  const res = document.getElementById('energyOhmResult');
+
+  let v = vEl.value ? parseFloat(vEl.value) : null;
+  let i = iEl.value ? parseFloat(iEl.value) : null;
+  let r = rEl.value ? parseFloat(rEl.value) : null;
+  let p = pEl.value ? parseFloat(pEl.value) : null;
+
+  const known = [v,i,r,p].filter(x => x !== null && !isNaN(x));
+  if (known.length < 2) {
+    res.innerHTML = '\u26A0\uFE0F Preencha pelo menos <strong>2 valores</strong> para calcular os demais.';
+    return;
+  }
+
+  if (v !== null && i !== null) {
+    r = r ?? v / i;
+    p = p ?? v * i;
+  } else if (v !== null && r !== null) {
+    i = i ?? v / r;
+    p = p ?? (v * v) / r;
+  } else if (i !== null && r !== null) {
+    v = v ?? i * r;
+    p = p ?? i * i * r;
+  } else if (p !== null && v !== null) {
+    i = i ?? p / v;
+    r = r ?? (v * v) / p;
+  } else if (p !== null && i !== null) {
+    v = v ?? p / i;
+    r = r ?? p / (i * i);
+  } else if (p !== null && r !== null) {
+    v = v ?? Math.sqrt(p * r);
+    i = i ?? Math.sqrt(p / r);
+  }
+
+  if (v !== null) vEl.value = +v.toFixed(4);
+  if (i !== null) iEl.value = +i.toFixed(4);
+  if (r !== null) rEl.value = +r.toFixed(4);
+  if (p !== null) pEl.value = +p.toFixed(4);
+
+  res.innerHTML = `
+    <strong>\u26A1 Tensao:</strong> ${v?.toFixed(2) ?? '?'} V &nbsp;|&nbsp;
+    <strong>\u{1F50C} Corrente:</strong> ${i?.toFixed(3) ?? '?'} A &nbsp;|&nbsp;
+    <strong>\u03A9 Resistencia:</strong> ${r?.toFixed(2) ?? '?'} \u03A9 &nbsp;|&nbsp;
+    <strong>\u{1F525} Potencia:</strong> ${p?.toFixed(2) ?? '?'} W
+  `;
+}
+
+// ─── 2. BATTERIES ────────────────────────────────────────────────────────────
+
+function energyRenderBatteries() {
+  return `
+    <div class="energy-section">
+      <div class="energy-section-title">\u{1F50B} Tipos de Bateria</div>
+      <table class="energy-table">
+        <tr>
+          <th>Tipo</th><th>Tensao</th><th>Capacidade</th><th>Recarga</th><th>Uso tipico</th>
+        </tr>
+        <tr><td><strong>AA (alcalina)</strong></td><td>1.5V</td><td>~2500 mAh</td><td>Nao</td><td>Lanternas, radios</td></tr>
+        <tr><td><strong>AAA (alcalina)</strong></td><td>1.5V</td><td>~1000 mAh</td><td>Nao</td><td>Controles, sensores</td></tr>
+        <tr><td><strong>AA NiMH</strong></td><td>1.2V</td><td>~2000 mAh</td><td>Sim (500+)</td><td>Uso diario recargavel</td></tr>
+        <tr><td><strong>18650 Li-ion</strong></td><td>3.7V</td><td>~2600-3500 mAh</td><td>Sim (300+)</td><td>Lanternas, power banks</td></tr>
+        <tr><td><strong>CR123A</strong></td><td>3V</td><td>~1500 mAh</td><td>Nao</td><td>Equipamento tatico</td></tr>
+        <tr><td><strong>9V (alcalina)</strong></td><td>9V</td><td>~550 mAh</td><td>Nao</td><td>Detectores, radios</td></tr>
+        <tr><td><strong>Carro (chumbo)</strong></td><td>12V</td><td>~45-70 Ah</td><td>Sim</td><td>Veiculos, inversores</td></tr>
+        <tr><td><strong>LiFePO4 12V</strong></td><td>12.8V</td><td>~20-100 Ah</td><td>Sim (2000+)</td><td>Solar off-grid</td></tr>
+        <tr><td><strong>Power bank USB</strong></td><td>5V</td><td>~10-20k mAh</td><td>Sim</td><td>Celulares, GPS</td></tr>
+      </table>
+    </div>
+
+    <div class="energy-section">
+      <div class="energy-section-title">\u{1F517} Conexoes em Serie vs Paralelo</div>
+
+      <div class="energy-card">
+        <div class="energy-card-title">\u2795 Serie (mais voltagem)</div>
+        <div class="energy-diagram">  [+1.5V-]---[+1.5V-]---[+1.5V-]---[+1.5V-]
+      Total: 6V (voltagem soma, capacidade igual)</div>
+        <div class="energy-card-body">
+          <p><strong>Regra:</strong> conecte + de uma no - da proxima.</p>
+          <p>4x pilha AA = 6V. Util para alimentar dispositivos de voltagem maior.</p>
+          <div class="energy-warn">\u26A0\uFE0F NUNCA misture baterias de tipos/idades diferentes em serie!</div>
+        </div>
+      </div>
+
+      <div class="energy-card">
+        <div class="energy-card-title">\u2795 Paralelo (mais capacidade)</div>
+        <div class="energy-diagram">  [+1.5V-]---+---saida (+)
+  [+1.5V-]---+
+  [+1.5V-]---+
+     Total: 1.5V, 7500mAh (capacidade soma)</div>
+        <div class="energy-card-body">
+          <p><strong>Regra:</strong> conecte todos os + juntos e todos os - juntos.</p>
+          <p>Mesma voltagem, mas dura 3x mais. Util para estender autonomia.</p>
+          <div class="energy-warn">\u26A0\uFE0F Use baterias IDENTICAS (mesma marca, tipo, carga) em paralelo!</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="energy-section">
+      <div class="energy-section-title">\u{1F4CA} Calculadora de Autonomia</div>
+      <div class="energy-card">
+        <div class="energy-calc-group">
+          <div class="energy-calc-field">
+            <label>Capacidade bateria (mAh)</label>
+            <input type="number" id="energyBatCap" placeholder="ex: 10000" step="any">
+          </div>
+          <div class="energy-calc-field">
+            <label>Consumo dispositivo (mA)</label>
+            <input type="number" id="energyBatDrain" placeholder="ex: 500" step="any">
+          </div>
+        </div>
+        <button class="energy-calc-btn" onclick="energyCalcBattery()">Calcular Autonomia</button>
+        <div class="energy-calc-result" id="energyBatResult">Preencha capacidade e consumo.</div>
+      </div>
+    </div>
+
+    <div class="energy-info">
+      <strong>\u{1F4A1} Dica:</strong> Guarde baterias em local seco e fresco. Pilhas alcalinas duram
+      5-10 anos seladas. Baterias 18650 sao as mais versateis para kits de emergencia.
+    </div>
+  `;
+}
+
+function energyCalcBattery() {
+  const cap = parseFloat(document.getElementById('energyBatCap')?.value);
+  const drain = parseFloat(document.getElementById('energyBatDrain')?.value);
+  const res = document.getElementById('energyBatResult');
+  if (!cap || !drain || drain <= 0) {
+    res.innerHTML = '\u26A0\uFE0F Preencha valores validos.';
+    return;
+  }
+  const hours = (cap / drain) * 0.85;
+  const days = hours / 24;
+  res.innerHTML = `
+    <strong>\u23F1\uFE0F Autonomia estimada:</strong> ${hours.toFixed(1)} horas (~${days.toFixed(1)} dias)<br>
+    <em>Calculado com 85% de eficiencia real.</em>
+  `;
+}
+
+// ─── 3. SOLAR ────────────────────────────────────────────────────────────────
+
+function energyRenderSolar() {
+  return `
+    <div class="energy-section">
+      <div class="energy-section-title">\u2600\uFE0F Energia Solar Basica</div>
+      <div class="energy-card">
+        <div class="energy-card-title">Como funciona</div>
+        <div class="energy-card-body">
+          <p>Painel solar converte luz em eletricidade DC. Um <strong>controlador de carga</strong> protege a bateria.
+          Um <strong>inversor</strong> converte DC em AC (para tomadas comuns).</p>
+          <div class="energy-diagram">  [PAINEL SOLAR] --DC--> [CONTROLADOR] --DC--> [BATERIA]
+                                    |
+                              [INVERSOR] --AC--> [TOMADA 110/220V]
+                                    |
+                              [USB/DC] --------> [CELULAR/LED/RADIO]</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="energy-section">
+      <div class="energy-section-title">\u{1F4CA} Calculo de Sistema Solar</div>
+      <div class="energy-card">
+        <div class="energy-card-body">
+          <p><strong>Formula basica:</strong></p>
+          <div class="energy-formula">
+            <div class="energy-formula-symbol" style="font-size:16px;">Painel = Wh / HSP / 0.7</div>
+            <div class="energy-formula-desc">
+              Wh = consumo diario em watt-hora<br>
+              HSP = horas de sol pico (3-6h no Brasil)<br>
+              0.7 = fator de perdas (cabos, controlador, etc)
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="energy-card">
+        <div class="energy-card-title">Consumo tipico de dispositivos</div>
+        <table class="energy-table">
+          <tr><th>Dispositivo</th><th>Watts</th><th>Uso diario</th><th>Wh/dia</th></tr>
+          <tr><td>Celular (carga)</td><td>10W</td><td>2h</td><td>20 Wh</td></tr>
+          <tr><td>Lampada LED</td><td>5W</td><td>5h</td><td>25 Wh</td></tr>
+          <tr><td>Radio</td><td>3W</td><td>4h</td><td>12 Wh</td></tr>
+          <tr><td>Laptop</td><td>45W</td><td>3h</td><td>135 Wh</td></tr>
+          <tr><td>Ventilador</td><td>30W</td><td>8h</td><td>240 Wh</td></tr>
+          <tr><td>Mini geladeira</td><td>60W</td><td>12h</td><td>720 Wh</td></tr>
+          <tr><td>Router Wi-Fi</td><td>10W</td><td>24h</td><td>240 Wh</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="energy-section">
+      <div class="energy-section-title">\u{1F6E0}\uFE0F Sistema Solar Simples</div>
+      <div class="energy-card">
+        <div class="energy-card-title">Kit minimo para sobrevivencia</div>
+        <div class="energy-card-body">
+          <ul>
+            <li><strong>Painel 100W</strong> - carrega celular + LED + radio</li>
+            <li><strong>Controlador PWM 10A</strong> - protege a bateria</li>
+            <li><strong>Bateria 12V 45Ah</strong> - armazena ~540Wh</li>
+            <li><strong>Inversor 300W</strong> - para usar tomada 110V</li>
+            <li><strong>Cabos 4mm\u00B2</strong> + conectores MC4</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="energy-card">
+        <div class="energy-card-title">\u{1F4CB} Dicas de instalacao</div>
+        <div class="energy-card-body">
+          <ul>
+            <li>Incline o painel para o <strong>Norte</strong> (hemisferio sul) com angulo = latitude local</li>
+            <li>Evite sombra parcial - uma celula sombreada reduz o painel todo</li>
+            <li>Use cabos curtos e grossos para minimizar perda</li>
+            <li>Mantenha a bateria ventilada e longe do calor direto</li>
+            <li>Limpe o painel com pano umido semanalmente</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="energy-warn">
+      \u26A0\uFE0F <strong>SEGURANCA:</strong> Baterias de chumbo emitem gas hidrogenio durante carga.
+      Nunca instale em ambientes fechados sem ventilacao. Risco de explosao!
+    </div>
+  `;
+}
+
+// ─── 4. GENERATOR ────────────────────────────────────────────────────────────
+
+function energyRenderGenerator() {
+  return `
+    <div class="energy-section">
+      <div class="energy-section-title">\u2699\uFE0F Principios de Geracao</div>
+      <div class="energy-card">
+        <div class="energy-card-title">\u{1F9F2} Como um gerador funciona</div>
+        <div class="energy-card-body">
+          <p>Um gerador converte <strong>energia mecanica</strong> em <strong>energia eletrica</strong>
+          atraves de <strong>inducao eletromagnetica</strong>.</p>
+          <p>Quando um ima gira dentro de uma bobina de fio de cobre, cria-se corrente eletrica.
+          Esse e o principio do <strong>dinamo</strong>.</p>
+          <div class="energy-diagram">     Ima (gira)
+        N|S
+     ___/ \\___
+    /    \u{1F50C}    \\     Bobina de cobre
+    \\___/|\\___/     (enrolamento de fio)
+         |
+    Eixo (manivela/pedal/agua/vento)</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="energy-section">
+      <div class="energy-section-title">\u{1F6E0}\uFE0F Metodos Improvisados</div>
+
+      <div class="energy-card">
+        <div class="energy-card-title">\u{1F697} Alternador de Carro</div>
+        <div class="energy-card-body">
+          <p>O alternador de carro e um gerador pronto, projetado para 12-14V e 50-100A.</p>
+          <ul>
+            <li>Remova o alternador do veiculo (3-4 parafusos + correia)</li>
+            <li>Conecte a qualquer fonte de rotacao (motor, roda d'agua, etc)</li>
+            <li>Precisa de rotacao alta: <strong>2000-3000 RPM</strong></li>
+            <li>Use polia/correia para multiplicar rotacao</li>
+            <li>Conecte direto a bateria 12V para carregar</li>
+            <li>Saida: <strong>500-1500W</strong> dependendo da rotacao</li>
+          </ul>
+          <div class="energy-info">\u{1F4A1} O alternador precisa de bateria conectada para "excitacao" do campo magnetico inicial.</div>
+        </div>
+      </div>
+
+      <div class="energy-card">
+        <div class="energy-card-title">\u{1F6B2} Bicicleta Geradora</div>
+        <div class="energy-card-body">
+          <p>Uma bicicleta pode gerar <strong>50-150W</strong> com pedalada constante.</p>
+          <ul>
+            <li>Levante a roda traseira (use suporte ou vire a bike)</li>
+            <li>Acople motor DC ou alternador pequeno na roda</li>
+            <li>Use rolo de contato no pneu ou correia</li>
+            <li>Conecte a controlador de carga + bateria</li>
+            <li>1 hora pedalando = carregar celular 2-3x</li>
+            <li>Pessoa media sustenta ~75W por 1 hora</li>
+          </ul>
+          <div class="energy-diagram">  [Pedal] --> [Roda] --> [Motor DC/Dinamo]
+                               |
+                    [Controlador] --> [Bateria 12V]
+                               |
+                          [USB/LED]</div>
+        </div>
+      </div>
+
+      <div class="energy-card">
+        <div class="energy-card-title">\u{1F4A8} Gerador Eolico (vento)</div>
+        <div class="energy-card-body">
+          <ul>
+            <li>Motor DC de impressora/furadeira funciona como gerador</li>
+            <li>Fixe helices (tubos PVC cortados ou madeira) ao eixo</li>
+            <li>Instale no ponto mais alto e exposto ao vento</li>
+            <li>Saida: <strong>10-50W</strong> com vento moderado</li>
+            <li>Ideal para carga lenta e continua de baterias</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="energy-card">
+        <div class="energy-card-title">\u{1F4A7} Gerador Hidraulico (agua)</div>
+        <div class="energy-card-body">
+          <ul>
+            <li>Se houver riacho com queda, use roda d'agua</li>
+            <li>Motor de maquina de lavar funciona como gerador</li>
+            <li>Fluxo constante = energia 24h</li>
+            <li>Saida: <strong>50-500W</strong> dependendo da queda e vazao</li>
+            <li>Melhor que solar para noite e dias nublados</li>
+          </ul>
+          <div class="energy-info">\u{1F4A1} Potencia: <code>P(W) = 9.8 x Vazao(L/s) x Altura(m) x 0.5</code></div>
+        </div>
+      </div>
+
+      <div class="energy-card">
+        <div class="energy-card-title">\u270B Gerador de Manivela</div>
+        <div class="energy-card-body">
+          <ul>
+            <li>Motor DC pequeno + manivela = gerador manual</li>
+            <li>Saida: <strong>5-20W</strong> com cranking constante</li>
+            <li>Suficiente para carregar celular ou radio</li>
+            <li>Engrenagens aumentam RPM e saida</li>
+            <li>Radios e lanternas com manivela ja usam esse principio</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="energy-warn">
+      \u26A0\uFE0F <strong>SEGURANCA:</strong> Geradores improvisados geram tensoes irregulares.
+      Sempre use controlador de carga entre gerador e bateria.
+    </div>
+  `;
+}
+
+// ─── 5. CONSERVATION ─────────────────────────────────────────────────────────
+
+function energyRenderConservation() {
+  return `
+    <div class="energy-section">
+      <div class="energy-section-title">\u{1F4F1} Celular</div>
+      <div class="energy-card">
+        <div class="energy-card-title">Economizar bateria do celular</div>
+        <div class="energy-card-body">
+          <ul>
+            <li><strong>Modo aviao</strong>: ative quando nao precisa de sinal (~50% economia)</li>
+            <li><strong>Brilho minimo</strong>: tela consome ~40% da bateria</li>
+            <li><strong>Modo escuro</strong>: em telas OLED, economia de 15-30%</li>
+            <li><strong>Feche tudo</strong>: GPS, Bluetooth, WiFi, NFC</li>
+            <li><strong>Desative vibracoes</strong>: motor de vibracao consome bastante</li>
+            <li><strong>Camera/flash</strong>: evite usar desnecessariamente</li>
+            <li><strong>Modo ultra economia</strong>: limita a ligacao e SMS (dura dias)</li>
+            <li><strong>Temperatura</strong>: perde capacidade com frio (&lt;0\u00B0C) e degrada com calor (&gt;35\u00B0C)</li>
+          </ul>
+          <div class="energy-info">\u{1F4A1} Celular em modo aviao com tela desligada: <strong>3-5 dias</strong> standby.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="energy-section">
+      <div class="energy-section-title">\u{1F4BB} Laptop</div>
+      <div class="energy-card">
+        <div class="energy-card-title">Estender bateria do laptop</div>
+        <div class="energy-card-body">
+          <ul>
+            <li><strong>Brilho minimo</strong>: reduza ao nivel minimo legivel</li>
+            <li><strong>Desative WiFi e Bluetooth</strong> quando nao usar</li>
+            <li><strong>Feche programas pesados</strong>: navegador consome muito</li>
+            <li><strong>Modo economia</strong>: ative plano de energia conservador</li>
+            <li><strong>Desconecte USB</strong>: dispositivos drenam bateria</li>
+            <li><strong>Hiberne vs Suspender</strong>: hibernar nao consome energia</li>
+            <li><strong>Use SSD</strong>: consome menos que HD mecanico</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="energy-section">
+      <div class="energy-section-title">\u{1F4CB} Prioridade de Dispositivos</div>
+      <div class="energy-card">
+        <div class="energy-card-body">
+          <table class="energy-table">
+            <tr><th>Prioridade</th><th>Dispositivo</th><th>Razao</th></tr>
+            <tr><td><strong>1 - CRITICO</strong></td><td>Radio comunicacao</td><td>Contato com resgate</td></tr>
+            <tr><td><strong>2 - ALTO</strong></td><td>Celular</td><td>GPS, chamadas emergencia</td></tr>
+            <tr><td><strong>3 - MEDIO</strong></td><td>Lanterna LED</td><td>Seguranca noturna</td></tr>
+            <tr><td><strong>4 - MEDIO</strong></td><td>Purificador UV agua</td><td>Saude</td></tr>
+            <tr><td><strong>5 - BAIXO</strong></td><td>Laptop</td><td>Informacao, mapas offline</td></tr>
+            <tr><td><strong>6 - BAIXO</strong></td><td>Ventilador/aquecedor</td><td>Conforto</td></tr>
+          </table>
+          <div class="energy-info">\u{1F4A1} Em crise, concentre toda energia nos itens 1-3.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="energy-section">
+      <div class="energy-section-title">\u{1F50B} Cuidados com Baterias</div>
+      <div class="energy-card">
+        <div class="energy-card-body">
+          <ul>
+            <li>Nao descarregue litio abaixo de <strong>20%</strong> regularmente</li>
+            <li>Guarde baterias com <strong>50-70%</strong> de carga para longa duracao</li>
+            <li>Nao carregue sob sol direto ou temperaturas extremas</li>
+            <li>Baterias de chumbo: mantenha <strong>100% carregadas</strong></li>
+            <li>Pilhas alcalinas duram mais em 20-25\u00B0C</li>
+            <li>Remova pilhas de dispositivos que nao vai usar por meses</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ─── 6. FIRE ─────────────────────────────────────────────────────────────────
+
+const FIRE_METHODS = [
+  {
+    id: 'matches', icon: '\u{1FA94}', title: 'Fosforo / Isqueiro',
+    desc: 'Metodo mais facil e confiavel.',
+    steps: [
+      'Prepare material combustivel: papel, folhas secas, algodao, casca de arvore',
+      'Faca um "ninho" de material fino (isca/tinder)',
+      'Acenda o fosforo e coloque na isca',
+      'Sopre suavemente na base para alimentar com oxigenio',
+      'Adicione galhos finos, depois medios, depois grossos',
+    ],
+    tip: 'Guarde fosforos em saco plastico ziplock para manter secos.'
+  },
+  {
+    id: 'ferro', icon: '\u{1F525}', title: 'Pederneira (Ferro-cerio)',
+    desc: 'Funciona molhado, dura milhares de strikes.',
+    steps: [
+      'Prepare ninho de material seco e fino (algodao, raspas de madeira)',
+      'Segure a pederneira perto do ninho',
+      'Raspe a lamina contra o ferro-cerio em angulo de 45 graus',
+      'Direcione as faiscas para o centro do ninho',
+      'Quando comecar a fumegar, sopre suavemente',
+      'Adicione gravetos progressivamente maiores',
+    ],
+    tip: 'Pederneira + algodao com vaselina = combinacao mais confiavel.'
+  },
+  {
+    id: 'friction', icon: '\u{1FAB5}', title: 'Friccao (Arco e broca)',
+    desc: 'Metodo primitivo. Dificil mas funciona sem ferramentas.',
+    steps: [
+      'Encontre madeira seca e macia (salgueiro, cedro, choupo)',
+      'Faca uma "tabua" (fireboard) com entalhe em V e depressao',
+      'Faca um "fuso" (spindle) de 30-50cm, reto e seco',
+      'Monte um arco com corda/cordao e galho curvo',
+      'Coloque casca seca sob o entalhe para coletar po quente',
+      'Gire o fuso rapidamente com o arco, pressionando para baixo',
+      'Quando acumular po escuro fumegante, transfira para o ninho',
+      'Sopre ate pegar fogo',
+    ],
+    tip: 'Requer MUITA pratica. Treine antes de precisar.'
+  },
+  {
+    id: 'lens', icon: '\u{1F50D}', title: 'Lente / Concentracao Solar',
+    desc: 'Funciona em dia ensolarado. Use lupa, garrafa ou oculos.',
+    steps: [
+      'Necessario: dia com sol direto e lente convergente',
+      'Pode usar: lupa, lente de oculos (+), fundo de garrafa com agua, gelo polido',
+      'Foque a luz em um ponto minimo no material combustivel',
+      'Segure firme por 30-60 segundos ate fumegar',
+      'Nao mova a lente - mantenha o ponto concentrado',
+      'Quando comecar a fumegar, sopre suavemente',
+    ],
+    tip: 'Fundo de garrafa PET com agua limpa funciona como lente.'
+  },
+  {
+    id: 'battery', icon: '\u{1F50B}', title: 'Bateria + Palha de Aco',
+    desc: 'Metodo rapido com bateria 9V ou pilhas.',
+    steps: [
+      'Pegue palha de aco (Bombril/esponja de aco) e estique',
+      'Toque os dois polos da bateria 9V na palha de aco',
+      'A palha vai brilhar e pegar fogo imediatamente',
+      'Coloque a palha acesa no ninho de material combustivel',
+      'Alternativa: 2 pilhas AA em serie + papel aluminio fino',
+    ],
+    tip: 'Funciona ate com bateria quase descarregada.'
+  },
+  {
+    id: 'chemical', icon: '\u2697\uFE0F', title: 'Reacao Quimica',
+    desc: 'Permanganato de potassio + glicerina, etc.',
+    steps: [
+      'Metodo 1: Permanganato de potassio + glicerina - misture e espere 30-60s',
+      'Metodo 2: Permanganato de potassio + acucar - raspe com pedra',
+      'Metodo 3: Bateria de carro - curto-circuito rapido em la de aco',
+      'Prepare o ninho ANTES de iniciar a reacao',
+      'Cuidado com queimaduras e vapores toxicos',
+    ],
+    tip: 'Permanganato de potassio: purifica agua, antisseptico, e inicia fogo.'
+  },
+  {
+    id: 'piston', icon: '\u{1F4A8}', title: 'Pistao de Fogo',
+    desc: 'Comprime ar rapidamente para aquecer material.',
+    steps: [
+      'Use tubo de metal ou bambu selado com pistao',
+      'Coloque material combustivel fino na ponta do tubo',
+      'Empurre o pistao com forca rapida e firme',
+      'A compressao do ar aquece acima de 200\u00B0C',
+      'Retire o material aceso e coloque no ninho',
+    ],
+    tip: 'Metodo antigo do sudeste asiatico. Requer tubo bem vedado.'
+  },
+];
+
+function energyRenderFire() {
+  let html = `
+    <div class="energy-section">
+      <div class="energy-section-title">\u{1F525} Metodos de Fazer Fogo (${FIRE_METHODS.length} metodos)</div>
+      <div class="energy-fire-grid">
+  `;
+  for (const m of FIRE_METHODS) {
+    html += `
+      <div class="energy-fire-card" onclick="energyToggleFire('${m.id}')">
+        <div class="energy-fire-card-icon">${m.icon}</div>
+        <div class="energy-fire-card-title">${m.title}</div>
+        <div class="energy-fire-card-desc">${m.desc}</div>
+      </div>
+    `;
+  }
+  html += '</div>';
+  html += '<div class="energy-fire-detail" id="energyFireDetail"></div>';
+
+  html += `
+    </div>
+
+    <div class="energy-section">
+      <div class="energy-section-title">\u{1F3D5}\uFE0F Tipos de Fogueira</div>
+
+      <div class="energy-card">
+        <div class="energy-card-title">Teepee (Tenda)</div>
+        <div class="energy-diagram">      /\\
+     /  \\
+    / \\/ \\
+   / /\\ \\ \\
+  /________\\
+     isca</div>
+        <div class="energy-card-body">
+          <p>Gravetos apoiados em cone. Boa para iniciar e cozinhar. Queima rapido.</p>
+        </div>
+      </div>
+
+      <div class="energy-card">
+        <div class="energy-card-title">Log Cabin (Cabana)</div>
+        <div class="energy-diagram">  ====  camada 4
+  ||  ||
+  ====  camada 3
+  ||  ||
+  ====  camada 2
+  ||  ||
+  ====  camada 1
+  [isca no centro]</div>
+        <div class="energy-card-body">
+          <p>Toras empilhadas em quadrado. Queima lenta, brasas duradouras.</p>
+        </div>
+      </div>
+
+      <div class="energy-card">
+        <div class="energy-card-title">Estrela (Star Fire)</div>
+        <div class="energy-diagram">      \\   |   /
+       \\  |  /
+        \\ | /
+    -----[*]-----
+        / | \\
+       /  |  \\
+      /   |   \\</div>
+        <div class="energy-card-body">
+          <p>Toras grossas em formato de estrela, empurradas para o centro conforme queimam.
+          Economica - dura a noite toda com pouca manutencao.</p>
+        </div>
+      </div>
+
+      <div class="energy-card">
+        <div class="energy-card-title">Fogo de Trincheira</div>
+        <div class="energy-diagram">  solo   |\\      /|   solo
+  ------| \\____/ |------
+        | fogo   |
+  ------|________|------</div>
+        <div class="energy-card-body">
+          <p>Cavar vala no chao (~30cm). Protege do vento, menos visivel,
+          bom para cozinhar com grelha por cima.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="energy-section">
+      <div class="energy-section-title">\u{1F4A1} Dicas de Manutencao</div>
+      <div class="energy-card">
+        <div class="energy-card-body">
+          <ul>
+            <li>Sempre prepare <strong>3 tipos</strong>: isca (fino), gravetos (medio), lenha (grosso)</li>
+            <li>Mantenha lenha seca <strong>protegida da chuva</strong></li>
+            <li>Nao coloque lenha demais - abafa (precisa de oxigenio)</li>
+            <li>Sopre na <strong>BASE</strong> do fogo, nao no topo</li>
+            <li>Brasas sao mais uteis que chamas para cozinhar</li>
+            <li>Para apagar: espalhe brasas, jogue agua, mexa, jogue mais agua, verifique</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="energy-warn">
+      \u26A0\uFE0F <strong>SEGURANCA:</strong> Nunca deixe fogo sem supervisao. Limpe 3m ao redor.
+      Tenha agua/terra para apagar. Cuidado com incendios florestais.
+    </div>
+  `;
+  return html;
+}
+
+function energyToggleFire(id) {
+  const detail = document.getElementById('energyFireDetail');
+  if (!detail) return;
+  if (_energyFireDetail === id) {
+    _energyFireDetail = null;
+    detail.classList.remove('show');
+    detail.innerHTML = '';
+    return;
+  }
+  _energyFireDetail = id;
+  const m = FIRE_METHODS.find(f => f.id === id);
+  if (!m) return;
+  detail.innerHTML = `
+    <div class="energy-card-title">${m.icon} ${m.title}</div>
+    <ol>${m.steps.map(s => '<li>' + s + '</li>').join('')}</ol>
+    <div class="energy-info">\u{1F4A1} <strong>Dica:</strong> ${m.tip}</div>
+  `;
+  detail.classList.add('show');
+  detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// ─── 7. SOLAR CALCULATOR ────────────────────────────────────────────────────
+
+function energyRenderCalculator() {
+  return `
+    <div class="energy-section">
+      <div class="energy-section-title">\u{1F4CA} Calculadora de Sistema Solar</div>
+      <div class="energy-card">
+        <div class="energy-card-title">Passo 1: Consumo diario</div>
+        <div class="energy-card-body"><p>Adicione os dispositivos que precisa alimentar:</p></div>
+        <div id="energySolarDevices">
+          <div class="energy-calc-group" data-device="0">
+            <div class="energy-calc-field">
+              <label>Dispositivo</label>
+              <select onchange="energySolarPreset(this)">
+                <option value="">-- Selecione --</option>
+                <option value="10,2">Celular (carga)</option>
+                <option value="5,5">Lampada LED</option>
+                <option value="3,4">Radio</option>
+                <option value="45,3">Laptop</option>
+                <option value="30,8">Ventilador</option>
+                <option value="60,12">Mini geladeira</option>
+                <option value="10,24">Router WiFi</option>
+                <option value="0,0">Personalizado</option>
+              </select>
+            </div>
+            <div class="energy-calc-field">
+              <label>Watts (W)</label>
+              <input type="number" class="solar-watts" placeholder="ex: 10" step="any">
+            </div>
+            <div class="energy-calc-field">
+              <label>Horas/dia</label>
+              <input type="number" class="solar-hours" placeholder="ex: 2" step="any">
+            </div>
+            <div class="energy-calc-field">
+              <label>Wh/dia</label>
+              <input type="text" class="solar-wh" readonly placeholder="auto" style="opacity:0.7">
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button class="energy-calc-btn" onclick="energySolarAddDevice()" style="font-size:11px;">\u2795 Dispositivo</button>
+          <button class="energy-calc-btn" onclick="energySolarRemoveDevice()" style="font-size:11px;opacity:0.7;">\u2796 Remover</button>
+        </div>
+      </div>
+
+      <div class="energy-card">
+        <div class="energy-card-title">Passo 2: Localizacao</div>
+        <div class="energy-calc-group">
+          <div class="energy-calc-field">
+            <label>Horas de sol pico (HSP)</label>
+            <select id="energySolarHSP">
+              <option value="3">Norte do Brasil (~3h)</option>
+              <option value="4">Nordeste (~4h)</option>
+              <option value="4.5" selected>Sudeste/Centro-Oeste (~4.5h)</option>
+              <option value="4">Sul do Brasil (~4h)</option>
+              <option value="3.5">Europa do Sul (~3.5h)</option>
+              <option value="2.5">Europa do Norte (~2.5h)</option>
+              <option value="5">Deserto/tropical (~5h)</option>
+              <option value="3">Nublado frequente (~3h)</option>
+            </select>
+          </div>
+          <div class="energy-calc-field">
+            <label>Dias de autonomia</label>
+            <input type="number" id="energySolarDays" value="2" min="1" max="7" step="1">
+          </div>
+        </div>
+      </div>
+
+      <button class="energy-calc-btn" onclick="energySolarCalc()" style="width:100%;padding:12px;font-size:14px;">
+        \u26A1 CALCULAR SISTEMA SOLAR
+      </button>
+
+      <div class="energy-calc-result" id="energySolarResult" style="min-height:80px;">
+        Preencha os dispositivos e clique calcular.
+      </div>
+    </div>
+
+    <div class="energy-info">
+      <strong>\u{1F4A1} HSP (Horas de Sol Pico):</strong> Horas equivalentes a sol pleno (1000W/m\u00B2).
+      No Brasil varia de 3 a 6h dependendo da regiao e epoca.
+    </div>
+  `;
+}
+
+let _energySolarDeviceCount = 1;
+
+function energySolarPreset(sel) {
+  const row = sel.closest('.energy-calc-group');
+  const val = sel.value;
+  if (!val || val === '0,0') return;
+  const [w, h] = val.split(',').map(Number);
+  row.querySelector('.solar-watts').value = w;
+  row.querySelector('.solar-hours').value = h;
+  row.querySelector('.solar-wh').value = (w * h).toFixed(0);
+}
+
+function energySolarAddDevice() {
+  const container = document.getElementById('energySolarDevices');
+  if (!container) return;
+  _energySolarDeviceCount++;
+  const div = document.createElement('div');
+  div.className = 'energy-calc-group';
+  div.dataset.device = _energySolarDeviceCount;
+  div.innerHTML = `
+    <div class="energy-calc-field">
+      <label>Dispositivo</label>
+      <select onchange="energySolarPreset(this)">
+        <option value="">-- Selecione --</option>
+        <option value="10,2">Celular (carga)</option>
+        <option value="5,5">Lampada LED</option>
+        <option value="3,4">Radio</option>
+        <option value="45,3">Laptop</option>
+        <option value="30,8">Ventilador</option>
+        <option value="60,12">Mini geladeira</option>
+        <option value="10,24">Router WiFi</option>
+        <option value="0,0">Personalizado</option>
+      </select>
+    </div>
+    <div class="energy-calc-field">
+      <label>Watts (W)</label>
+      <input type="number" class="solar-watts" placeholder="ex: 10" step="any">
+    </div>
+    <div class="energy-calc-field">
+      <label>Horas/dia</label>
+      <input type="number" class="solar-hours" placeholder="ex: 2" step="any">
+    </div>
+    <div class="energy-calc-field">
+      <label>Wh/dia</label>
+      <input type="text" class="solar-wh" readonly placeholder="auto" style="opacity:0.7">
+    </div>
+  `;
+  container.appendChild(div);
+}
+
+function energySolarRemoveDevice() {
+  const container = document.getElementById('energySolarDevices');
+  if (!container || container.children.length <= 1) return;
+  container.removeChild(container.lastElementChild);
+}
+
+function energySolarCalc() {
+  const container = document.getElementById('energySolarDevices');
+  const res = document.getElementById('energySolarResult');
+  if (!container || !res) return;
+
+  let totalWh = 0;
+  let peakW = 0;
+  const rows = container.querySelectorAll('.energy-calc-group');
+  rows.forEach(row => {
+    const w = parseFloat(row.querySelector('.solar-watts')?.value) || 0;
+    const h = parseFloat(row.querySelector('.solar-hours')?.value) || 0;
+    const wh = w * h;
+    const whEl = row.querySelector('.solar-wh');
+    if (whEl) whEl.value = wh > 0 ? wh.toFixed(0) : '';
+    totalWh += wh;
+    peakW += w;
+  });
+
+  if (totalWh <= 0) {
+    res.innerHTML = '\u26A0\uFE0F Adicione pelo menos um dispositivo com watts e horas.';
+    return;
+  }
+
+  const hsp = parseFloat(document.getElementById('energySolarHSP')?.value) || 4.5;
+  const days = parseInt(document.getElementById('energySolarDays')?.value) || 2;
+
+  const panelW = Math.ceil(totalWh / hsp / 0.7);
+  const batteryWh = totalWh * days / 0.5;
+  const batteryAh12 = Math.ceil(batteryWh / 12);
+  const controllerA = Math.ceil(panelW / 12 * 1.25);
+  const inverterSize = Math.ceil(peakW * 1.3 / 100) * 100;
+
+  let panelRec = '';
+  if (panelW <= 30) panelRec = '1x painel 30W portatil';
+  else if (panelW <= 60) panelRec = '1x painel 60W';
+  else if (panelW <= 100) panelRec = '1x painel 100W';
+  else if (panelW <= 200) panelRec = '1x painel 200W ou 2x 100W';
+  else if (panelW <= 400) panelRec = '2x paineis 200W';
+  else panelRec = Math.ceil(panelW / 200) + 'x paineis 200W';
+
+  let batRec = '';
+  if (batteryAh12 <= 20) batRec = '1x bateria 12V 20Ah (LiFePO4 ideal)';
+  else if (batteryAh12 <= 50) batRec = '1x bateria 12V 50Ah';
+  else if (batteryAh12 <= 100) batRec = '1x bateria 12V 100Ah';
+  else batRec = Math.ceil(batteryAh12 / 100) + 'x baterias 12V 100Ah em paralelo';
+
+  res.innerHTML = `
+    <div style="margin-bottom:10px;">
+      <strong style="font-size:14px;">\u26A1 Resultado do Sistema Solar</strong>
+    </div>
+    <table class="energy-table" style="margin:0;">
+      <tr><td><strong>Consumo diario total</strong></td><td><strong>${totalWh.toFixed(0)} Wh/dia</strong></td></tr>
+      <tr><td>Painel solar minimo</td><td><strong>${panelW}W</strong> \u2192 ${panelRec}</td></tr>
+      <tr><td>Bateria (${days} dias autonomia)</td><td><strong>${batteryAh12} Ah (12V)</strong> \u2192 ${batRec}</td></tr>
+      <tr><td>Controlador de carga</td><td><strong>${controllerA}A</strong> (PWM ou MPPT)</td></tr>
+      <tr><td>Inversor (se usar AC)</td><td><strong>${inverterSize}W</strong> onda senoidal</td></tr>
+    </table>
+    <div class="energy-info" style="margin-top:10px;">
+      \u{1F4A1} Sobredimensione 20-30% para dias nublados. MPPT e ~20% mais eficiente que PWM.
+    </div>
+  `;
+}
+
+// ─── ENERGY: INIT / EXPOSE ──────────────────────────────────────────────────
+
+window.energyInit = energyInit;
+window.energySetSection = energySetSection;
+window.energyCalcOhm = energyCalcOhm;
+window.energyCalcBattery = energyCalcBattery;
+window.energyToggleFire = energyToggleFire;
+window.energySolarPreset = energySolarPreset;
+window.energySolarAddDevice = energySolarAddDevice;
+window.energySolarRemoveDevice = energySolarRemoveDevice;
+window.energySolarCalc = energySolarCalc;
