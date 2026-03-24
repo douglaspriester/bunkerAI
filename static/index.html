@@ -38,6 +38,115 @@
     <div class="boot-bar"><div class="boot-bar-fill" id="bootBarFill"></div></div>
   </div>
 
+  <!-- ═══ ONBOARDING WIZARD ═══ -->
+  <div id="onboardingWizard" class="onboarding-overlay hidden">
+    <div class="onboarding-container">
+      <!-- Skip button -->
+      <button class="onboarding-skip" onclick="onboardingSkip()" title="Pular onboarding">Pular &rsaquo;</button>
+
+      <!-- Progress dots -->
+      <div class="onboarding-progress" id="onboardingProgress">
+        <span class="onboarding-dot active" data-step="0"></span>
+        <span class="onboarding-dot" data-step="1"></span>
+        <span class="onboarding-dot" data-step="2"></span>
+        <span class="onboarding-dot" data-step="3"></span>
+      </div>
+
+      <!-- Step 0: Welcome -->
+      <div class="onboarding-step active" data-step="0">
+        <div class="onboarding-icon">
+          <svg width="80" height="80" viewBox="0 0 32 32" fill="none">
+            <rect width="32" height="32" rx="8" fill="var(--accent)"/>
+            <path d="M8 22V12l8-5 8 5v10l-8 5-8-5z" stroke="var(--bg)" stroke-width="2" fill="none"/>
+            <circle cx="16" cy="16" r="3" fill="var(--bg)"/>
+          </svg>
+        </div>
+        <h1 class="onboarding-title">Bem-vindo ao Bunker OS</h1>
+        <p class="onboarding-desc">
+          Seu sistema de sobrevivencia digital 100% offline.<br>
+          IA local, guias de emergencia, mapas, ferramentas — tudo roda de um pendrive, sem internet.
+        </p>
+        <p class="onboarding-subdesc">Tudo que voce precisa para sobreviver, na palma da mao.</p>
+        <button class="onboarding-btn-primary" onclick="onboardingNext()">Comecar &rsaquo;</button>
+      </div>
+
+      <!-- Step 1: Language -->
+      <div class="onboarding-step" data-step="1">
+        <div class="onboarding-icon-text">&#127760;</div>
+        <h1 class="onboarding-title">Idioma</h1>
+        <p class="onboarding-desc">Selecione o idioma da interface.</p>
+        <div class="onboarding-lang-options">
+          <label class="onboarding-lang-card selected" data-lang="pt-BR" onclick="onboardingSelectLang(this)">
+            <span class="onboarding-lang-flag">&#127463;&#127479;</span>
+            <span class="onboarding-lang-name">Portugues (BR)</span>
+            <span class="onboarding-lang-check">&#10003;</span>
+          </label>
+          <label class="onboarding-lang-card" data-lang="en" onclick="onboardingSelectLang(this)">
+            <span class="onboarding-lang-flag">&#127468;&#127463;</span>
+            <span class="onboarding-lang-name">English</span>
+            <span class="onboarding-lang-check">&#10003;</span>
+          </label>
+        </div>
+        <div class="onboarding-nav">
+          <button class="onboarding-btn-secondary" onclick="onboardingPrev()">&lsaquo; Voltar</button>
+          <button class="onboarding-btn-primary" onclick="onboardingNext()">Proximo &rsaquo;</button>
+        </div>
+      </div>
+
+      <!-- Step 2: Resource Check -->
+      <div class="onboarding-step" data-step="2">
+        <div class="onboarding-icon-text">&#128269;</div>
+        <h1 class="onboarding-title">Verificacao de Recursos</h1>
+        <p class="onboarding-desc">Checando o que esta disponivel no sistema...</p>
+        <div class="onboarding-checks" id="onboardingChecks">
+          <div class="onboarding-check-row" id="obCheckAI">
+            <span class="onboarding-check-icon spinning">&#8987;</span>
+            <span class="onboarding-check-label">Backend de IA (Ollama)</span>
+            <span class="onboarding-check-status">Verificando...</span>
+          </div>
+          <div class="onboarding-check-row" id="obCheckModels">
+            <span class="onboarding-check-icon spinning">&#8987;</span>
+            <span class="onboarding-check-label">Modelos de IA</span>
+            <span class="onboarding-check-status">Verificando...</span>
+          </div>
+          <div class="onboarding-check-row" id="obCheckWiki">
+            <span class="onboarding-check-icon spinning">&#8987;</span>
+            <span class="onboarding-check-label">Wikipedia Offline</span>
+            <span class="onboarding-check-status">Verificando...</span>
+          </div>
+          <div class="onboarding-check-row" id="obCheckMaps">
+            <span class="onboarding-check-icon spinning">&#8987;</span>
+            <span class="onboarding-check-label">Mapas Offline</span>
+            <span class="onboarding-check-status">Verificando...</span>
+          </div>
+          <div class="onboarding-check-row" id="obCheckGuides">
+            <span class="onboarding-check-icon spinning">&#8987;</span>
+            <span class="onboarding-check-label">Guias de Sobrevivencia</span>
+            <span class="onboarding-check-status">Verificando...</span>
+          </div>
+        </div>
+        <div class="onboarding-nav">
+          <button class="onboarding-btn-secondary" onclick="onboardingPrev()">&lsaquo; Voltar</button>
+          <button class="onboarding-btn-primary" onclick="onboardingNext()">Proximo &rsaquo;</button>
+        </div>
+      </div>
+
+      <!-- Step 3: Ready -->
+      <div class="onboarding-step" data-step="3">
+        <div class="onboarding-icon-text ready-pulse">&#9989;</div>
+        <h1 class="onboarding-title">Tudo Pronto!</h1>
+        <p class="onboarding-desc">
+          O Bunker OS esta configurado e pronto para uso.<br>
+          Explore os apps, converse com a IA e prepare-se.
+        </p>
+        <div class="onboarding-ready-actions">
+          <button class="onboarding-btn-primary large" onclick="onboardingFinish()">&#9654; Iniciar Bunker OS</button>
+          <button class="onboarding-btn-secondary" onclick="onboardingFinish(); setTimeout(()=>openApp('settings'),400);">&#9881; Ir para Configuracoes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ═══ BUNKER OS DESKTOP ═══ -->
   <div id="desktop" class="os-desktop" style="display:none">
 

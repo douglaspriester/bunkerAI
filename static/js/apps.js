@@ -71,6 +71,12 @@ function runBootSequence() {
         startTaskbarClock();
         setTimeout(() => restoreSession(), 300);
         setTimeout(() => bootScreen.remove(), 1000);
+        // Show onboarding wizard on first launch
+        setTimeout(() => {
+          if (window.onboardingShouldShow && window.onboardingShouldShow()) {
+            window.onboardingShow();
+          }
+        }, 1200);
       }, 400);
     }
   }, 180);
@@ -9757,3 +9763,187 @@ window.plantsSetFilter = plantsSetFilter;
 window.plantsFilter = plantsFilter;
 window.plantsShowDetail = plantsShowDetail;
 window.plantsHideDetail = plantsHideDetail;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ONBOARDING WIZARD
+// ═══════════════════════════════════════════════════════════════════════════
+let _onboardingStep = 0;
+const ONBOARDING_TOTAL_STEPS = 4;
+
+function onboardingShouldShow() {
+  return !localStorage.getItem('bunkerOS_onboarded');
+}
+
+function onboardingShow() {
+  const el = document.getElementById('onboardingWizard');
+  if (!el) return;
+  el.classList.remove('hidden');
+  _onboardingStep = 0;
+  onboardingUpdateUI();
+}
+
+function onboardingHide() {
+  const el = document.getElementById('onboardingWizard');
+  if (!el) return;
+  el.classList.add('fade-out');
+  setTimeout(() => {
+    el.classList.add('hidden');
+    el.remove();
+  }, 500);
+}
+
+function onboardingSkip() {
+  localStorage.setItem('bunkerOS_onboarded', '1');
+  onboardingHide();
+}
+
+function onboardingFinish() {
+  localStorage.setItem('bunkerOS_onboarded', '1');
+  onboardingHide();
+}
+
+function onboardingNext() {
+  if (_onboardingStep < ONBOARDING_TOTAL_STEPS - 1) {
+    _onboardingStep++;
+    onboardingUpdateUI();
+    // Run resource checks when entering step 2
+    if (_onboardingStep === 2) {
+      onboardingRunChecks();
+    }
+  }
+}
+
+function onboardingPrev() {
+  if (_onboardingStep > 0) {
+    _onboardingStep--;
+    onboardingUpdateUI();
+  }
+}
+
+function onboardingUpdateUI() {
+  // Update dots
+  const dots = document.querySelectorAll('.onboarding-dot');
+  dots.forEach((dot, idx) => {
+    dot.classList.remove('active', 'done');
+    if (idx === _onboardingStep) dot.classList.add('active');
+    else if (idx < _onboardingStep) dot.classList.add('done');
+  });
+
+  // Update steps
+  const steps = document.querySelectorAll('.onboarding-step');
+  steps.forEach((step, idx) => {
+    step.classList.remove('active');
+    if (idx === _onboardingStep) {
+      step.classList.add('active');
+    }
+  });
+}
+
+function onboardingSelectLang(el) {
+  document.querySelectorAll('.onboarding-lang-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  const lang = el.getAttribute('data-lang');
+  localStorage.setItem('bunkerOS_lang', lang);
+}
+
+function onboardingSetCheck(id, status, text) {
+  const row = document.getElementById(id);
+  if (!row) return;
+  const icon = row.querySelector('.onboarding-check-icon');
+  const statusEl = row.querySelector('.onboarding-check-status');
+  icon.classList.remove('spinning');
+  if (status === 'ok') {
+    icon.textContent = '\u2705';
+    icon.className = 'onboarding-check-icon ok';
+    statusEl.className = 'onboarding-check-status ok';
+  } else if (status === 'warn') {
+    icon.textContent = '\u26A0\uFE0F';
+    icon.className = 'onboarding-check-icon warn';
+    statusEl.className = 'onboarding-check-status warn';
+  } else {
+    icon.textContent = '\u274C';
+    icon.className = 'onboarding-check-icon fail';
+    statusEl.className = 'onboarding-check-status fail';
+  }
+  statusEl.textContent = text;
+}
+
+async function onboardingRunChecks() {
+  // Check AI backend
+  try {
+    const r = await fetch('/api/health', { signal: AbortSignal.timeout(5000) });
+    const d = await r.json();
+    if (d.status === 'online') {
+      onboardingSetCheck('obCheckAI', 'ok', 'Online');
+      // Check models
+      if (d.models && d.models.length > 0) {
+        onboardingSetCheck('obCheckModels', 'ok', d.models.length + ' modelo(s)');
+      } else {
+        onboardingSetCheck('obCheckModels', 'warn', 'Nenhum modelo');
+      }
+    } else {
+      onboardingSetCheck('obCheckAI', 'warn', 'Instavel');
+      onboardingSetCheck('obCheckModels', 'warn', 'Indisponivel');
+    }
+  } catch {
+    onboardingSetCheck('obCheckAI', 'fail', 'Offline');
+    onboardingSetCheck('obCheckModels', 'fail', 'Indisponivel');
+  }
+
+  // Check Wikipedia (Kiwix)
+  try {
+    const r = await fetch('/api/wiki/search?q=test&limit=1', { signal: AbortSignal.timeout(5000) });
+    if (r.ok) {
+      onboardingSetCheck('obCheckWiki', 'ok', 'Disponivel');
+    } else {
+      onboardingSetCheck('obCheckWiki', 'warn', 'Parcial');
+    }
+  } catch {
+    onboardingSetCheck('obCheckWiki', 'fail', 'Nao encontrada');
+  }
+
+  // Check Maps (PMTiles)
+  try {
+    const r = await fetch('/api/maps/list', { signal: AbortSignal.timeout(5000) });
+    if (r.ok) {
+      const d = await r.json();
+      const count = Array.isArray(d) ? d.length : (d.maps ? d.maps.length : 0);
+      if (count > 0) {
+        onboardingSetCheck('obCheckMaps', 'ok', count + ' mapa(s)');
+      } else {
+        onboardingSetCheck('obCheckMaps', 'warn', 'Nenhum mapa');
+      }
+    } else {
+      onboardingSetCheck('obCheckMaps', 'warn', 'Indisponivel');
+    }
+  } catch {
+    onboardingSetCheck('obCheckMaps', 'fail', 'Nao encontrado');
+  }
+
+  // Check Guides
+  try {
+    const r = await fetch('/api/guides', { signal: AbortSignal.timeout(5000) });
+    if (r.ok) {
+      const d = await r.json();
+      const guides = Array.isArray(d) ? d : (d.guides || []);
+      if (guides.length > 0) {
+        onboardingSetCheck('obCheckGuides', 'ok', guides.length + ' guia(s)');
+      } else {
+        onboardingSetCheck('obCheckGuides', 'warn', 'Nenhum guia');
+      }
+    } else {
+      onboardingSetCheck('obCheckGuides', 'warn', 'Erro');
+    }
+  } catch {
+    onboardingSetCheck('obCheckGuides', 'fail', 'Indisponivel');
+  }
+}
+
+// Expose to window for onclick handlers
+window.onboardingShouldShow = onboardingShouldShow;
+window.onboardingShow = onboardingShow;
+window.onboardingSkip = onboardingSkip;
+window.onboardingFinish = onboardingFinish;
+window.onboardingNext = onboardingNext;
+window.onboardingPrev = onboardingPrev;
+window.onboardingSelectLang = onboardingSelectLang;
