@@ -4576,16 +4576,10 @@ body {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
   gap: 6px;
 }
-.phonetic-card {
-  display: flex; flex-direction: column; align-items: center;
-  padding: 8px 4px; background: var(--surface-2);
-  border: 1px solid var(--border); border-radius: var(--radius);
-}
 .phonetic-char {
   font-size: 20px; font-weight: 700; color: var(--accent);
   font-family: var(--font-display);
 }
-.phonetic-card span:last-child { font-size: 11px; color: var(--text); font-family: var(--font-mono); }
 .phonetic-word { color: var(--accent); }
 .phonetic-word strong { color: var(--text-bright); font-size: 1.1em; }
 .phonetic-space { color: var(--text-muted); margin: 0 4px; }
@@ -4615,13 +4609,14 @@ body {
 }
 
 .radio-search {
-  width: 100%; padding: 8px 12px; margin-bottom: 12px;
+  width: 100%; padding: 8px 12px; margin-bottom: 4px;
   background: var(--surface); border: 1px solid var(--border);
   color: var(--text); font-family: var(--font-mono); font-size: 12px;
-  outline: none;
+  outline: none; border-radius: var(--radius); flex-shrink: 0;
 }
 .radio-search:focus { border-color: var(--accent); }
 .radio-search::placeholder { color: var(--text-faint); }
+.radio-section { color: var(--accent); margin: 14px 0 6px; font-size: 14px; font-family: var(--font-hud); }
 .radio-table {
   width: 100%; border-collapse: collapse; margin-bottom: 8px;
   font-family: var(--font-mono); font-size: 12px;
@@ -4654,6 +4649,179 @@ body {
 .morse-flash-sub {
   font-size: 14px; color: var(--text-muted); margin-top: 16px;
 }
+
+/* ═══ Morse Tabs & Trainer ═══ */
+.morse-tabs {
+  display: flex; gap: 2px; background: var(--surface-2); border-radius: var(--radius);
+  padding: 3px; margin-bottom: 8px;
+}
+.morse-tab {
+  flex: 1; padding: 6px 8px; border: none; background: none;
+  color: var(--text-muted); font-size: 12px; font-family: var(--font-mono);
+  cursor: pointer; border-radius: calc(var(--radius) - 2px); transition: all 0.2s;
+}
+.morse-tab:hover { color: var(--text); background: rgba(0,212,255,0.06); }
+.morse-tab.active { background: var(--accent); color: #000; font-weight: 600; }
+.morse-tab-content { display: none; flex-direction: column; gap: 10px; flex: 1; overflow-y: auto; }
+.morse-tab-content.active { display: flex; }
+
+.morse-trainer-mode-bar { display: flex; gap: 4px; }
+.morse-trainer-mode {
+  flex: 1; padding: 6px; border: 1px solid var(--border); background: var(--surface);
+  color: var(--text-muted); font-size: 11px; font-family: var(--font-mono);
+  cursor: pointer; border-radius: var(--radius); transition: all 0.2s;
+}
+.morse-trainer-mode:hover { border-color: var(--accent); color: var(--text); }
+.morse-trainer-mode.active { border-color: var(--accent); background: rgba(0,212,255,0.1); color: var(--accent); }
+
+.morse-trainer-stats {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 4px 0;
+}
+.morse-trainer-stat {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+}
+.morse-stat-label { font-size: 9px; color: var(--text-muted); font-family: var(--font-mono); text-transform: uppercase; }
+.morse-stat-value { font-size: 18px; font-weight: 700; font-family: var(--font-mono); }
+
+.morse-trainer-level-select {
+  padding: 3px 6px; font-size: 11px; background: var(--surface-2); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--radius); font-family: var(--font-mono);
+}
+
+.morse-trainer-challenge {
+  background: var(--surface-2); border-radius: var(--radius); padding: 12px;
+  display: flex; flex-direction: column; gap: 8px; align-items: center;
+  border: 1px solid var(--border);
+}
+.morse-trainer-prompt { font-size: 14px; color: var(--text); text-align: center; }
+.morse-trainer-visual { min-height: 36px; display: flex; align-items: center; justify-content: center; }
+.morse-trainer-hidden-answer {
+  font-size: 28px; font-weight: 700; color: var(--text-muted);
+  font-family: var(--font-mono); letter-spacing: 4px;
+}
+.morse-trainer-morse-display {
+  font-size: 20px; color: var(--accent); font-family: var(--font-mono);
+  letter-spacing: 3px; text-align: center;
+}
+.morse-trainer-input-row { display: flex; gap: 6px; width: 100%; max-width: 320px; }
+.morse-trainer-input { flex: 1; text-align: center; text-transform: uppercase; font-size: 16px; font-weight: 600; }
+
+.morse-trainer-feedback {
+  font-size: 12px; font-family: var(--font-mono); min-height: 18px; text-align: center;
+  transition: all 0.2s;
+}
+.morse-feedback-correct { color: #00ff88; }
+.morse-feedback-wrong { color: #ff4466; }
+
+.morse-trainer-actions {
+  display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: center;
+}
+
+/* ═══ Radio App Expanded ═══ */
+.radio-app-body {
+  padding: 14px; overflow: hidden; height: 100%; font-size: 13px;
+  display: flex; flex-direction: column;
+}
+.radio-region-tabs {
+  display: flex; gap: 2px; margin: 8px 0; background: var(--surface-2);
+  border-radius: var(--radius); padding: 3px; flex-shrink: 0;
+}
+.radio-tab {
+  flex: 1; padding: 5px 6px; border: none; background: none;
+  color: var(--text-muted); font-size: 11px; font-family: var(--font-mono);
+  cursor: pointer; border-radius: calc(var(--radius) - 2px); transition: all 0.2s;
+  white-space: nowrap;
+}
+.radio-tab:hover { color: var(--text); background: rgba(0,212,255,0.06); }
+.radio-tab.active { background: var(--accent); color: #000; font-weight: 600; }
+.radio-scroll-area { flex: 1; overflow-y: auto; }
+
+.radio-section-emergency { color: #ff4466 !important; }
+
+/* Protocol cards */
+.radio-protocol-cards {
+  display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px;
+}
+.radio-protocol-card {
+  border-radius: var(--radius); padding: 12px;
+  border: 1px solid var(--border); background: var(--surface-2);
+}
+.radio-protocol-mayday { border-color: #ff4466; background: rgba(255,68,102,0.06); }
+.radio-protocol-panpan { border-color: #ffaa00; background: rgba(255,170,0,0.06); }
+.radio-protocol-securite { border-color: var(--accent); background: rgba(0,212,255,0.06); }
+
+.radio-protocol-title {
+  font-size: 18px; font-weight: 900; font-family: var(--font-display);
+  letter-spacing: 3px; margin-bottom: 2px;
+}
+.radio-protocol-mayday .radio-protocol-title { color: #ff4466; }
+.radio-protocol-panpan .radio-protocol-title { color: #ffaa00; }
+.radio-protocol-securite .radio-protocol-title { color: var(--accent); }
+
+.radio-protocol-level {
+  font-size: 11px; color: var(--text-muted); font-family: var(--font-mono);
+  margin-bottom: 8px; text-transform: uppercase;
+}
+.radio-protocol-steps { display: flex; flex-direction: column; gap: 4px; }
+.radio-step {
+  display: flex; gap: 8px; align-items: baseline; font-size: 12px; color: var(--text);
+  font-family: var(--font-mono);
+}
+.radio-step-num {
+  width: 18px; height: 18px; border-radius: 50%; background: rgba(0,212,255,0.15);
+  color: var(--accent); font-size: 10px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+
+/* Procedure box */
+.radio-procedure-box {
+  display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px;
+}
+.radio-procedure-item {
+  padding: 8px 10px; background: var(--surface-2); border-radius: var(--radius);
+  border-left: 3px solid var(--accent);
+}
+.radio-procedure-label {
+  font-size: 11px; font-weight: 700; color: var(--accent); font-family: var(--font-mono);
+  text-transform: uppercase; margin-bottom: 3px;
+}
+.radio-procedure-text {
+  font-size: 12px; color: var(--text); line-height: 1.5; font-family: var(--font-mono);
+}
+
+.radio-tips-list {
+  color: var(--text); padding-left: 20px; line-height: 1.8; font-size: 12px;
+  margin-bottom: 10px;
+}
+.radio-tips-list li::marker { color: var(--accent); }
+
+/* ═══ Phonetic App Expanded ═══ */
+.phonetic-app-body { padding: 14px; overflow-y: auto; height: 100%; }
+.phonetic-pron {
+  font-size: 9px; color: var(--accent); font-family: var(--font-mono);
+  opacity: 0.8; display: block; margin-top: 1px;
+}
+.phonetic-name { font-size: 11px; color: var(--text); font-family: var(--font-mono); }
+.phonetic-card {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 6px 4px; background: var(--surface-2); border-radius: var(--radius);
+  border: 1px solid var(--border); transition: border-color 0.2s;
+}
+.phonetic-card:hover { border-color: var(--accent); }
+
+.phonetic-practice-box {
+  background: var(--surface-2); border-radius: var(--radius); padding: 10px;
+  margin-bottom: 12px; border: 1px solid var(--border);
+}
+.phonetic-practice-header {
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;
+}
+.phonetic-practice-challenge { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.phonetic-practice-letter {
+  font-size: 48px; font-weight: 900; color: var(--accent);
+  font-family: var(--font-display); line-height: 1;
+}
+.phonetic-practice-input-row { display: flex; gap: 6px; width: 100%; max-width: 320px; }
 
 /* ═══ Compass ═══ */
 .compass-body {

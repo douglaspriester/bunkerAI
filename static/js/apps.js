@@ -4793,11 +4793,16 @@ Object.entries(MORSE_MAP).forEach(([k, v]) => { if (k !== ' ') MORSE_REV[v] = k;
 const MORSE_SIGNALS = [
   { code: 'SOS', morse: '··· −−− ···', desc: 'Pedido de socorro universal' },
   { code: 'CQD', morse: '−·−· −−·− −··', desc: 'Sinal de perigo (antigo)' },
+  { code: 'CQ', morse: '−·−· −−·−', desc: 'Chamada geral (procurando contato)' },
   { code: 'MAYDAY', morse: '−− ·− −·−− −·· ·− −·−−', desc: 'Socorro por voz/radio' },
   { code: 'OK', morse: '−−− −·−', desc: 'Confirmacao / tudo bem' },
   { code: 'WATER', morse: '·−− ·− − · ·−·', desc: 'Preciso de agua' },
   { code: 'HELP', morse: '···· · ·−·· ·−−·', desc: 'Preciso de ajuda' },
+  { code: 'QRT', morse: '−−·− ·−· −', desc: 'Encerrando transmissao' },
+  { code: 'QRZ', morse: '−−·− ·−· −−··', desc: 'Quem me chama?' },
 ];
+
+const MORSE_TRAINER_WORDS = ['SOS','HELP','WATER','FIRE','OK','CQ','QTH','QSL','MAYDAY','FOOD','SAFE','LOST','NORTH','SOUTH','EAST','WEST','STOP','GO','YES','NO'];
 
 let _morseAudioCtx = null;
 
@@ -4806,19 +4811,44 @@ function morseInit() {
   // Render reference table
   const refEl = document.getElementById('morseRef');
   if (refEl) {
-    let html = '<div class="morse-signals"><h4>Sinais Importantes</h4>';
+    let html = '<div class="morse-signals"><h4 style="color:var(--accent)">Sinais Importantes</h4>';
     MORSE_SIGNALS.forEach(s => {
       html += `<div class="morse-signal"><strong>${s.code}</strong> <span class="morse-code-display">${s.morse}</span> <span class="morse-desc">${s.desc}</span></div>`;
     });
-    html += '</div><h4 style="margin-top:12px">Referencia Completa</h4><div class="morse-ref-grid">';
+    html += '</div><h4 style="margin-top:12px;color:var(--accent)">Referencia Completa</h4><div class="morse-ref-grid">';
     Object.entries(MORSE_MAP).forEach(([ch, code]) => {
       if (ch === ' ') return;
       html += `<div class="morse-ref-item"><span class="morse-ref-char">${ch}</span><span class="morse-ref-code">${code}</span></div>`;
     });
     html += '</div>';
+    // Timing reference
+    html += '<h4 style="margin-top:12px;color:var(--accent)">Temporizacao Morse</h4>';
+    html += '<div style="font-size:11px;color:var(--text-muted);line-height:1.6;padding:8px;background:var(--surface-2);border-radius:var(--radius)">';
+    html += '<b style="color:var(--text-bright)">Ponto (dit):</b> 1 unidade &nbsp;|&nbsp; ';
+    html += '<b style="color:var(--text-bright)">Traco (dah):</b> 3 unidades<br>';
+    html += '<b style="color:var(--text-bright)">Entre sinais:</b> 1 unidade &nbsp;|&nbsp; ';
+    html += '<b style="color:var(--text-bright)">Entre letras:</b> 3 unidades &nbsp;|&nbsp; ';
+    html += '<b style="color:var(--text-bright)">Entre palavras:</b> 7 unidades</div>';
     refEl.innerHTML = html;
   }
+  // Setup speed slider
+  const speedSlider = document.getElementById('morseTrainerSpeed');
+  const speedLabel = document.getElementById('morseTrainerSpeedLabel');
+  if (speedSlider && speedLabel) {
+    speedSlider.oninput = () => { speedLabel.textContent = speedSlider.value + 'ms'; };
+  }
 }
+
+// ── Tab switching ──
+function morseSwitchTab(tab, btn) {
+  document.querySelectorAll('#morseView .morse-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('#morseView .morse-tab-content').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  const tabMap = { translate: 'morseTabTranslate', trainer: 'morseTabTrainer', reference: 'morseTabReference' };
+  const el = document.getElementById(tabMap[tab]);
+  if (el) el.classList.add('active');
+}
+window.morseSwitchTab = morseSwitchTab;
 
 function morseTranslate() {
   const input = (document.getElementById('morseInput')?.value || '').toUpperCase();
@@ -4832,7 +4862,6 @@ function morseDecodeInput() {
   const input = document.getElementById('morseDecodeIn')?.value || '';
   const output = document.getElementById('morseDecodeOut');
   if (!output) return;
-  // Split by ' / ' for spaces between words, ' ' for spaces between letters
   const words = input.split(' / ').map(word =>
     word.trim().split(/\s+/).map(code => MORSE_REV[code] || '?').join('')
   );
@@ -4842,22 +4871,18 @@ function morseDecodeInput() {
 let _morseOscillators = [];
 let _morsePlaying = false;
 
-function morsePlayAudio() {
-  if (_morsePlaying) { morseStopAudio(); return; }
-  const morse = document.getElementById('morseOutput')?.textContent || '';
-  if (!morse || morse === '...') return;
+// Play morse string as audio (reusable)
+function _morsePlayString(morseStr, speed) {
+  if (!morseStr) return;
   if (!_morseAudioCtx) _morseAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
   const ctx = _morseAudioCtx;
-  const DOT = 0.08, DASH = 0.24, GAP = 0.08, LETTER_GAP = 0.24, WORD_GAP = 0.56;
-  let time = ctx.currentTime + 0.1;
+  const unit = (speed || 100) / 1000;
+  const DOT = unit, DASH = unit * 3, GAP = unit, LETTER_GAP = unit * 3, WORD_GAP = unit * 7;
+  let time = ctx.currentTime + 0.05;
   _morseOscillators = [];
   _morsePlaying = true;
 
-  // Update button state
-  const btn = document.getElementById('morsePlayBtn');
-  if (btn) { btn.textContent = '⏹ Parar'; btn.classList.add('playing'); }
-
-  for (const ch of morse) {
+  for (const ch of morseStr) {
     if (ch === '·') {
       const osc = ctx.createOscillator(); const gain = ctx.createGain();
       osc.connect(gain); gain.connect(ctx.destination);
@@ -4878,10 +4903,18 @@ function morsePlayAudio() {
       time += LETTER_GAP;
     }
   }
-
-  // Auto-reset when done
   const duration = (time - ctx.currentTime) * 1000;
   setTimeout(() => { if (_morsePlaying) morseStopAudio(); }, duration + 100);
+  return duration;
+}
+
+function morsePlayAudio() {
+  if (_morsePlaying) { morseStopAudio(); return; }
+  const morse = document.getElementById('morseOutput')?.textContent || '';
+  if (!morse || morse === '...') return;
+  const btn = document.getElementById('morsePlayBtn');
+  if (btn) { btn.textContent = '⏹ Parar'; btn.classList.add('playing'); }
+  _morsePlayString(morse, 100);
 }
 
 function morseStopAudio() {
@@ -4897,12 +4930,11 @@ let _morseFlashing = false;
 function morseFlashSOS() {
   if (_morseFlashing) { _morseFlashing = false; return; }
   _morseFlashing = true;
-  // SOS pattern: ··· −−− ···
   const DOT = 200, DASH = 600, GAP = 200, LETTER_GAP = 600, WORD_GAP = 1400;
   const pattern = [
-    DOT, GAP, DOT, GAP, DOT, LETTER_GAP,  // S
-    DASH, GAP, DASH, GAP, DASH, LETTER_GAP, // O
-    DOT, GAP, DOT, GAP, DOT, WORD_GAP       // S
+    DOT, GAP, DOT, GAP, DOT, LETTER_GAP,
+    DASH, GAP, DASH, GAP, DASH, LETTER_GAP,
+    DOT, GAP, DOT, GAP, DOT, WORD_GAP
   ];
 
   let overlay = document.getElementById('morseFlashOverlay');
@@ -4917,10 +4949,10 @@ function morseFlashSOS() {
   overlay.style.display = 'flex';
 
   let idx = 0;
-  let isOn = true; // odd indexes are gaps
+  let isOn = true;
   function tick() {
     if (!_morseFlashing || idx >= pattern.length) {
-      if (_morseFlashing) { idx = 0; tick(); return; } // Loop
+      if (_morseFlashing) { idx = 0; tick(); return; }
       overlay.style.display = 'none';
       overlay.style.background = 'rgba(0,0,0,0.95)';
       return;
@@ -4931,6 +4963,137 @@ function morseFlashSOS() {
   }
   tick();
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MORSE TRAINER
+// ═══════════════════════════════════════════════════════════════════════════
+
+let _morseTrainer = { mode: 'listen', answer: '', correct: 0, wrong: 0, streak: 0, active: false };
+
+function morseTrainerSetMode(mode, btn) {
+  _morseTrainer.mode = mode;
+  document.querySelectorAll('.morse-trainer-mode').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const replayBtn = document.getElementById('morseTrainerReplayBtn');
+  if (replayBtn) replayBtn.style.display = mode === 'listen' ? 'inline-flex' : 'none';
+  morseTrainerNext();
+}
+window.morseTrainerSetMode = morseTrainerSetMode;
+
+function _morseTrainerGetChars() {
+  const level = document.getElementById('morseTrainerLevel')?.value || 'medium';
+  if (level === 'easy') return 'ABCDEF'.split('');
+  if (level === 'medium') return 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  if (level === 'hard') return 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'.split('');
+  return null; // words mode
+}
+
+function morseTrainerNext() {
+  _morseTrainer.active = true;
+  const prompt = document.getElementById('morseTrainerPrompt');
+  const visual = document.getElementById('morseTrainerVisual');
+  const input = document.getElementById('morseTrainerInput');
+  const feedback = document.getElementById('morseTrainerFeedback');
+  if (!prompt) return;
+
+  feedback.textContent = '';
+  feedback.className = 'morse-trainer-feedback';
+  input.value = '';
+  input.focus();
+
+  const level = document.getElementById('morseTrainerLevel')?.value || 'medium';
+  const chars = _morseTrainerGetChars();
+  let challenge, answer;
+
+  if (chars) {
+    challenge = chars[Math.floor(Math.random() * chars.length)];
+    answer = challenge;
+  } else {
+    challenge = MORSE_TRAINER_WORDS[Math.floor(Math.random() * MORSE_TRAINER_WORDS.length)];
+    answer = challenge;
+  }
+  _morseTrainer.answer = answer;
+
+  const morseStr = answer.split('').map(ch => MORSE_MAP[ch] || '').join(' ');
+
+  if (_morseTrainer.mode === 'listen') {
+    prompt.innerHTML = '<span style="font-size:24px;color:var(--text-muted)">🎧</span> <span style="color:var(--text)">Escute e identifique</span>';
+    visual.innerHTML = '<div class="morse-trainer-hidden-answer">???</div>';
+    // Play audio
+    const speed = parseInt(document.getElementById('morseTrainerSpeed')?.value || '100');
+    _morsePlayString(morseStr, speed);
+    document.getElementById('morseTrainerReplayBtn').style.display = 'inline-flex';
+  } else {
+    // Identify mode: show morse visually
+    prompt.innerHTML = '<span style="color:var(--text)">Que letra/palavra e esta?</span>';
+    visual.innerHTML = `<div class="morse-trainer-morse-display">${morseStr}</div>`;
+    document.getElementById('morseTrainerReplayBtn').style.display = 'none';
+  }
+}
+window.morseTrainerNext = morseTrainerNext;
+
+function morseTrainerReplay() {
+  if (!_morseTrainer.answer) return;
+  const morseStr = _morseTrainer.answer.split('').map(ch => MORSE_MAP[ch] || '').join(' ');
+  const speed = parseInt(document.getElementById('morseTrainerSpeed')?.value || '100');
+  morseStopAudio();
+  setTimeout(() => _morsePlayString(morseStr, speed), 50);
+}
+window.morseTrainerReplay = morseTrainerReplay;
+
+function morseTrainerCheck() {
+  if (!_morseTrainer.active || !_morseTrainer.answer) return;
+  const input = document.getElementById('morseTrainerInput');
+  const feedback = document.getElementById('morseTrainerFeedback');
+  const guess = (input?.value || '').trim().toUpperCase();
+  if (!guess) return;
+
+  const morseStr = _morseTrainer.answer.split('').map(ch => MORSE_MAP[ch] || '').join(' ');
+
+  if (guess === _morseTrainer.answer) {
+    _morseTrainer.correct++;
+    _morseTrainer.streak++;
+    feedback.textContent = 'Correto! ' + _morseTrainer.answer + ' = ' + morseStr;
+    feedback.className = 'morse-trainer-feedback morse-feedback-correct';
+  } else {
+    _morseTrainer.wrong++;
+    _morseTrainer.streak = 0;
+    feedback.textContent = 'Errado! Era: ' + _morseTrainer.answer + ' = ' + morseStr;
+    feedback.className = 'morse-trainer-feedback morse-feedback-wrong';
+  }
+
+  document.getElementById('morseTrainerCorrect').textContent = _morseTrainer.correct;
+  document.getElementById('morseTrainerWrong').textContent = _morseTrainer.wrong;
+  document.getElementById('morseTrainerStreak').textContent = _morseTrainer.streak;
+
+  // Show answer visually
+  const visual = document.getElementById('morseTrainerVisual');
+  if (visual) {
+    visual.innerHTML = `<div class="morse-trainer-morse-display"><strong style="color:var(--text-bright);font-size:18px">${_morseTrainer.answer}</strong> = ${morseStr}</div>`;
+  }
+
+  _morseTrainer.active = false;
+  setTimeout(() => morseTrainerNext(), 1800);
+}
+window.morseTrainerCheck = morseTrainerCheck;
+
+function morseTrainerReset() {
+  _morseTrainer.correct = 0;
+  _morseTrainer.wrong = 0;
+  _morseTrainer.streak = 0;
+  _morseTrainer.active = false;
+  _morseTrainer.answer = '';
+  document.getElementById('morseTrainerCorrect').textContent = '0';
+  document.getElementById('morseTrainerWrong').textContent = '0';
+  document.getElementById('morseTrainerStreak').textContent = '0';
+  const prompt = document.getElementById('morseTrainerPrompt');
+  if (prompt) prompt.innerHTML = 'Pressione "Proximo" para comecar';
+  const visual = document.getElementById('morseTrainerVisual');
+  if (visual) visual.innerHTML = '';
+  const feedback = document.getElementById('morseTrainerFeedback');
+  if (feedback) { feedback.textContent = ''; feedback.className = 'morse-trainer-feedback'; }
+}
+window.morseTrainerReset = morseTrainerReset;
 
 // ═══════════════════════════════════════════════════════════════════════════
 // NATO PHONETIC ALPHABET
@@ -4946,8 +5109,11 @@ const NATO_ALPHABET = {
   '5':'Five', '6':'Six', '7':'Seven', '8':'Eight', '9':'Niner'
 };
 
+let _phoneticPractice = { letter: '', correct: 0, wrong: 0 };
+
 function phoneticInit() {
   phoneticTranslate();
+  phoneticPracticeNext();
 }
 
 function phoneticTranslate() {
@@ -4963,6 +5129,39 @@ function phoneticTranslate() {
     : `<span class="phonetic-word"><strong>${w[0]}</strong>${w.slice(1)}</span>`
   ).join(' ');
 }
+
+function phoneticPracticeNext() {
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  const letter = letters[Math.floor(Math.random() * letters.length)];
+  _phoneticPractice.letter = letter;
+  const el = document.getElementById('phoneticPracticeLetter');
+  if (el) el.textContent = letter;
+  const input = document.getElementById('phoneticPracticeInput');
+  if (input) { input.value = ''; input.focus(); }
+  const fb = document.getElementById('phoneticPracticeFeedback');
+  if (fb) { fb.textContent = ''; fb.className = 'morse-trainer-feedback'; }
+}
+window.phoneticPracticeNext = phoneticPracticeNext;
+
+function phoneticPracticeCheck() {
+  const guess = (document.getElementById('phoneticPracticeInput')?.value || '').trim().toLowerCase();
+  if (!guess) return;
+  const correct = NATO_ALPHABET[_phoneticPractice.letter].toLowerCase();
+  const fb = document.getElementById('phoneticPracticeFeedback');
+  if (guess === correct) {
+    _phoneticPractice.correct++;
+    fb.textContent = 'Correto! ' + _phoneticPractice.letter + ' = ' + NATO_ALPHABET[_phoneticPractice.letter];
+    fb.className = 'morse-trainer-feedback morse-feedback-correct';
+  } else {
+    _phoneticPractice.wrong++;
+    fb.textContent = 'Errado! ' + _phoneticPractice.letter + ' = ' + NATO_ALPHABET[_phoneticPractice.letter];
+    fb.className = 'morse-trainer-feedback morse-feedback-wrong';
+  }
+  document.getElementById('phoneticCorrect').textContent = _phoneticPractice.correct;
+  document.getElementById('phoneticWrong').textContent = _phoneticPractice.wrong;
+  setTimeout(() => phoneticPracticeNext(), 1500);
+}
+window.phoneticPracticeCheck = phoneticPracticeCheck;
 
 // ═══════════════════════════════════════════════════════════════════════════
 // SUN / MOON CALCULATOR
@@ -6838,40 +7037,67 @@ function stopCprMetronome() {
   document.querySelectorAll('.sos-metronome-btn.active').forEach(b => b.classList.remove('active'));
 }
 
-// ═══ Radio Frequency Filter ═══════════════════════════════════════════════
+// ═══ Radio Frequency Filter & Region Switching ═══════════════════════════
+let _radioActiveRegion = 'all';
+
 function radioFilter(query) {
-  const container = document.getElementById('radioView');
+  const container = document.getElementById('radioScrollArea');
   if (!container) return;
   const q = query.toLowerCase().trim();
   const sections = container.querySelectorAll('.radio-section');
   sections.forEach(h3 => {
-    // Find the next sibling (table or ul)
+    const region = h3.dataset.region || 'all';
+    const regionMatch = _radioActiveRegion === 'all' || region === 'all' || region === _radioActiveRegion;
+
+    // Find the next sibling (table, ul, or div)
     let sibling = h3.nextElementSibling;
-    if (!sibling) return;
+    if (!sibling || sibling.classList.contains('radio-section')) {
+      h3.style.display = regionMatch ? '' : 'none';
+      return;
+    }
     let sectionVisible = false;
     if (sibling.tagName === 'TABLE') {
       const rows = sibling.querySelectorAll('tr');
       rows.forEach((row, i) => {
-        if (i === 0) return; // skip header
+        if (i === 0) return;
         const text = row.textContent.toLowerCase();
-        const match = !q || text.includes(q);
+        const match = (!q || text.includes(q)) && regionMatch;
         row.style.display = match ? '' : 'none';
         if (match) sectionVisible = true;
       });
+      if (!q && regionMatch) sectionVisible = true;
     } else if (sibling.tagName === 'UL') {
       const items = sibling.querySelectorAll('li');
       items.forEach(li => {
-        const match = !q || li.textContent.toLowerCase().includes(q);
+        const match = (!q || li.textContent.toLowerCase().includes(q)) && regionMatch;
         li.style.display = match ? '' : 'none';
         if (match) sectionVisible = true;
       });
+      if (!q && regionMatch) sectionVisible = true;
+    } else if (sibling.tagName === 'DIV') {
+      // Protocol cards / procedure boxes
+      const sibRegion = sibling.dataset.region || 'all';
+      const sibRegionMatch = _radioActiveRegion === 'all' || sibRegion === 'all' || sibRegion === _radioActiveRegion;
+      if (q) {
+        sectionVisible = sibRegionMatch && sibling.textContent.toLowerCase().includes(q);
+      } else {
+        sectionVisible = sibRegionMatch;
+      }
     }
-    if (!q) sectionVisible = true;
+    if (!q && regionMatch) sectionVisible = true;
     h3.style.display = sectionVisible ? '' : 'none';
     if (sibling) sibling.style.display = sectionVisible ? '' : 'none';
   });
 }
 window.radioFilter = radioFilter;
+
+function radioSwitchRegion(region, btn) {
+  _radioActiveRegion = region;
+  document.querySelectorAll('#radioRegionTabs .radio-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  radioFilter(document.getElementById('radioSearch')?.value || '');
+}
+window.radioSwitchRegion = radioSwitchRegion;
 
 Object.defineProperty(window, '_excelDirty', { get() { return _excelDirty; }, configurable: true });
 Object.defineProperty(window, '_excelActiveId', { get() { return _excelActiveId; }, configurable: true });
