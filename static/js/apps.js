@@ -5898,11 +5898,11 @@ function _imagineShowResult(url, prompt) {
   const result = document.getElementById("imagineResult");
   if (!result) return;
   _imagineLastUrl = url;
-  result.innerHTML = `<img src="${url}" alt="Generated" style="max-width:100%;max-height:100%;object-fit:contain;cursor:pointer;" onclick="window.open('${url}','_blank')">`;
+  result.innerHTML = `<img src="${url}" alt="Generated" style="max-width:100%;max-height:100%;object-fit:contain;cursor:pointer;" onclick="imagineLightboxOpen(0)" title="Clique para ampliar">`;
   const actions = document.getElementById("imagineActions");
   if (actions) actions.style.display = "flex";
   const st = document.getElementById("imagineStatus");
-  if (st) { st.textContent = "● Pronto!"; st.style.color = "var(--green)"; }
+  if (st) { st.textContent = "Pronto!"; st.style.color = "var(--green)"; }
 }
 
 function _imagineShowError(msg) {
@@ -6158,6 +6158,18 @@ function imagineSaveImage() {
   if (_imagineLastUrl) window.open(_imagineLastUrl, "_blank");
 }
 
+function imagineDownloadImage() {
+  if (!_imagineLastUrl) return;
+  const a = document.createElement("a");
+  a.href = _imagineLastUrl;
+  a.download = _imagineLastUrl.split("/").pop() || "image.png";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  const st = document.getElementById("imagineStatus");
+  if (st) { st.textContent = "Imagem salva!"; st.style.color = "var(--green)"; }
+}
+
 function imagineCopyPrompt() {
   const ep = document.getElementById("imagineEnhancedPrompt")?.value || _imagineLastPrompt;
   if (ep) {
@@ -6193,23 +6205,177 @@ function imagineRandom() {
   imagineEnhanceAndGenerate();
 }
 
+let _imagineGalleryData = []; // cached gallery data
+let _imagineGalleryOpen = false;
+let _imagineLightboxIndex = -1;
+
 function imagineLoadHistory() {
   fetch("/api/imagine/history").then(r => r.json()).then(d => {
-    const el = document.getElementById("imagineHistory");
-    if (!el) return;
-    if (!d.images || d.images.length === 0) { el.innerHTML = ""; return; }
-    el.innerHTML = d.images.slice(0, 24).map(img => {
-      const title = img.meta?.original_prompt || img.filename;
-      const safeTitle = title.replace(/"/g, "&quot;").replace(/'/g, "&#39;");
-      return `<img src="${img.url}" alt="${safeTitle}" title="${safeTitle}" style="width:50px;height:50px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:pointer;flex-shrink:0;transition:border-color 0.15s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'" onclick="imagineShowHistoryItem('${img.url}','${safeTitle}')">`;
-    }).join("");
+    _imagineGalleryData = d.images || [];
+    _imagineRenderHistoryStrip();
+    if (_imagineGalleryOpen) _imagineRenderGalleryGrid();
   }).catch(() => {});
+}
+
+function _imagineRenderHistoryStrip() {
+  const el = document.getElementById("imagineHistoryStrip");
+  if (!el) return;
+  if (_imagineGalleryData.length === 0) { el.innerHTML = '<span style="font-size:10px;color:var(--text-faint);align-self:center;">Nenhuma imagem gerada</span>'; return; }
+  el.innerHTML = _imagineGalleryData.slice(0, 30).map((img, i) => {
+    const title = _imagineGetTitle(img);
+    const safeTitle = _escHtml(title);
+    return `<img src="${img.url}" alt="${safeTitle}" title="${safeTitle}" style="width:50px;height:50px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:pointer;flex-shrink:0;transition:border-color 0.15s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'" onclick="imagineLightboxOpen(${i})">`;
+  }).join("");
+}
+
+function _imagineRenderGalleryGrid() {
+  const grid = document.getElementById("imagineGalleryGrid");
+  const count = document.getElementById("imagineGalleryCount");
+  if (!grid) return;
+  if (count) count.textContent = `${_imagineGalleryData.length} imagens`;
+  if (_imagineGalleryData.length === 0) {
+    grid.innerHTML = '<div style="font-size:11px;color:var(--text-faint);padding:12px;text-align:center;">Nenhuma imagem gerada ainda</div>';
+    return;
+  }
+  grid.innerHTML = _imagineGalleryData.map((img, i) => {
+    const title = _imagineGetTitle(img);
+    const safeTitle = _escHtml(title);
+    const sizeInfo = img.size_kb ? `${img.size_kb} KB` : "";
+    return `<div class="imagine-gallery-card" onclick="imagineLightboxOpen(${i})" title="${safeTitle}">
+      <img src="${img.url}" alt="${safeTitle}" loading="lazy">
+      <div class="imagine-card-overlay">${safeTitle}</div>
+      <button class="imagine-card-delete" onclick="event.stopPropagation();imagineDeleteImage('${img.filename}')">x</button>
+    </div>`;
+  }).join("");
+}
+
+function _imagineGetTitle(img) {
+  return img.meta?.original_prompt || img.meta?.prompt?.substring(0, 60) || img.filename;
+}
+
+function _escHtml(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+function imagineToggleGallery() {
+  _imagineGalleryOpen = !_imagineGalleryOpen;
+  const gallery = document.getElementById("imagineGallery");
+  const strip = document.getElementById("imagineHistoryStrip");
+  if (gallery) gallery.style.display = _imagineGalleryOpen ? "flex" : "none";
+  if (strip) strip.style.display = _imagineGalleryOpen ? "none" : "flex";
+  if (_imagineGalleryOpen) _imagineRenderGalleryGrid();
+}
+
+function imagineDeleteImage(filename) {
+  if (!confirm("Excluir esta imagem?")) return;
+  fetch(`/api/imagine/history/${encodeURIComponent(filename)}`, { method: "DELETE" })
+    .then(r => r.json()).then(d => {
+      if (d.status === "deleted") {
+        imagineLoadHistory();
+        const st = document.getElementById("imagineStatus");
+        if (st) { st.textContent = "Imagem excluida."; st.style.color = "var(--text-muted)"; }
+      }
+    }).catch(() => {});
+}
+
+// ── Lightbox ──
+
+function imagineLightboxOpen(index) {
+  if (index < 0 || index >= _imagineGalleryData.length) return;
+  _imagineLightboxIndex = index;
+  const img = _imagineGalleryData[index];
+  const lb = document.getElementById("imagineLightbox");
+  const lbImg = document.getElementById("imagineLightboxImg");
+  const lbMeta = document.getElementById("imagineLightboxMeta");
+  if (!lb || !lbImg) return;
+
+  lbImg.src = img.url;
+  lb.classList.add("active");
+
+  // Build metadata display
+  const meta = img.meta || {};
+  const parts = [];
+  if (meta.original_prompt) parts.push(`<b>Prompt:</b> ${_escHtml(meta.original_prompt)}`);
+  if (meta.style) parts.push(`<b>Estilo:</b> ${_escHtml(meta.style)}`);
+  if (meta.steps) parts.push(`<b>Steps:</b> ${meta.steps}`);
+  if (meta.width && meta.height) parts.push(`<b>Tamanho:</b> ${meta.width}x${meta.height}`);
+  if (meta.seed !== undefined && meta.seed !== null) parts.push(`<b>Seed:</b> ${meta.seed}`);
+  if (meta.cfg_scale) parts.push(`<b>CFG:</b> ${meta.cfg_scale}`);
+  if (img.size_kb) parts.push(`<b>Arquivo:</b> ${img.size_kb} KB`);
+  if (lbMeta) lbMeta.innerHTML = parts.join(" &middot; ") || img.filename;
+
+  // Update nav visibility
+  document.querySelector(".imagine-lightbox-prev").style.display = index > 0 ? "" : "none";
+  document.querySelector(".imagine-lightbox-next").style.display = index < _imagineGalleryData.length - 1 ? "" : "none";
+}
+
+function imagineLightboxClose(event) {
+  if (event && event.target !== event.currentTarget) return;
+  const lb = document.getElementById("imagineLightbox");
+  if (lb) lb.classList.remove("active");
+  _imagineLightboxIndex = -1;
+}
+
+function imagineLightboxNav(dir) {
+  const next = _imagineLightboxIndex + dir;
+  if (next >= 0 && next < _imagineGalleryData.length) {
+    imagineLightboxOpen(next);
+  }
+}
+
+function imagineLightboxDownload() {
+  if (_imagineLightboxIndex < 0) return;
+  const img = _imagineGalleryData[_imagineLightboxIndex];
+  const a = document.createElement("a");
+  a.href = img.url;
+  a.download = img.filename || "image.png";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+function imagineLightboxCopyPrompt() {
+  if (_imagineLightboxIndex < 0) return;
+  const img = _imagineGalleryData[_imagineLightboxIndex];
+  const prompt = img.meta?.enhanced_prompt || img.meta?.prompt || img.meta?.original_prompt || "";
+  if (prompt) {
+    navigator.clipboard.writeText(prompt).then(() => {
+      const st = document.getElementById("imagineStatus");
+      if (st) { st.textContent = "Prompt copiado!"; st.style.color = "var(--green)"; }
+    });
+  }
+}
+
+function imagineLightboxUsePrompt() {
+  if (_imagineLightboxIndex < 0) return;
+  const img = _imagineGalleryData[_imagineLightboxIndex];
+  const prompt = img.meta?.original_prompt || img.meta?.prompt || "";
+  const promptEl = document.getElementById("imaginePrompt");
+  if (promptEl && prompt) {
+    promptEl.value = prompt;
+    imagineLightboxClose();
+    const st = document.getElementById("imagineStatus");
+    if (st) { st.textContent = "Prompt carregado!"; st.style.color = "var(--accent)"; }
+  }
+}
+
+function imagineLightboxDelete() {
+  if (_imagineLightboxIndex < 0) return;
+  const img = _imagineGalleryData[_imagineLightboxIndex];
+  if (!confirm("Excluir esta imagem?")) return;
+  fetch(`/api/imagine/history/${encodeURIComponent(img.filename)}`, { method: "DELETE" })
+    .then(r => r.json()).then(d => {
+      if (d.status === "deleted") {
+        imagineLightboxClose();
+        imagineLoadHistory();
+      }
+    }).catch(() => {});
 }
 
 function imagineShowHistoryItem(url, title) {
   _imagineLastUrl = url;
   const result = document.getElementById("imagineResult");
-  if (result) result.innerHTML = `<img src="${url}" alt="${title}" style="max-width:100%;max-height:100%;object-fit:contain;cursor:pointer;" onclick="window.open('${url}','_blank')">`;
+  if (result) result.innerHTML = `<img src="${url}" alt="${_escHtml(title)}" style="max-width:100%;max-height:100%;object-fit:contain;cursor:pointer;" onclick="window.open('${url}','_blank')">`;
   const actions = document.getElementById("imagineActions");
   if (actions) actions.style.display = "flex";
 }
@@ -6221,10 +6387,38 @@ window.imagineEnhanceOnly = imagineEnhanceOnly;
 window.imagineSetStyle = imagineSetStyle;
 window.imagineToggleNeg = imagineToggleNeg;
 window.imagineSaveImage = imagineSaveImage;
+window.imagineDownloadImage = imagineDownloadImage;
 window.imagineCopyPrompt = imagineCopyPrompt;
 window.imagineVariation = imagineVariation;
 window.imagineRandom = imagineRandom;
 window.imagineShowHistoryItem = imagineShowHistoryItem;
+window.imagineToggleGallery = imagineToggleGallery;
+window.imagineDeleteImage = imagineDeleteImage;
+window.imagineLightboxOpen = imagineLightboxOpen;
+window.imagineLightboxClose = imagineLightboxClose;
+window.imagineLightboxNav = imagineLightboxNav;
+window.imagineLightboxDownload = imagineLightboxDownload;
+window.imagineLightboxCopyPrompt = imagineLightboxCopyPrompt;
+window.imagineLightboxUsePrompt = imagineLightboxUsePrompt;
+window.imagineLightboxDelete = imagineLightboxDelete;
+
+// ── Imagine keyboard shortcuts ──
+document.addEventListener("keydown", (e) => {
+  // Lightbox navigation
+  const lb = document.getElementById("imagineLightbox");
+  if (lb && lb.classList.contains("active")) {
+    if (e.key === "Escape") { imagineLightboxClose(); e.preventDefault(); }
+    else if (e.key === "ArrowLeft") { imagineLightboxNav(-1); e.preventDefault(); }
+    else if (e.key === "ArrowRight") { imagineLightboxNav(1); e.preventDefault(); }
+    return;
+  }
+  // Enter to generate (only when imagine prompt is focused)
+  const promptEl = document.getElementById("imaginePrompt");
+  if (e.key === "Enter" && !e.shiftKey && document.activeElement === promptEl) {
+    e.preventDefault();
+    imagineEnhanceAndGenerate();
+  }
+});
 
 // ─── Expose mutable state to window for main.js close callbacks ─────────────
 // These use defineProperty so main.js always reads the current value.
