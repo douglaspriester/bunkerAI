@@ -1315,31 +1315,104 @@ Responda no idioma do usuario. Use markdown.</textarea>
 
     <!-- ═══ Image Generator View ═══ -->
     <div class="panel-view hidden" id="imagineView">
-      <div class="panel-body" style="display:flex;flex-direction:column;gap:14px;">
-        <div class="config-section-title" style="margin:0;">Gerador de Imagens IA</div>
-        <div style="font-size:12px;color:var(--text-muted);">Gere imagens offline com Stable Diffusion (requer sd-server configurado)</div>
-        <textarea id="imaginePrompt" class="chat-input" placeholder="Descreva a imagem que deseja gerar..." style="min-height:60px;max-height:120px;resize:vertical;font-size:13px;"></textarea>
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-          <button class="btn-sm btn-accent" onclick="imagineGenerate()">Gerar Imagem</button>
-          <select id="imagineSteps" class="config-select" style="width:auto;">
-            <option value="1">1 step (rápido)</option>
-            <option value="4">4 steps</option>
-            <option value="10">10 steps</option>
-            <option value="20" selected>20 steps (melhor)</option>
-          </select>
-          <select id="imagineSize" class="config-select" style="width:auto;">
-            <option value="512" selected>512x512</option>
-            <option value="256">256x256</option>
-          </select>
-          <span id="imagineStatus" style="font-size:11px;color:var(--text-muted);"></span>
-        </div>
-        <div id="imagineResult" style="flex:1;display:flex;align-items:center;justify-content:center;min-height:200px;background:var(--bg);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden;">
-          <div style="text-align:center;color:var(--text-faint);font-size:13px;">
-            Nenhuma imagem gerada ainda.<br>
-            <span style="font-size:11px;">Configure o sd-server em Configurações &gt; Sistema</span>
+      <div class="panel-body" style="display:flex;flex-direction:column;height:100%;">
+
+        <!-- ══ MODE 1: SETUP (shown when offline) ══ -->
+        <div id="imagineSetup" style="display:none;flex:1;flex-direction:column;gap:16px;padding:20px;overflow-y:auto;">
+          <div style="text-align:center;padding:10px 0;">
+            <div style="font-size:36px;margin-bottom:8px;">🎨</div>
+            <div style="font-size:16px;font-weight:600;color:var(--text);">Gerador de Imagens</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">Crie imagens com IA, 100% offline</div>
+          </div>
+
+          <!-- Step 1: Binary (auto-installs) -->
+          <div id="imagineStep1" style="display:none;">
+            <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px;">Passo 1 — Motor de imagens</div>
+            <div id="imagineStep1Content" style="padding:10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);">
+              <div style="font-size:11px;color:var(--text-muted);">Preparando motor de imagens...</div>
+            </div>
+          </div>
+
+          <!-- Step 2: Model -->
+          <div id="imagineStep2">
+            <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px;" id="imagineStep2Title">Baixe um modelo de imagem</div>
+            <div id="imagineModelList" style="display:flex;flex-direction:column;gap:6px;"></div>
+            <div id="imagineDownloadStatus" style="display:none;margin-top:8px;">
+              <div style="height:5px;background:var(--border);border-radius:3px;overflow:hidden;">
+                <div id="imagineDownloadFill" style="height:100%;width:0%;background:var(--accent);transition:width 0.3s;"></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;margin-top:2px;">
+                <span id="imagineDownloadPct" style="font-size:10px;color:var(--text-muted);">0%</span>
+                <span id="imagineDownloadSpeed" style="font-size:10px;color:var(--text-muted);"></span>
+              </div>
+            </div>
           </div>
         </div>
-        <div id="imagineHistory" style="display:flex;gap:8px;overflow-x:auto;padding:4px 0;min-height:60px;"></div>
+
+        <!-- ══ MODE 2: GENERATOR (shown when online) ══ -->
+        <div id="imagineGenerator" style="display:none;flex:1;flex-direction:column;gap:8px;padding:8px;overflow-y:auto;">
+
+          <!-- Prompt + Generate -->
+          <div style="display:flex;gap:6px;">
+            <textarea id="imaginePrompt" class="chat-input" placeholder="Descreva a imagem... Ex: gato astronauta no espaco" style="flex:1;min-height:42px;max-height:80px;resize:vertical;font-size:13px;"></textarea>
+            <button class="btn-sm btn-accent" onclick="imagineEnhanceAndGenerate()" id="imagineBtnGenerate" style="font-weight:600;padding:8px 14px;align-self:stretch;white-space:nowrap;">✨ Gerar</button>
+            <button class="btn-sm" onclick="imagineCancel()" id="imagineBtnCancel" style="display:none;padding:8px 10px;align-self:stretch;color:var(--danger);border-color:var(--danger);">✕ Parar</button>
+          </div>
+
+          <!-- Styles (compact) -->
+          <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">
+            <button class="btn-sm imagine-style active" data-style="" onclick="imagineSetStyle(this)">Auto</button>
+            <button class="btn-sm imagine-style" data-style="photorealistic" onclick="imagineSetStyle(this)">Realista</button>
+            <button class="btn-sm imagine-style" data-style="anime" onclick="imagineSetStyle(this)">Anime</button>
+            <button class="btn-sm imagine-style" data-style="pixel art" onclick="imagineSetStyle(this)">Pixel</button>
+            <button class="btn-sm imagine-style" data-style="oil painting" onclick="imagineSetStyle(this)">Pintura</button>
+            <button class="btn-sm imagine-style" data-style="watercolor" onclick="imagineSetStyle(this)">Aquarela</button>
+            <button class="btn-sm imagine-style" data-style="concept art" onclick="imagineSetStyle(this)">Concept</button>
+            <button class="btn-sm imagine-style" data-style="photography" onclick="imagineSetStyle(this)">Foto</button>
+            <button class="btn-sm imagine-style" data-style="sci-fi" onclick="imagineSetStyle(this)">Sci-Fi</button>
+            <span style="margin-left:auto;font-size:10px;color:var(--text-faint);cursor:pointer;" onclick="document.getElementById('imagineAdvanced').style.display=document.getElementById('imagineAdvanced').style.display==='none'?'flex':'none'">Avancado ▾</span>
+          </div>
+
+          <!-- Advanced (collapsed) -->
+          <div id="imagineAdvanced" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;font-size:11px;">
+            <label style="color:var(--text-muted);">Steps: <select id="imagineSteps" class="config-select" style="width:auto;font-size:11px;">
+              <option value="1">1</option><option value="4" selected>4</option><option value="10">10</option><option value="20">20</option><option value="30">30</option>
+            </select></label>
+            <label style="color:var(--text-muted);">Tamanho: <select id="imagineSize" class="config-select" style="width:auto;font-size:11px;">
+              <option value="512x512" selected>512²</option><option value="768x768">768²</option><option value="512x768">512×768</option><option value="768x512">768×512</option><option value="256x256">256²</option>
+            </select></label>
+            <label style="color:var(--text-muted);">CFG: <input id="imagineCfg" type="number" value="7" min="1" max="20" step="0.5" class="config-select" style="width:44px;font-size:11px;"></label>
+            <label style="color:var(--text-muted);">Seed: <input id="imagineSeed" type="number" value="-1" min="-1" class="config-select" style="width:60px;font-size:11px;"></label>
+            <button class="btn-sm" onclick="imagineEnhanceOnly()" id="imagineBtnEnhance" style="font-size:10px;">Só melhorar prompt</button>
+            <button class="btn-sm" onclick="imagineGenerateDirect()" style="font-size:10px;opacity:0.7;">Gerar direto</button>
+          </div>
+
+          <!-- Enhanced prompt (hidden until used) -->
+          <div id="imagineEnhanced" style="display:none;flex-direction:column;gap:3px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:10px;color:var(--accent);font-weight:600;">Prompt otimizado:</span>
+              <button class="btn-sm" onclick="imagineToggleNeg()" style="font-size:9px;padding:1px 5px;">± neg</button>
+            </div>
+            <textarea id="imagineEnhancedPrompt" class="chat-input" style="min-height:32px;max-height:60px;resize:vertical;font-size:10px;color:var(--accent);opacity:0.85;"></textarea>
+            <textarea id="imagineNegPrompt" class="chat-input" placeholder="Negative prompt..." style="min-height:24px;max-height:40px;resize:vertical;font-size:10px;display:none;color:var(--danger);opacity:0.7;"></textarea>
+          </div>
+
+          <!-- Image result -->
+          <div id="imagineResult" style="flex:1;display:flex;align-items:center;justify-content:center;min-height:200px;background:var(--bg);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden;">
+            <div style="text-align:center;color:var(--text-faint);font-size:12px;">Descreva e clique Gerar</div>
+          </div>
+
+          <!-- Actions (after generation) -->
+          <div id="imagineActions" style="display:none;gap:6px;flex-wrap:wrap;">
+            <button class="btn-sm" onclick="imagineSaveImage()">Abrir</button>
+            <button class="btn-sm" onclick="imagineCopyPrompt()">Copiar Prompt</button>
+            <button class="btn-sm" onclick="imagineVariation()">Variacao</button>
+            <button class="btn-sm" onclick="imagineRandom()">Aleatorio</button>
+          </div>
+
+          <!-- History -->
+          <div id="imagineHistory" style="display:flex;gap:5px;overflow-x:auto;padding:2px 0;min-height:48px;flex-shrink:0;"></div>
+        </div>
       </div>
     </div>
 
