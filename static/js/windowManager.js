@@ -55,6 +55,23 @@ export let _activeWindowId = null;
 export let _cascadeOffset = 0;
 let _taskbarClockInterval = null;
 
+// ─── Mobile detection ─────────────────────────────────────────────────────────
+const MOBILE_BREAKPOINT = 768;
+export function isMobile() {
+  return window.innerWidth <= MOBILE_BREAKPOINT;
+}
+function _updateMobileClass() {
+  document.body.classList.toggle('is-mobile', isMobile());
+}
+// Set initial state and update on resize/orientation change
+if (typeof window !== 'undefined') {
+  _updateMobileClass();
+  window.addEventListener('resize', _updateMobileClass);
+  window.addEventListener('orientationchange', () => {
+    setTimeout(_updateMobileClass, 100);
+  });
+}
+
 // App-open callbacks registry — populated by main.js
 const _appOpenCallbacks = {};
 export function registerAppOpen(appId, fn) { _appOpenCallbacks[appId] = fn; }
@@ -86,18 +103,28 @@ export function openApp(appId) {
   }
 
   const winId = 'win_' + appId + '_' + Date.now().toString(36);
+  const mobile = isMobile();
+  const taskbarH = mobile ? 44 : 48;
   const maxW = window.innerWidth;
-  const maxH = window.innerHeight - 48;
-  const w = Math.min(app.width, maxW - 40);
-  const h = Math.min(app.height, maxH - 40);
-  const baseX = Math.max(20, (maxW - w) / 2 - 80);
-  const baseY = Math.max(10, (maxH - h) / 2 - 80);
-  const x = baseX + (_cascadeOffset % 8) * 30;
-  const y = baseY + (_cascadeOffset % 8) * 30;
+  const maxH = window.innerHeight - taskbarH;
+
+  let x, y, w, h;
+  if (mobile) {
+    // Mobile: always fullscreen
+    x = 0; y = 0; w = maxW; h = maxH;
+  } else {
+    w = Math.min(app.width, maxW - 40);
+    h = Math.min(app.height, maxH - 40);
+    const baseX = Math.max(20, (maxW - w) / 2 - 80);
+    const baseY = Math.max(10, (maxH - h) / 2 - 80);
+    x = baseX + (_cascadeOffset % 8) * 30;
+    y = baseY + (_cascadeOffset % 8) * 30;
+  }
   _cascadeOffset++;
 
   const winEl = document.createElement('div');
   winEl.className = 'os-window';
+  if (mobile) winEl.classList.add('os-window-mobile');
   winEl.id = winId;
   winEl.style.left = x + 'px';
   winEl.style.top = y + 'px';
@@ -269,6 +296,8 @@ export function startDrag(winId, e) {
   if (e.target.closest('.os-win-btn')) return;
   const win = _windows[winId];
   if (!win || win.maximized) return;
+  // Disable drag on mobile — windows are always fullscreen
+  if (isMobile()) return;
 
   focusWindow(winId);
   e.preventDefault();
@@ -321,6 +350,8 @@ export function startDrag(winId, e) {
 export function startResize(winId, e) {
   const win = _windows[winId];
   if (!win || win.maximized) return;
+  // Disable resize on mobile — windows are always fullscreen
+  if (isMobile()) return;
 
   focusWindow(winId);
   e.preventDefault();

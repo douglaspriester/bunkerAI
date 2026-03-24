@@ -4097,30 +4097,8 @@ body::after {
   letter-spacing: 0.08em;
 }
 
-/* ═══ RESPONSIVE: Window adjustments ═══ */
-@media (max-width: 768px) {
-  .desktop-icons {
-    gap: 4px;
-    padding: 12px;
-  }
-  .desktop-icon { width: 72px; }
-  .desktop-icon-img { font-size: 26px; }
-  .desktop-icon-label { font-size: 10px; max-width: 68px; }
-
-  .os-window {
-    border-radius: 0 !important;
-  }
-
-  .taskbar-app-name { display: none; }
-  .taskbar-start span { display: none; }
-  .taskbar-start { padding: 6px 10px; }
-
-  .start-menu {
-    left: 0; right: 0;
-    width: auto;
-    max-width: 300px;
-  }
-}
+/* ═══ RESPONSIVE: Window adjustments ═══
+   (moved to end of file — see "RESPONSIVE — MOBILE & TABLET" section) */
 
 /* ═══ OVERRIDE: body no longer needs flex for sidebar layout ═══ */
 body {
@@ -8849,4 +8827,463 @@ body {
   align-items: center;
   gap: 12px;
   margin-top: 28px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   RESPONSIVE — MOBILE & TABLET  (Ciclo 13)
+   Touch-first layout for small screens
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ─── Mobile helper: body-level class set by windowManager.js ─── */
+body.is-mobile .os-window-resize { display: none !important; }
+body.is-mobile .os-window-titlebar { cursor: default !important; }
+
+/* ─────────────────────────────────────────────────────────────────
+   TABLET (max-width: 1024px)
+   ───────────────────────────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  /* Desktop icons: slightly smaller grid */
+  .desktop-icons {
+    gap: 6px;
+    padding: 16px;
+  }
+  .desktop-icon {
+    width: 80px;
+    padding: 8px 4px 6px;
+  }
+  .desktop-icon-img { font-size: 30px; }
+  .desktop-icon-label { font-size: 10.5px; max-width: 74px; }
+
+  /* Clock widget: compact */
+  .desktop-widget {
+    width: 180px;
+    top: 14px;
+    right: 14px;
+    padding: 14px 12px 10px;
+  }
+  .dw-time { font-size: 36px; }
+  .dw-seconds { font-size: 14px; }
+  .dw-date { font-size: 10px; }
+
+  /* Taskbar: slightly tighter */
+  .taskbar { height: 44px; padding: 0 6px; }
+  .taskbar-app-btn { padding: 4px 8px; height: 32px; font-size: 11px; }
+  .taskbar-app-name { font-size: 11px; max-width: 80px; }
+  .taskbar-clock { font-size: 12px; }
+
+  /* System tray mini-bars: hide labels */
+  .tray-ai-label { display: none; }
+
+  /* Start menu: slightly wider to fill better */
+  .start-menu {
+    width: 340px;
+    max-height: calc(100dvh - 60px);
+  }
+
+  /* Windows: ensure they fit */
+  .os-window {
+    min-width: 280px;
+  }
+
+  /* SOS button: ensure minimum touch target */
+  .sos-toggle {
+    width: 52px;
+    height: 52px;
+    font-size: 24px;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   MOBILE (max-width: 768px)
+   ───────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* ── Desktop icons: compact 2-column-like flow ── */
+  .desktop-icons {
+    gap: 4px;
+    padding: 10px 8px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    overflow-y: auto;
+    padding-bottom: 60px; /* space for SOS button */
+  }
+  .desktop-icon {
+    width: 70px;
+    padding: 8px 2px 6px;
+    gap: 4px;
+  }
+  .desktop-icon-img { font-size: 26px; }
+  .desktop-icon-label {
+    font-size: 9.5px;
+    max-width: 66px;
+    line-height: 1.2;
+  }
+
+  /* ── Clock widget: hide on mobile to save space ── */
+  .desktop-widget {
+    display: none !important;
+  }
+
+  /* ── Taskbar: compact mobile layout ── */
+  .taskbar {
+    height: 44px;
+    padding: 0 4px;
+    gap: 2px;
+  }
+  .taskbar-start {
+    padding: 6px 8px;
+    gap: 4px;
+  }
+  .taskbar-start span { display: none; } /* hide "BUNKER" text */
+  .taskbar-start svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  /* Hide app names, show only icons */
+  .taskbar-app-name { display: none !important; }
+  .taskbar-app-btn {
+    padding: 4px 8px;
+    height: 34px;
+    min-width: 36px;
+    justify-content: center;
+  }
+  .taskbar-app-icon { font-size: 16px; }
+
+  /* System tray: compact */
+  .taskbar-tray {
+    gap: 4px;
+    padding: 0 4px 0 6px;
+  }
+  .tray-minibar-group { display: none; } /* hide CPU/RAM/Disk bars */
+  .tray-ai-label { display: none; }
+  .tray-net { font-size: 14px; }
+  .taskbar-clock {
+    font-size: 11px;
+    min-width: 40px;
+    letter-spacing: 0.06em;
+  }
+
+  /* ── Start Menu: fullscreen on mobile ── */
+  .start-menu {
+    position: fixed;
+    inset: 0;
+    bottom: 44px; /* above taskbar */
+    left: 0;
+    right: 0;
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: none;
+    border-radius: 0;
+    border: none;
+    border-top: 1px solid var(--border-bright);
+    animation: startMenuMobileIn 0.2s ease;
+  }
+  @keyframes startMenuMobileIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: none; }
+  }
+  .start-menu-header {
+    padding: 12px 16px 10px;
+  }
+  .start-menu-search input {
+    font-size: 16px; /* prevent iOS zoom on focus */
+    padding: 10px 14px;
+  }
+  .start-menu-item {
+    padding: 10px 14px;
+    min-height: 44px; /* touch target */
+  }
+  .start-menu-item-icon { font-size: 20px; width: 28px; }
+  .start-menu-item-label { font-size: 14px; }
+  .start-menu-section-header {
+    padding: 8px 14px 6px;
+    min-height: 36px;
+  }
+  .start-menu-footer {
+    padding: 10px 16px;
+  }
+
+  /* ── Windows: forced maximized on mobile ── */
+  .os-window {
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100vw !important;
+    height: calc(100dvh - 44px) !important;
+    border-radius: 0 !important;
+    border: none !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-width: 100vw !important;
+  }
+  .os-window-resize { display: none !important; }
+  .os-window-titlebar {
+    height: 40px;
+    min-height: 40px;
+    padding: 0 6px 0 10px;
+  }
+  .os-win-btn {
+    width: 36px;
+    height: 32px;
+    font-size: 18px;
+  }
+  /* Hide minimize/maximize on mobile — only close */
+  .os-win-min,
+  .os-win-max { display: none; }
+
+  /* Window body fills space */
+  .os-window-body {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Windows container: adjust for mobile taskbar */
+  .windows-container {
+    bottom: 44px;
+  }
+
+  /* ── SOS button: LARGER and more prominent on mobile ── */
+  .sos-widget {
+    bottom: 48px;
+    right: 8px;
+    z-index: 10000;
+  }
+  .sos-toggle {
+    width: 56px;
+    height: 56px;
+    font-size: 26px;
+    border-width: 3px;
+    box-shadow: 0 0 16px rgba(255,40,40,0.4);
+  }
+
+  /* ── SOS Emergency overlay: better mobile layout ── */
+  .sos-emergency-header {
+    padding: 12px 14px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .sos-emergency-title { font-size: 18px; }
+  .sos-emergency-grid {
+    grid-template-columns: 1fr;
+    padding: 12px;
+    gap: 12px;
+  }
+  .sos-card { padding: 16px; }
+  .sos-card-title { font-size: 17px; }
+  .sos-close-btn {
+    width: 48px;
+    height: 48px;
+    font-size: 24px;
+  }
+  .sos-open-firstaid-btn {
+    padding: 12px 16px;
+    font-size: 14px;
+    min-height: 44px;
+  }
+
+  /* ── Touch-friendly: all interactive elements min 44px ── */
+  button, .btn, [role="button"],
+  .start-menu-item, .taskbar-app-btn,
+  .taskbar-start, .tray-item {
+    min-height: 44px;
+  }
+
+  /* Onboarding: fullscreen on mobile */
+  .onboarding-overlay .onboarding-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    border-radius: 0;
+    margin: 0;
+  }
+
+  /* Tray popup: fullwidth */
+  .tray-popup {
+    left: 8px;
+    right: 8px;
+    width: auto;
+    bottom: 48px;
+  }
+
+  /* Notepad/Word/Excel sidebars: collapse */
+  .notepad-sidebar {
+    width: 0;
+    min-width: 0;
+    overflow: hidden;
+    display: none;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   SMALL PHONE (max-width: 480px)
+   ───────────────────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  /* Even smaller desktop icons */
+  .desktop-icons {
+    padding: 8px 6px;
+    gap: 2px;
+  }
+  .desktop-icon {
+    width: 62px;
+    padding: 6px 2px 4px;
+    gap: 3px;
+  }
+  .desktop-icon-img { font-size: 22px; }
+  .desktop-icon-label {
+    font-size: 8.5px;
+    max-width: 58px;
+  }
+
+  /* Taskbar even tighter */
+  .taskbar { height: 40px; }
+  .taskbar-start { padding: 4px 6px; }
+  .taskbar-clock { font-size: 10px; min-width: 36px; }
+
+  /* Start menu items: larger touch targets */
+  .start-menu-item {
+    padding: 12px 14px;
+    min-height: 48px;
+  }
+  .start-menu-item-icon { font-size: 22px; width: 32px; }
+  .start-menu-item-label { font-size: 15px; }
+
+  /* Windows adjust for smaller taskbar */
+  .os-window {
+    height: calc(100dvh - 40px) !important;
+  }
+  .windows-container { bottom: 40px; }
+
+  /* SOS button */
+  .sos-widget { bottom: 44px; }
+  .sos-toggle {
+    width: 60px;
+    height: 60px;
+    font-size: 28px;
+  }
+
+  /* SOS overlay cards */
+  .sos-card { padding: 14px; }
+  .sos-card-icon { font-size: 30px; }
+  .sos-card-title { font-size: 15px; }
+  .sos-card-step { font-size: 13px; }
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   TOUCH DEVICE ENHANCEMENTS
+   ───────────────────────────────────────────────────────────────── */
+@media (pointer: coarse) {
+  /* All clickable elements need adequate touch targets */
+  .desktop-icon {
+    padding: 10px 4px 8px;
+    min-height: 44px;
+  }
+  .taskbar-app-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .os-win-btn {
+    min-width: 44px;
+    min-height: 36px;
+  }
+  .start-menu-item {
+    min-height: 44px;
+    padding: 10px 14px;
+  }
+  .sos-toggle {
+    min-width: 48px;
+    min-height: 48px;
+  }
+  .tray-item {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 6px 8px;
+  }
+  /* Disable hover effects that don't make sense on touch */
+  .desktop-icon:hover {
+    background: transparent;
+  }
+  .desktop-icon:active {
+    background: rgba(0,212,255,0.08);
+  }
+  .taskbar-app-btn:hover {
+    background: rgba(0,212,255,0.04);
+  }
+  .taskbar-app-btn:active {
+    background: rgba(0,212,255,0.12);
+  }
+
+  /* Prevent text selection on touch drag */
+  .desktop-icons,
+  .taskbar,
+  .start-menu {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* Scrollbars: thin on touch */
+  .start-menu-apps::-webkit-scrollbar,
+  .os-window-body::-webkit-scrollbar {
+    width: 3px;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   LANDSCAPE PHONE (short height)
+   ───────────────────────────────────────────────────────────────── */
+@media (max-height: 500px) and (max-width: 900px) {
+  .taskbar { height: 36px; }
+  .taskbar-start { padding: 4px 6px; }
+  .taskbar-app-btn { height: 28px; min-height: 28px; }
+  .taskbar-clock { font-size: 10px; }
+
+  .os-window {
+    height: calc(100dvh - 36px) !important;
+  }
+  .windows-container { bottom: 36px; }
+  .os-window-titlebar {
+    height: 32px;
+    min-height: 32px;
+  }
+
+  .start-menu {
+    bottom: 36px;
+    max-height: calc(100dvh - 36px);
+  }
+
+  .sos-widget { bottom: 40px; }
+  .desktop-widget { display: none !important; }
+
+  /* Desktop icons: horizontal scroll in landscape */
+  .desktop-icons {
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding: 6px;
+    gap: 4px;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   SAFE AREA INSETS (notched phones)
+   ───────────────────────────────────────────────────────────────── */
+@supports (padding: env(safe-area-inset-bottom)) {
+  @media (max-width: 768px) {
+    .taskbar {
+      padding-bottom: env(safe-area-inset-bottom);
+      height: calc(44px + env(safe-area-inset-bottom));
+    }
+    .sos-widget {
+      bottom: calc(48px + env(safe-area-inset-bottom));
+    }
+    .start-menu {
+      bottom: calc(44px + env(safe-area-inset-bottom));
+    }
+    .os-window {
+      height: calc(100dvh - 44px - env(safe-area-inset-bottom)) !important;
+    }
+    .windows-container {
+      bottom: calc(44px + env(safe-area-inset-bottom));
+    }
+  }
 }
