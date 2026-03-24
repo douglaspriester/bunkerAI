@@ -46,6 +46,7 @@ export const OS_APPS = [
   { id: 'rations', name: 'Calculadora Racoes', icon: '\u{1F372}', width: 720, height: 620, viewId: 'rationsView' },
   { id: 'plants',  name: 'Guia de Plantas', icon: '\u{1F33F}', width: 740, height: 620, viewId: 'plantsView' },
   { id: 'navigation', name: 'Navegacao', icon: '\u{1F9ED}', width: 720, height: 620, viewId: 'navView' },
+  { id: 'pharmacy', name: 'Farmacia', icon: '\u{1F48A}', width: 760, height: 640, viewId: 'pharmacyView' },
   { id: 'settings',   name: 'Configura\u00E7\u00F5es', icon: '\u2699\uFE0F', width: 560, height: 520, viewId: null },
 ];
 
@@ -541,7 +542,7 @@ const APP_CATEGORIES = [
   { id: 'ai',       label: 'IA & Chat',        icon: '\u{1F9E0}', apps: ['chat', 'companion', 'characters', 'tts', 'imagine', 'modelMgr', 'builder'] },
   { id: 'prod',     label: 'Produtividade',     icon: '\u{1F4BC}', apps: ['notepad', 'word', 'excel', 'tasks', 'checklist', 'journal', 'paint'] },
   { id: 'info',     label: 'Conhecimento',      icon: '\u{1F4DA}', apps: ['guides', 'protocols', 'books', 'wiki', 'survRef'] },
-  { id: 'survival', label: 'Sobrevivencia',     icon: '\u26A1',    apps: ['firstaid', 'supplies', 'map', 'radio', 'morse', 'phonetic', 'sun', 'waterCalc', 'weather', 'crypto', 'rations', 'plants', 'navigation'] },
+  { id: 'survival', label: 'Sobrevivencia',     icon: '\u26A1',    apps: ['firstaid', 'pharmacy', 'supplies', 'map', 'radio', 'morse', 'phonetic', 'sun', 'waterCalc', 'weather', 'crypto', 'rations', 'plants', 'navigation'] },
   { id: 'tools',    label: 'Ferramentas',       icon: '\u{1F527}', apps: ['calc', 'timer', 'converter', 'fileManager', 'media', 'sysmon'] },
   { id: 'fun',      label: 'Entretenimento',    icon: '\u{1F3AE}', apps: ['games'] },
 ];

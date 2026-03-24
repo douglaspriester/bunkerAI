@@ -11356,3 +11356,991 @@ window.navigationInit = navigationInit;
 window.navSetSection = navSetSection;
 window.navSetHemisphere = navSetHemisphere;
 window.navCalcDist = navCalcDist;
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* ═══ Pharmacy / Kit Medico App ═══                                        */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+const PHARM_DISCLAIMER = '\u26a0\ufe0f AVISO: Consulte SEMPRE um medico ou profissional de saude antes de usar qualquer medicamento. Estas informacoes sao para situacoes de emergencia quando nao ha acesso medico disponivel.';
+
+const PHARM_CAT_LABELS = {
+  pain: 'Dor/Febre', infection: 'Infeccao', digestive: 'Digestivo',
+  allergy: 'Alergia', cardiac: 'Cardiaco', skin: 'Pele/Feridas',
+  respiratory: 'Respiratorio', other: 'Outros'
+};
+
+const PHARM_CAT_ICONS = {
+  pain: '\ud83e\ude79', infection: '\ud83e\udda0', digestive: '\ud83e\ude7a',
+  allergy: '\ud83e\udd27', cardiac: '\u2764\ufe0f', skin: '\ud83e\ude79',
+  respiratory: '\ud83e\udec1', other: '\ud83d\udc8a'
+};
+
+const PHARM_DB = [
+  // ── Dor/Febre ──
+  {
+    id: 'paracetamol', generic: 'Paracetamol (Acetaminofeno)', brand: 'Tylenol, Dorflex, Novalgina*',
+    category: 'pain', icon: '\ud83d\udc8a',
+    use: 'Dor leve a moderada, febre, dor de cabeca, dor muscular',
+    doseAdult: '500-1000 mg a cada 6-8h (max 4g/dia)',
+    doseChild: '10-15 mg/kg a cada 6h (max 5 doses/dia)',
+    contraindications: 'Doenca hepatica grave, alcoolismo cronico, alergia ao composto',
+    sideEffects: 'Raro em doses corretas. Excesso causa dano hepatico GRAVE',
+    expiry: '2-3 anos',
+    natural: ['salgueiro', 'gengibre'],
+    notes: 'Mais seguro que ibuprofeno para estomago. NAO misturar com alcool.'
+  },
+  {
+    id: 'ibuprofeno', generic: 'Ibuprofeno', brand: 'Advil, Alivium, Motrin',
+    category: 'pain', icon: '\ud83d\udc8a',
+    use: 'Dor, febre, inflamacao, colica menstrual, dor muscular',
+    doseAdult: '200-400 mg a cada 6-8h (max 1200 mg/dia sem receita)',
+    doseChild: '5-10 mg/kg a cada 6-8h (criancas >6 meses)',
+    contraindications: 'Ulcera gastrica, insuficiencia renal, gravidez (3o trimestre), alergia a AINEs, dengue',
+    sideEffects: 'Dor de estomago, nausea, risco de sangramento GI',
+    expiry: '2-3 anos',
+    natural: ['curcuma', 'gengibre', 'arnica'],
+    notes: 'Anti-inflamatorio. Tomar com alimento. NUNCA usar se suspeita de dengue.'
+  },
+  {
+    id: 'dipirona', generic: 'Dipirona (Metamizol)', brand: 'Novalgina, Anador',
+    category: 'pain', icon: '\ud83d\udc8a',
+    use: 'Dor intensa, febre alta, colicas',
+    doseAdult: '500-1000 mg a cada 6h (max 4g/dia)',
+    doseChild: '10-15 mg/kg a cada 6h',
+    contraindications: 'Alergia a pirazolonicos, porfiria, deficiencia de G6PD, gravidez (1o/3o trimestre)',
+    sideEffects: 'Risco raro de agranulocitose. Queda de pressao se IV rapido',
+    expiry: '2-3 anos',
+    natural: ['salgueiro', 'camomila'],
+    notes: 'Muito usada no Brasil. Proibida em varios paises (EUA, UK). Potente antipiretico.'
+  },
+  {
+    id: 'aspirina', generic: 'Acido Acetilsalicilico (AAS)', brand: 'Aspirina, Buferin',
+    category: 'pain', icon: '\ud83d\udc8a',
+    use: 'Dor, febre, anti-inflamatorio, prevencao cardiovascular',
+    doseAdult: '500-1000 mg a cada 6-8h (dor) ou 100 mg/dia (cardiaco)',
+    doseChild: 'NAO usar em criancas < 12 anos (risco de Sindrome de Reye)',
+    contraindications: 'Criancas com febre/virus, ulcera, hemofilia, dengue, alergia a AINEs',
+    sideEffects: 'Sangramento GI, zumbido em doses altas',
+    expiry: '3-5 anos',
+    natural: ['salgueiro'],
+    notes: 'Em caso de INFARTO: mastigar 1 aspirina 300mg IMEDIATAMENTE pode salvar vidas.'
+  },
+  // ── Infeccao ──
+  {
+    id: 'amoxicilina', generic: 'Amoxicilina', brand: 'Amoxil, Novocilin',
+    category: 'infection', icon: '\ud83e\udda0',
+    use: 'Infeccoes bacterianas: ouvido, garganta, sinusite, urinaria, pele, dentes',
+    doseAdult: '500 mg a cada 8h por 7-10 dias',
+    doseChild: '25-50 mg/kg/dia dividido em 3 doses',
+    contraindications: 'Alergia a penicilina/cefalosporinas, mononucleose',
+    sideEffects: 'Diarreia, nausea, erupcao cutanea, candidiase',
+    expiry: '2-3 anos (comprimido), menos em suspensao',
+    natural: ['alho', 'mel', 'propolis'],
+    notes: 'Antibiotico de AMPLO ESPECTRO. Completar TODO o tratamento mesmo se melhorar.'
+  },
+  {
+    id: 'azitromicina', generic: 'Azitromicina', brand: 'Zitromax, Azi',
+    category: 'infection', icon: '\ud83e\udda0',
+    use: 'Infeccoes respiratorias, ouvido, pele, DSTs (clamídia)',
+    doseAdult: '500 mg/dia por 3 dias OU 500mg D1 + 250mg D2-D5',
+    doseChild: '10 mg/kg/dia por 3 dias',
+    contraindications: 'Alergia a macrolideos, problemas hepaticos graves',
+    sideEffects: 'Nausea, diarreia, dor abdominal',
+    expiry: '2-3 anos',
+    natural: ['alho', 'equinacea'],
+    notes: 'Alternativa para alergicos a penicilina. Tratamento curto (3-5 dias).'
+  },
+  {
+    id: 'metronidazol', generic: 'Metronidazol', brand: 'Flagyl',
+    category: 'infection', icon: '\ud83e\udda0',
+    use: 'Infeccoes anaerobias, giardiase, amebíase, vaginose bacteriana',
+    doseAdult: '250-500 mg a cada 8h por 7-10 dias',
+    doseChild: '15-30 mg/kg/dia dividido em 3 doses',
+    contraindications: 'Primeiro trimestre de gravidez, alcoolismo',
+    sideEffects: 'Nausea, gosto metalico, urina escura',
+    expiry: '2-3 anos',
+    natural: ['alho'],
+    notes: 'PROIBIDO consumir alcool durante e ate 48h apos (efeito antabuse grave).'
+  },
+  {
+    id: 'cefalexina', generic: 'Cefalexina', brand: 'Keflex',
+    category: 'infection', icon: '\ud83e\udda0',
+    use: 'Infeccoes de pele, urinarias, ossos, garganta',
+    doseAdult: '500 mg a cada 6h por 7-10 dias',
+    doseChild: '25-50 mg/kg/dia dividido em 4 doses',
+    contraindications: 'Alergia grave a penicilina (risco cruzado ~10%)',
+    sideEffects: 'Diarreia, nausea, erupcao cutanea',
+    expiry: '2-3 anos',
+    natural: ['mel-manuka', 'propolis'],
+    notes: 'Boa opcao para infeccoes de pele e feridas infectadas.'
+  },
+  // ── Digestivo ──
+  {
+    id: 'omeprazol', generic: 'Omeprazol', brand: 'Losec, Peprazol',
+    category: 'digestive', icon: '\ud83e\ude7a',
+    use: 'Azia, refluxo, ulcera gastrica, gastrite, protecao gastrica com AINEs',
+    doseAdult: '20 mg 1x/dia em jejum (30 min antes cafe)',
+    doseChild: '0.5-1 mg/kg/dia (>1 ano)',
+    contraindications: 'Uso com clopidogrel (reduz efeito), alergia ao composto',
+    sideEffects: 'Dor de cabeca, diarreia. Uso prolongado: deficiencia B12/magnesio',
+    expiry: '2-3 anos',
+    natural: ['camomila', 'gengibre', 'espinheira-santa'],
+    notes: 'Tomar em JEJUM para funcionar. Nao mastigar a capsula.'
+  },
+  {
+    id: 'loperamida', generic: 'Loperamida', brand: 'Imosec',
+    category: 'digestive', icon: '\ud83e\ude7a',
+    use: 'Diarreia aguda (nao infecciosa)',
+    doseAdult: '4 mg dose inicial, depois 2 mg apos cada evacuacao liquida (max 16 mg/dia)',
+    doseChild: 'NAO recomendado < 6 anos. 6-12 anos: consultar dose/peso',
+    contraindications: 'Diarreia com sangue/febre alta (pode ser infeccao), colite, obstrucao intestinal',
+    sideEffects: 'Constipacao, dor abdominal, boca seca',
+    expiry: '3-5 anos',
+    natural: ['camomila', 'hortela'],
+    notes: 'NAO usar se febre alta + diarreia com sangue (pode ser infeccao bacteriana que precisa sair).'
+  },
+  {
+    id: 'sro', generic: 'Sais de Reidratacao Oral (SRO)', brand: 'Pedialyte, SRO (envelopes)',
+    category: 'digestive', icon: '\ud83e\ude7a',
+    use: 'Desidratacao por diarreia, vomito, calor excessivo',
+    doseAdult: 'Beber 200-400 ml apos cada evacuacao liquida',
+    doseChild: '50-100 ml apos cada evacuacao (bebe: colher de cha frequente)',
+    contraindications: 'Vomitos incoercíveis (pode precisar IV)',
+    sideEffects: 'Nenhum significativo',
+    expiry: '3-5 anos (envelope fechado)',
+    natural: [],
+    notes: 'RECEITA CASEIRA: 1L agua fervida + 3 col sopa acucar + 1 col cha sal + suco 1/2 limao. SALVA VIDAS.'
+  },
+  {
+    id: 'buscopan', generic: 'Escopolamina (Hioscina)', brand: 'Buscopan',
+    category: 'digestive', icon: '\ud83e\ude7a',
+    use: 'Colicas abdominais, colica menstrual, colica renal, espasmos GI',
+    doseAdult: '10-20 mg a cada 6-8h (max 60 mg/dia)',
+    doseChild: '>6 anos: 10 mg a cada 8h',
+    contraindications: 'Glaucoma de angulo fechado, obstrucao intestinal, miastenia gravis',
+    sideEffects: 'Boca seca, visao turva, taquicardia',
+    expiry: '2-3 anos',
+    natural: ['hortela', 'camomila', 'erva-cidreira'],
+    notes: 'Antiespasmódico. Otimo para colicas. Pode causar sonolencia.'
+  },
+  // ── Alergia ──
+  {
+    id: 'loratadina', generic: 'Loratadina', brand: 'Claritin, Loralerg',
+    category: 'allergy', icon: '\ud83e\udd27',
+    use: 'Rinite alergica, urticaria, coceira, alergia sazonal',
+    doseAdult: '10 mg 1x/dia',
+    doseChild: '2-6 anos: 5 mg/dia. >6 anos: 10 mg/dia',
+    contraindications: 'Hipersensibilidade ao composto',
+    sideEffects: 'Raro: dor de cabeca, boca seca. Pouca sonolencia',
+    expiry: '2-3 anos',
+    natural: ['hortela', 'mel-local'],
+    notes: 'Anti-histaminico de 2a geracao — NAO causa sonolencia significativa.'
+  },
+  {
+    id: 'dexclorfeniramina', generic: 'Dexclorfeniramina', brand: 'Polaramine',
+    category: 'allergy', icon: '\ud83e\udd27',
+    use: 'Reacoes alergicas, urticaria, picadas de inseto, rinite',
+    doseAdult: '2 mg a cada 6-8h (max 12 mg/dia)',
+    doseChild: '2-6 anos: 0.5 mg a cada 6-8h. 6-12 anos: 1 mg a cada 6-8h',
+    contraindications: 'Asma aguda, glaucoma, retencao urinaria',
+    sideEffects: 'SONOLENCIA (nao dirigir), boca seca, constipacao',
+    expiry: '2-3 anos',
+    natural: ['camomila-compressas'],
+    notes: 'CAUSA SONOLENCIA. Util a noite. Para emergencia alergica grave: adrenalina.'
+  },
+  {
+    id: 'prednisolona', generic: 'Prednisolona/Prednisona', brand: 'Predsim, Meticorten',
+    category: 'allergy', icon: '\ud83e\udd27',
+    use: 'Alergias graves, asma aguda, inflamacoes intensas, choque anafilatico (adjunto)',
+    doseAdult: '20-60 mg/dia por 3-7 dias (reduzir gradualmente se >5 dias)',
+    doseChild: '1-2 mg/kg/dia por 3-5 dias',
+    contraindications: 'Infeccao fungica sistemica, tuberculose ativa nao tratada',
+    sideEffects: 'Aumento apetite, insonia, aumento glicose. Uso prolongado: osteoporose, imunossupressao',
+    expiry: '2-3 anos',
+    natural: ['curcuma'],
+    notes: 'Corticoide potente. Uso curto (3-7 dias) e seguro. NAO parar abruptamente se >2 semanas.'
+  },
+  // ── Cardiaco ──
+  {
+    id: 'captopril', generic: 'Captopril', brand: 'Capoten',
+    category: 'cardiac', icon: '\u2764\ufe0f',
+    use: 'Hipertensao arterial, crise hipertensiva, insuficiencia cardiaca',
+    doseAdult: '25-50 mg a cada 8-12h. Crise: 25 mg sublingual',
+    doseChild: 'Uso pediatrico sob supervisao medica',
+    contraindications: 'Gravidez, estenose bilateral de arteria renal, hipercalemia',
+    sideEffects: 'Tosse seca (frequente), tontura, hipotensao',
+    expiry: '2-3 anos',
+    natural: ['hibisco', 'alho'],
+    notes: 'CRISE HIPERTENSIVA: 25mg sublingual. Se PA >180/120 + sintomas = EMERGENCIA.'
+  },
+  {
+    id: 'atenolol', generic: 'Atenolol', brand: 'Atenol',
+    category: 'cardiac', icon: '\u2764\ufe0f',
+    use: 'Hipertensao, angina, arritmias, pos-infarto',
+    doseAdult: '25-100 mg 1x/dia',
+    doseChild: 'Uso pediatrico sob supervisao medica',
+    contraindications: 'Asma/DPOC grave, bradicardia severa, choque cardiogenico, bloqueio AV',
+    sideEffects: 'Bradicardia, cansaco, extremidades frias, tontura',
+    expiry: '2-3 anos',
+    natural: ['hibisco'],
+    notes: 'Beta-bloqueador. NAO parar abruptamente (risco de rebote). Controlar pulso.'
+  },
+  {
+    id: 'aas-cardiaco', generic: 'AAS 100mg (uso cardiaco)', brand: 'Aspirina Prevent, Somalgin',
+    category: 'cardiac', icon: '\u2764\ufe0f',
+    use: 'Prevencao de infarto e AVC, pos-stent, angina',
+    doseAdult: '100 mg 1x/dia (apos refeicao)',
+    doseChild: 'NAO indicado',
+    contraindications: 'Ulcera ativa, hemofilia, alergia a AAS',
+    sideEffects: 'Sangramento GI, dispepsia',
+    expiry: '3-5 anos',
+    natural: ['salgueiro'],
+    notes: 'SUSPEITA DE INFARTO: mastigar 1 AAS 300mg imediatamente. Pode salvar vidas.'
+  },
+  // ── Pele/Feridas ──
+  {
+    id: 'neomicina-pomada', generic: 'Neomicina + Bacitracina (pomada)', brand: 'Nebacetin',
+    category: 'skin', icon: '\ud83e\ude79',
+    use: 'Feridas infectadas, cortes, queimaduras leves, escoriacoes',
+    doseAdult: 'Aplicar fina camada 2-3x/dia na area limpa',
+    doseChild: 'Mesmo que adulto',
+    contraindications: 'Alergia a aminoglicosideos, feridas extensas (absorcao sistemica)',
+    sideEffects: 'Raro: irritacao local, alergia de contato',
+    expiry: '2-3 anos',
+    natural: ['mel-manuka', 'babosa', 'calêndula'],
+    notes: 'SEMPRE limpar a ferida com agua e sabao antes de aplicar. Trocar curativo 1-2x/dia.'
+  },
+  {
+    id: 'sulfadiazina-prata', generic: 'Sulfadiazina de Prata 1%', brand: 'Dermazine',
+    category: 'skin', icon: '\ud83e\ude79',
+    use: 'Queimaduras (2o e 3o grau), prevencao de infeccao em queimaduras',
+    doseAdult: 'Aplicar camada de ~3mm sobre queimadura limpa, 1-2x/dia',
+    doseChild: 'NAO usar em recem-nascidos < 2 meses',
+    contraindications: 'Alergia a sulfas, gravidez (final), prematuros',
+    sideEffects: 'Descoloracao da pele (temporaria), leucopenia rara',
+    expiry: '2-3 anos',
+    natural: ['babosa', 'mel'],
+    notes: 'PADRAO OURO para queimaduras. Manter curativo umido. NUNCA usar manteiga/pasta de dente em queimaduras.'
+  },
+  {
+    id: 'miconazol', generic: 'Miconazol creme', brand: 'Vodol, Daktarin',
+    category: 'skin', icon: '\ud83e\ude79',
+    use: 'Micose de pele (pe de atleta, virilha), candidíase cutanea',
+    doseAdult: 'Aplicar 2x/dia por 2-4 semanas',
+    doseChild: 'Mesmo que adulto',
+    contraindications: 'Hipersensibilidade a imidazolicos',
+    sideEffects: 'Irritacao local leve, queimacao temporaria',
+    expiry: '2-3 anos',
+    natural: ['melaleuca'],
+    notes: 'Continuar 1 semana APOS desaparecimento dos sintomas para evitar recidiva.'
+  },
+  {
+    id: 'permanganato', generic: 'Permanganato de Potassio', brand: 'Permanganato',
+    category: 'skin', icon: '\ud83e\ude79',
+    use: 'Lavagem de feridas, desinfeccao, dermatites exsudativas',
+    doseAdult: '1 comprimido em 4L de agua (solucao rosa claro) para banho/compressas',
+    doseChild: 'Mesmo diluicao que adulto',
+    contraindications: 'NAO usar puro/concentrado (queimadura quimica)',
+    sideEffects: 'Mancha a pele e roupas. Concentrado causa queimadura',
+    expiry: '5+ anos (comprimido)',
+    natural: [],
+    notes: 'SEMPRE diluir — solucao deve ficar ROSA CLARO, nunca roxa. Barato e eficaz para desinfeccao.'
+  },
+  // ── Respiratorio ──
+  {
+    id: 'salbutamol', generic: 'Salbutamol (inalatorio)', brand: 'Aerolin, Aerojet',
+    category: 'respiratory', icon: '\ud83e\udec1',
+    use: 'Asma aguda, broncoespasmo, falta de ar com chiado',
+    doseAdult: '2-4 jatos (100mcg cada), repetir a cada 20 min se necessario (max 3 vezes)',
+    doseChild: '2 jatos com espaçador, repetir a cada 20 min se necessario',
+    contraindications: 'Taquicardia severa, arritmia cardiaca nao controlada',
+    sideEffects: 'Tremor, taquicardia, palpitacoes, nervosismo',
+    expiry: '2 anos',
+    natural: ['eucalipto-inalacao', 'gengibre'],
+    notes: 'EMERGENCIA DE ASMA: 4-8 jatos + esperar ambulancia. Usar SEMPRE com espacador.'
+  },
+  {
+    id: 'ambroxol', generic: 'Ambroxol', brand: 'Mucosolvan',
+    category: 'respiratory', icon: '\ud83e\udec1',
+    use: 'Tosse com catarro, bronquite, secrecoes pulmonares',
+    doseAdult: '30 mg a cada 8h',
+    doseChild: '2-5 anos: 7.5 mg a cada 8h. 6-12 anos: 15 mg a cada 8h',
+    contraindications: 'Primeiro trimestre gravidez',
+    sideEffects: 'Nausea, dor abdominal rara',
+    expiry: '2-3 anos',
+    natural: ['eucalipto', 'mel', 'gengibre'],
+    notes: 'Fluidifica o muco. Beber bastante agua durante o uso. Util em infeccoes respiratorias.'
+  },
+  {
+    id: 'dextrometorfano', generic: 'Dextrometorfano', brand: 'Silencium, Benalet',
+    category: 'respiratory', icon: '\ud83e\udec1',
+    use: 'Tosse seca irritativa (sem catarro)',
+    doseAdult: '10-20 mg a cada 4-6h (max 120 mg/dia)',
+    doseChild: '6-12 anos: 5-10 mg a cada 4-6h',
+    contraindications: 'Tosse produtiva (com catarro — precisa expectorar), uso de IMAO',
+    sideEffects: 'Sonolencia, tontura, nausea',
+    expiry: '2-3 anos',
+    natural: ['mel', 'gengibre', 'limao'],
+    notes: 'Apenas para tosse SECA. Se tem catarro, use expectorante (ambroxol), nao antitussigeno.'
+  },
+  // ── Outros ──
+  {
+    id: 'simeticona', generic: 'Simeticona', brand: 'Luftal',
+    category: 'other', icon: '\ud83d\udc8a',
+    use: 'Gases, distensao abdominal, colica de bebe (gases)',
+    doseAdult: '40-125 mg apos refeicoes e ao deitar',
+    doseChild: 'Lactentes: 2-3 gotas antes das mamadas',
+    contraindications: 'Praticamente nenhuma',
+    sideEffects: 'Nenhum significativo',
+    expiry: '2-3 anos',
+    natural: ['erva-doce', 'hortela'],
+    notes: 'Muito seguro. Nao e absorvido pelo corpo — age mecanicamente quebrando bolhas de gas.'
+  },
+  {
+    id: 'dimenidrinato', generic: 'Dimenidrinato', brand: 'Dramin',
+    category: 'other', icon: '\ud83d\udc8a',
+    use: 'Enjoo de movimento (cinetose), nausea, vomito, tontura',
+    doseAdult: '50-100 mg a cada 6h (tomar 30 min antes da viagem)',
+    doseChild: '2-6 anos: 12.5-25 mg a cada 6-8h. 6-12 anos: 25-50 mg a cada 6-8h',
+    contraindications: 'Glaucoma, obstrucao urinaria, porfiria',
+    sideEffects: 'SONOLENCIA intensa, boca seca, visao turva',
+    expiry: '2-3 anos',
+    natural: ['gengibre'],
+    notes: 'CAUSA MUITA SONOLENCIA — nao dirigir/operar maquinas. Tomar ANTES de viajar.'
+  },
+  {
+    id: 'vitamina-c', generic: 'Acido Ascorbico (Vitamina C)', brand: 'Cebion, Cewin',
+    category: 'other', icon: '\ud83d\udc8a',
+    use: 'Prevencao/tratamento de escorbuto, suporte imunologico, convalescenca',
+    doseAdult: '500-1000 mg/dia',
+    doseChild: '100-250 mg/dia',
+    contraindications: 'Calculo renal (doses muito altas)',
+    sideEffects: 'Doses altas: diarreia, calculo renal',
+    expiry: '2-3 anos',
+    natural: ['rosa-mosqueta', 'acerola', 'limao', 'goiaba'],
+    notes: 'Em situacao de sobrevivencia prolongada, previne ESCORBUTO (sangramento gengival, fraqueza).'
+  },
+  {
+    id: 'lidocaina-gel', generic: 'Lidocaina gel/spray', brand: 'Xylocaina, Xylestesin',
+    category: 'other', icon: '\ud83d\udc8a',
+    use: 'Anestesia local para dor em mucosas, feridas, procedimentos menores',
+    doseAdult: 'Aplicar fina camada na area dolorida a cada 4-6h',
+    doseChild: 'Usar com cautela e dose menor',
+    contraindications: 'Alergia a anestesicos locais, area extensa (toxicidade sistemica)',
+    sideEffects: 'Dormencia local (esperado), raro: reacao alergica',
+    expiry: '2-3 anos',
+    natural: ['cravo-da-india'],
+    notes: 'Para dor de dente: aplicar gel direto na gengiva. CRAVO-DA-INDIA e anestesico natural.'
+  },
+  {
+    id: 'ivermectina', generic: 'Ivermectina', brand: 'Revectina',
+    category: 'other', icon: '\ud83d\udc8a',
+    use: 'Parasitoses: sarna (escabiose), piolho, lombriga, bicho-geografico',
+    doseAdult: '200 mcg/kg dose unica (repetir em 7-14 dias para sarna)',
+    doseChild: '>15 kg: mesma dose por peso. NAO usar < 15 kg',
+    contraindications: 'Criancas < 15 kg, gravidez, amamentacao, meningite (Loa loa)',
+    sideEffects: 'Tontura, nausea, coceira (reacao da morte do parasita)',
+    expiry: '3-5 anos',
+    natural: ['neem'],
+    notes: 'Dose UNICA por peso corporal. Para sarna: tratar TODOS os contatos. Lavar roupas/cama.'
+  },
+];
+
+/* ── Substitutos Naturais (cross-ref com Guia de Plantas) ── */
+const PHARM_NATURAL = {
+  'salgueiro': { name: 'Salgueiro (casca)', icon: '\ud83c\udf33', plantRef: null,
+    use: 'Contem salicina (precursor da aspirina). Analgesico e antipiretico natural',
+    prep: 'Cha da casca: 1-2 col cha de casca seca em 250ml agua fervente por 15 min',
+    warn: 'Mesmas contraindicacoes da aspirina. Nao usar em criancas.' },
+  'gengibre': { name: 'Gengibre', icon: '\ud83e\uddc0', plantRef: null,
+    use: 'Anti-inflamatorio, antinauseante, analgesico, digestivo',
+    prep: 'Cha: 2-3 rodelas finas em agua fervente por 10 min. Mastigar pedaco fresco para nausea',
+    warn: 'Pode interagir com anticoagulantes. Evitar em excesso na gravidez.' },
+  'curcuma': { name: 'Curcuma (Acafrao-da-terra)', icon: '\ud83d\udfe1', plantRef: null,
+    use: 'Anti-inflamatorio potente (curcumina), antioxidante',
+    prep: 'Pasta dourada: curcuma + pimenta preta + oleo de coco. Cha: 1 col cha em agua quente',
+    warn: 'Pode interagir com anticoagulantes. Mancha tudo de amarelo.' },
+  'arnica': { name: 'Arnica (uso externo)', icon: '\ud83c\udf3b', plantRef: null,
+    use: 'Contusoes, hematomas, dor muscular, inchaço',
+    prep: 'Compressa: cha concentrado aplicado com pano. Gel/pomada de arnica na area',
+    warn: 'APENAS USO EXTERNO. Ingestao e TOXICA. Nao aplicar em feridas abertas.' },
+  'camomila': { name: 'Camomila', icon: '\ud83c\udf3c', plantRef: null,
+    use: 'Calmante, digestivo, anti-inflamatorio leve, colicas',
+    prep: 'Cha: 1-2 col cha de flores em 200ml agua quente por 5-10 min',
+    warn: 'Pode causar reacao em alergicos a plantas da familia Asteraceae.' },
+  'alho': { name: 'Alho', icon: '\ud83e\uddc4', plantRef: null,
+    use: 'Antibiotico natural, antiviral, antifungico, reduz pressao arterial',
+    prep: 'Comer 1-2 dentes CRUS amassados (ativar alicina). Esperar 10 min apos amassar antes de comer',
+    warn: 'Pode interagir com anticoagulantes. Nao usar antes de cirurgias.' },
+  'mel': { name: 'Mel puro', icon: '\ud83c\udf6f', plantRef: null,
+    use: 'Antibacteriano, cicatrizante, antitussigeno, energetico',
+    prep: 'Tosse: 1 col sopa puro ou com limao. Feridas: aplicar mel puro diretamente',
+    warn: 'NUNCA dar mel para bebes < 1 ano (risco de botulismo).' },
+  'propolis': { name: 'Propolis', icon: '\ud83d\udc1d', plantRef: null,
+    use: 'Antibiotico natural, antiviral, anti-inflamatorio, cicatrizante',
+    prep: 'Tintura: 15-30 gotas em agua 2-3x/dia. Spray para garganta inflamada',
+    warn: 'Alergicos a produtos de abelha devem evitar.' },
+  'hortela': { name: 'Hortela', icon: '\ud83c\udf3f', plantRef: null,
+    use: 'Digestivo, antigases, descongestionante nasal, analgesico leve',
+    prep: 'Cha: folhas frescas em agua quente. Inalacao: folhas em agua fervente',
+    warn: 'Pode piorar refluxo gastroesofagico em algumas pessoas.' },
+  'eucalipto': { name: 'Eucalipto (inalacao)', icon: '\ud83c\udf43', plantRef: null,
+    use: 'Descongestionante nasal, expectorante, antisseptico respiratorio',
+    prep: 'Inalacao: folhas em agua fervente, respirar vapor. Nao ingerir oleo essencial',
+    warn: 'NAO ingerir oleo de eucalipto (toxico). Apenas inalacao ou uso externo.' },
+  'babosa': { name: 'Babosa (Aloe vera)', icon: '\ud83c\udf35', plantRef: null,
+    use: 'Queimaduras, cicatrizacao, hidratacao da pele',
+    prep: 'Gel fresco da folha aplicado diretamente na pele. Trocar a cada poucas horas',
+    warn: 'NAO ingerir o gel amarelo (aloina) — e laxante forte e toxico.' },
+  'mel-manuka': { name: 'Mel de Manuka', icon: '\ud83c\udf6f', plantRef: null,
+    use: 'Cicatrizacao avancada de feridas, antibacteriano potente',
+    prep: 'Aplicar fina camada diretamente na ferida limpa, cobrir com curativo',
+    warn: 'Se nao disponivel, mel puro comum tambem funciona (menos potente).' },
+  'melaleuca': { name: 'Melaleuca (Tea Tree)', icon: '\ud83c\udf3f', plantRef: null,
+    use: 'Antifungico, antibacteriano, acne, micoses',
+    prep: 'Oleo essencial diluido em oleo carreador (5-10 gotas em 30ml). Aplicar na area',
+    warn: 'NUNCA ingerir. Pode irritar pele sensivel — sempre diluir.' },
+  'hibisco': { name: 'Hibisco', icon: '\ud83c\udf3a', plantRef: null,
+    use: 'Reduz pressao arterial leve, antioxidante, diuretico suave',
+    prep: 'Cha: 1-2 col sopa de flores secas em 250ml agua quente por 10 min',
+    warn: 'Pode potencializar medicamentos para pressao — monitorar.' },
+  'equinacea': { name: 'Equinacea', icon: '\ud83c\udf3e', plantRef: null,
+    use: 'Estimulante imunologico, prevencao e tratamento de resfriados',
+    prep: 'Tintura: 20-30 gotas 3x/dia. Cha: raiz seca em agua fervente 15 min',
+    warn: 'Nao usar por mais de 8 semanas seguidas. Evitar em doencas autoimunes.' },
+  'erva-doce': { name: 'Erva-doce (Funcho)', icon: '\ud83c\udf3f', plantRef: null,
+    use: 'Gases, colica de bebe, digestao, galactagogo (estimula leite materno)',
+    prep: 'Cha: 1 col cha de sementes em 200ml agua quente por 10 min',
+    warn: 'Contem compostos estrogenicos — usar com moderacao.' },
+  'erva-cidreira': { name: 'Erva-cidreira (Melissa)', icon: '\ud83c\udf3f', plantRef: null,
+    use: 'Calmante, ansiedade, insonia, colicas, herpes labial (topico)',
+    prep: 'Cha: folhas frescas ou secas em agua quente por 5-10 min',
+    warn: 'Pode interagir com sedativos e medicamentos para tireoide.' },
+  'espinheira-santa': { name: 'Espinheira-santa', icon: '\ud83c\udf3f', plantRef: null,
+    use: 'Gastrite, ulcera gastrica, azia, dispepsia',
+    prep: 'Cha: 1 col sopa de folhas em 250ml agua fervente por 10 min. Tomar antes refeicoes',
+    warn: 'Nao usar na gravidez/amamentacao.' },
+  'cravo-da-india': { name: 'Cravo-da-india', icon: '\ud83e\udde1', plantRef: null,
+    use: 'Anestesico dental natural (eugenol), antisseptico, digestivo',
+    prep: 'Dor de dente: morder cravo no local da dor ou aplicar oleo de cravo com algodao',
+    warn: 'Oleo puro pode irritar mucosas. Diluir para uso prolongado.' },
+  'neem': { name: 'Neem (Nim)', icon: '\ud83c\udf33', plantRef: null,
+    use: 'Antiparasitario, repelente natural, antifungico',
+    prep: 'Oleo: diluido na pele como repelente. Folhas: cha para parasitas (com cautela)',
+    warn: 'NAO ingerir oleo de neem. Toxico em grandes doses. Nao usar na gravidez.' },
+  'mel-local': { name: 'Mel Local (dessensibilizacao)', icon: '\ud83c\udf6f', plantRef: null,
+    use: 'Alergias sazonais (teoria da dessensibilizacao com polen local)',
+    prep: '1 colher de mel LOCAL cru diariamente por meses antes da temporada de alergia',
+    warn: 'Evidencia cientifica limitada. Nunca dar mel a bebes < 1 ano.' },
+  'calêndula': { name: 'Calendula', icon: '\ud83c\udf3b', plantRef: null,
+    use: 'Cicatrizante, anti-inflamatorio topico, queimaduras leves, assaduras',
+    prep: 'Compressa de cha concentrado ou pomada de calendula na area afetada',
+    warn: 'Alergia possivel em sensiveis a Asteraceae. Apenas uso externo.' },
+  'camomila-compressas': { name: 'Camomila (compressas)', icon: '\ud83c\udf3c', plantRef: null,
+    use: 'Alivio de coceira, irritacao de pele, olhos irritados',
+    prep: 'Cha forte resfriado aplicado com gaze/pano limpo na area por 10-15 min',
+    warn: 'Verificar alergia antes. Nao usar em feridas abertas.' },
+};
+
+/* ── Sintomas Comuns ── */
+const PHARM_SYMPTOMS = [
+  { id: 'fever', name: 'Febre', icon: '\ud83c\udf21\ufe0f',
+    desc: 'Temperatura acima de 37.5C',
+    meds: ['paracetamol', 'ibuprofeno', 'dipirona'],
+    tips: 'Hidratar muito. Compressas mornas (nao geladas). Roupas leves. Se > 39.5C por mais de 48h: buscar ajuda medica.',
+    emergency: 'Febre > 39.5C que nao cede, convulsao febril, rigidez de nuca, manchas roxas na pele' },
+  { id: 'headache', name: 'Dor de Cabeca', icon: '\ud83e\udde0',
+    desc: 'Cefaleia tensional, enxaqueca, sinusite',
+    meds: ['paracetamol', 'ibuprofeno', 'dipirona'],
+    tips: 'Descansar em ambiente escuro e silencioso. Hidratar. Compressa fria na testa. Verificar se nao e desidratacao.',
+    emergency: 'Pior dor de cabeca da vida (subita), febre alta + rigidez nuca, confusao mental, vomitos em jato' },
+  { id: 'diarrhea', name: 'Diarreia', icon: '\ud83d\udca9',
+    desc: 'Fezes liquidas frequentes',
+    meds: ['sro', 'loperamida'],
+    tips: 'Reidratar e o mais importante! SRO ou receita caseira. Dieta BRAT (banana, arroz, maca, torrada). Evitar laticinios.',
+    emergency: 'Diarreia com sangue, febre alta, sinais de desidratacao grave (olhos fundos, sem urina, confusao)' },
+  { id: 'cough', name: 'Tosse', icon: '\ud83e\udd27',
+    desc: 'Tosse seca ou produtiva (com catarro)',
+    meds: ['ambroxol', 'dextrometorfano'],
+    tips: 'Seca: mel com limao, dextrometorfano. Com catarro: ambroxol, inalacao de vapor. Beber muita agua.',
+    emergency: 'Sangue na tosse, falta de ar progressiva, tosse > 3 semanas, perda de peso' },
+  { id: 'stomach', name: 'Dor de Estomago', icon: '\ud83e\ude7a',
+    desc: 'Azia, gastrite, dor epigastrica',
+    meds: ['omeprazol', 'buscopan', 'simeticona'],
+    tips: 'Comer porcoes menores. Evitar cafe, alcool, frituras. Nao deitar apos comer. Cha de camomila.',
+    emergency: 'Dor intensa que irradia para costas, vomito com sangue (escuro), barriga dura como tabua' },
+  { id: 'allergy', name: 'Reacao Alergica', icon: '\ud83e\udd27',
+    desc: 'Coceira, urticaria, inchaço, rinite',
+    meds: ['loratadina', 'dexclorfeniramina', 'prednisolona'],
+    tips: 'Afastar o alergeno. Anti-histaminico oral. Compressas frias na coceira. Se leve, loratadina. Se moderada, dexclorfeniramina.',
+    emergency: 'Inchaço de labios/lingua/garganta, falta de ar, queda de pressao, ANAFILAXIA = EMERGENCIA TOTAL' },
+  { id: 'wound', name: 'Ferida / Corte', icon: '\ud83e\ude79',
+    desc: 'Cortes, escoriacoes, queimaduras',
+    meds: ['neomicina-pomada', 'sulfadiazina-prata', 'permanganato'],
+    tips: 'Limpar com agua corrente e sabao. Aplicar pressao se sangrar. Antibiotico topico. Manter limpo e coberto.',
+    emergency: 'Sangramento que nao para, corte profundo com tecido visivel, mordida de animal, sinais de infeccao (vermelhidao crescente, pus, febre)' },
+  { id: 'breathing', name: 'Falta de Ar', icon: '\ud83e\udec1',
+    desc: 'Dispneia, chiado, crise de asma',
+    meds: ['salbutamol'],
+    tips: 'Sentar inclinado para frente. Respirar devagar pelo nariz. Se asma: usar bombinha. Afastar-se de fumaca/alergenos.',
+    emergency: 'Labios/unhas azulados, nao consegue falar frases completas, falta de ar em repouso, chiado intenso' },
+  { id: 'nausea', name: 'Nausea / Vomito', icon: '\ud83e\udd22',
+    desc: 'Enjoo, cinetose, indigestao',
+    meds: ['dimenidrinato', 'gengibre'],
+    tips: 'Gengibre fresco ou cha. Comer crackers/biscoito agua e sal. Pequenos goles de agua gelada. Evitar cheiros fortes.',
+    emergency: 'Vomito com sangue, vomitos persistentes > 24h, dor abdominal intensa, suspeita de envenenamento' },
+  { id: 'toothache', name: 'Dor de Dente', icon: '\ud83e\uddb7',
+    desc: 'Carie, infeccao, abscesso dental',
+    meds: ['ibuprofeno', 'paracetamol', 'lidocaina-gel'],
+    tips: 'Ibuprofeno (anti-inflamatorio). Cravo-da-india no local. Agua morna com sal para bochechar. NAO colocar aspirina no dente (queima).',
+    emergency: 'Inchaço no rosto/pescoco, febre alta, dificuldade para engolir/respirar (abscesso pode ser grave)' },
+  { id: 'itch', name: 'Coceira / Picada', icon: '\ud83e\udd9f',
+    desc: 'Picadas de inseto, dermatite, urticaria',
+    meds: ['loratadina', 'dexclorfeniramina'],
+    tips: 'Compressa fria. Nao cocar. Anti-histaminico oral. Pasta de bicarbonato de sodio na picada.',
+    emergency: 'Picada com inchaço que cresce rapidamente, falta de ar, multiplas picadas de abelha (>10), picada de aranha marrom/armadeira' },
+  { id: 'hypertension', name: 'Pressao Alta', icon: '\ud83d\udcc8',
+    desc: 'Crise hipertensiva, dor de cabeca intensa',
+    meds: ['captopril', 'atenolol'],
+    tips: 'Captopril 25mg sublingual na crise. Deitar/sentar calmamente. Respirar fundo. Medir pressao a cada 15 min.',
+    emergency: 'PA > 180/120 com dor de cabeca forte, visao borrada, dor no peito, falta de ar, confusao = EMERGENCIA' },
+];
+
+/* ── Sinais de Emergencia ── */
+const PHARM_EMERGENCIES = [
+  { title: '\u2764\ufe0f Infarto (Ataque Cardiaco)', icon: '\ud83d\udea8',
+    signs: ['Dor/pressao no peito (pode irradiar para braco esquerdo, mandibula, costas)', 'Falta de ar subita', 'Suor frio, nausea', 'Palidez, ansiedade intensa'],
+    action: 'MASTIGAR 1 aspirina 300mg IMEDIATAMENTE. Deitar com cabeca elevada. Chamar emergencia. Se parar de respirar: RCP.' },
+  { title: '\ud83e\udde0 AVC (Derrame)', icon: '\ud83d\udea8',
+    signs: ['Fraqueza subita em um lado do corpo', 'Fala arrastada ou confusa', 'Rosto caido (pedir para sorrir — um lado nao sobe)', 'Perda de visao subita', 'Dor de cabeca subita e intensa'],
+    action: 'SAMU: teste FAST — Face (rosto caido?), Arms (bracos — um cai?), Speech (fala arrastada?), Time (tempo = cada minuto conta). NAO dar medicamentos. Deitar com cabeca elevada.' },
+  { title: '\ud83e\udd27 Anafilaxia (Choque Alergico)', icon: '\ud83d\udea8',
+    signs: ['Inchaço de labios, lingua, garganta', 'Dificuldade para respirar/engolir', 'Urticaria generalizada', 'Queda de pressao, tontura, desmaio', 'Pode ocorrer minutos apos exposicao ao alergeno'],
+    action: 'ADRENALINA (epinefrina) IM na coxa lateral (EpiPen se disponivel). Posicao: deitado com pernas elevadas (se nao vomitando). Anti-histaminico + corticoide como COMPLEMENTO. Chamar emergencia.' },
+  { title: '\ud83c\udf21\ufe0f Febre Muito Alta (> 39.5C)', icon: '\ud83d\udea8',
+    signs: ['Temperatura > 39.5C persistente', 'Confusao mental ou delírio', 'Convulsao febril (especialmente em criancas)', 'Rigidez de nuca (suspeita de meningite)', 'Manchas roxas na pele'],
+    action: 'Antipiretico imediato (dipirona ou paracetamol). Compressas mornas (NAO geladas). Hidratar. Roupas leves. Se convulsao: deitar de lado, proteger cabeca, NAO colocar nada na boca.' },
+  { title: '\ud83e\ude78 Sangramento Grave', icon: '\ud83d\udea8',
+    signs: ['Sangue vermelho vivo em jato (arterial)', 'Sangramento que nao para com pressao direta', 'Pele palida e fria, confusao, taquicardia', 'Sangue no vomito, fezes ou urina em grande quantidade'],
+    action: 'Pressao DIRETA no ferimento com pano limpo. Elevar membro. Se nao parar: torniquete 5-8 cm ACIMA do ferimento (marcar hora). NAO remover objeto cravado — estabilizar no local.' },
+  { title: '\ud83e\udec1 Dificuldade Respiratoria Grave', icon: '\ud83d\udea8',
+    signs: ['Labios/unhas azulados (cianose)', 'Nao consegue falar frases completas', 'Uso de musculos acessorios para respirar', 'Chiado intenso ou silencio respiratorio (PIOR)', 'Posicao de tripe (inclinado para frente)'],
+    action: 'Se asma: 4-8 jatos de salbutamol com espacador. Sentar inclinado para frente. Se tem corticoide: tomar. Se engasgamento: manobra de Heimlich. Se parou de respirar: RCP.' },
+];
+
+/* ── Kit Basico ── */
+const PHARM_KIT = [
+  { title: '\ud83d\udc8a Medicamentos Essenciais', items: [
+    { name: 'Paracetamol 500mg/750mg', qty: '20 comprimidos', note: 'Dor e febre' },
+    { name: 'Ibuprofeno 400mg', qty: '20 comprimidos', note: 'Inflamacao e dor' },
+    { name: 'Dipirona 500mg', qty: '10 comprimidos', note: 'Febre alta' },
+    { name: 'Amoxicilina 500mg', qty: '21 capsulas (1 tratamento)', note: 'Infeccao bacteriana' },
+    { name: 'Azitromicina 500mg', qty: '3 comprimidos', note: 'Alternativa antibiotica' },
+    { name: 'Loratadina 10mg', qty: '10 comprimidos', note: 'Alergia' },
+    { name: 'Omeprazol 20mg', qty: '14 capsulas', note: 'Estomago' },
+    { name: 'Loperamida 2mg', qty: '10 comprimidos', note: 'Diarreia' },
+    { name: 'Buscopan 10mg', qty: '10 comprimidos', note: 'Colicas' },
+    { name: 'SRO (envelopes)', qty: '10 envelopes', note: 'Reidratacao (ESSENCIAL)' },
+  ]},
+  { title: '\ud83e\ude79 Curativos & Material', items: [
+    { name: 'Band-aids variados', qty: '20 unidades', note: 'Cortes pequenos' },
+    { name: 'Gaze esteril (7.5x7.5cm)', qty: '20 unidades', note: 'Feridas' },
+    { name: 'Atadura de crepe (10cm)', qty: '4 rolos', note: 'Imobilizacao e curativos' },
+    { name: 'Esparadrapo/Micropore', qty: '2 rolos', note: 'Fixacao' },
+    { name: 'Luvas descartaveis', qty: '10 pares', note: 'Protecao' },
+    { name: 'Soro fisiologico 250ml', qty: '2 frascos', note: 'Limpeza de feridas' },
+    { name: 'Termometro digital', qty: '1 unidade', note: 'Medir febre' },
+    { name: 'Tesoura pequena', qty: '1 unidade', note: 'Cortar curativos' },
+    { name: 'Pinca', qty: '1 unidade', note: 'Remover farpas/espinhos' },
+  ]},
+  { title: '\ud83e\uddea Topicos & Pomadas', items: [
+    { name: 'Nebacetin (Neomicina+Bacitracina)', qty: '1 tubo', note: 'Feridas infectadas' },
+    { name: 'Sulfadiazina de Prata 1%', qty: '1 tubo', note: 'Queimaduras' },
+    { name: 'Miconazol creme', qty: '1 tubo', note: 'Micose' },
+    { name: 'Permanganato de Potassio', qty: '10 comprimidos', note: 'Desinfeccao' },
+    { name: 'Lidocaina gel', qty: '1 tubo', note: 'Anestesia local' },
+    { name: 'Protetor solar FPS 30+', qty: '1 frasco', note: 'Queimadura solar' },
+    { name: 'Repelente de insetos', qty: '1 frasco', note: 'Prevencao' },
+  ]},
+  { title: '\ud83c\udf3f Naturais p/ Backup', items: [
+    { name: 'Mel puro', qty: '1 pote pequeno', note: 'Tosse, feridas, energia' },
+    { name: 'Gengibre em po / fresco', qty: '50g', note: 'Nausea, inflamacao' },
+    { name: 'Camomila seca', qty: '1 pacote', note: 'Calmante, digestivo' },
+    { name: 'Cravo-da-india', qty: '1 vidro pequeno', note: 'Dor de dente' },
+    { name: 'Propolis tintura', qty: '1 frasco', note: 'Garganta, imunidade' },
+    { name: 'Curcuma em po', qty: '50g', note: 'Anti-inflamatorio' },
+  ]},
+  { title: '\ud83d\udcdd Documentos & Extras', items: [
+    { name: 'Lista de alergias da familia', qty: '1 folha plastificada', note: 'CRITICO' },
+    { name: 'Tipo sanguineo de cada membro', qty: '1 folha', note: 'CRITICO' },
+    { name: 'Telefones de emergencia', qty: '1 folha', note: 'SAMU 192, Bombeiros 193' },
+    { name: 'Manual de primeiros socorros', qty: '1 livreto', note: 'Guia rapido impresso' },
+    { name: 'Manta termica de emergencia', qty: '2 unidades', note: 'Hipotermia' },
+    { name: 'Mascara de RCP', qty: '1 unidade', note: 'Protecao em reanimacao' },
+  ]},
+];
+
+/* ── State ── */
+let _pharmSection = 'meds';
+let _pharmCat = 'all';
+
+/* ── Init ── */
+function pharmacyInit() {
+  _pharmSection = 'meds';
+  _pharmCat = 'all';
+  const search = document.getElementById('pharmSearch');
+  if (search) search.value = '';
+  // Reset tabs
+  document.querySelectorAll('.pharm-tab').forEach(t => t.classList.toggle('active', t.dataset.section === 'meds'));
+  document.querySelectorAll('.pharm-cat-btn').forEach(b => b.classList.toggle('active', b.dataset.cat === 'all'));
+  const cats = document.getElementById('pharmCats');
+  if (cats) cats.style.display = '';
+  pharmRender();
+  pharmHideDetail();
+}
+
+function pharmSetSection(section) {
+  _pharmSection = section;
+  _pharmCat = 'all';
+  const search = document.getElementById('pharmSearch');
+  if (search) search.value = '';
+  document.querySelectorAll('.pharm-tab').forEach(t => t.classList.toggle('active', t.dataset.section === section));
+  document.querySelectorAll('.pharm-cat-btn').forEach(b => b.classList.toggle('active', b.dataset.cat === 'all'));
+  // Show/hide category filter
+  const cats = document.getElementById('pharmCats');
+  if (cats) cats.style.display = (section === 'meds') ? '' : 'none';
+  pharmRender();
+  pharmHideDetail();
+}
+
+function pharmSetCat(cat) {
+  _pharmCat = cat;
+  document.querySelectorAll('.pharm-cat-btn').forEach(b => b.classList.toggle('active', b.dataset.cat === cat));
+  pharmRender();
+}
+
+function pharmFilter() {
+  pharmRender();
+}
+
+function pharmRender() {
+  const container = document.getElementById('pharmContent');
+  if (!container) return;
+  const query = (document.getElementById('pharmSearch')?.value || '').toLowerCase().trim();
+
+  switch (_pharmSection) {
+    case 'meds':     pharmRenderMeds(container, query); break;
+    case 'symptoms': pharmRenderSymptoms(container, query); break;
+    case 'natural':  pharmRenderNatural(container, query); break;
+    case 'emergency': pharmRenderEmergency(container); break;
+    case 'kit':      pharmRenderKit(container); break;
+  }
+}
+
+/* ── Render: Medications Grid ── */
+function pharmRenderMeds(container, query) {
+  let meds = PHARM_DB;
+  if (_pharmCat !== 'all') meds = meds.filter(m => m.category === _pharmCat);
+  if (query) {
+    meds = meds.filter(m =>
+      m.generic.toLowerCase().includes(query) ||
+      m.brand.toLowerCase().includes(query) ||
+      m.use.toLowerCase().includes(query) ||
+      m.id.toLowerCase().includes(query)
+    );
+  }
+
+  if (meds.length === 0) {
+    container.innerHTML = '<div class="panel-empty">Nenhum medicamento encontrado.</div>';
+    _pharmUpdateCount(0);
+    return;
+  }
+
+  let html = '<div class="pharm-grid">';
+  for (const m of meds) {
+    html += `<div class="pharm-card" onclick="pharmShowDetail('${m.id}')">
+      <div class="pharm-card-icon">${PHARM_CAT_ICONS[m.category] || '\ud83d\udc8a'}</div>
+      <div class="pharm-card-name">${escapeHtml(m.brand.split(',')[0])}</div>
+      <div class="pharm-card-generic">${escapeHtml(m.generic)}</div>
+      <div class="pharm-card-use">${escapeHtml(m.use)}</div>
+      <div class="pharm-card-cat">${PHARM_CAT_LABELS[m.category] || m.category}</div>
+    </div>`;
+  }
+  html += '</div>';
+  container.innerHTML = html;
+  _pharmUpdateCount(meds.length);
+}
+
+/* ── Render: Symptoms ── */
+function pharmRenderSymptoms(container, query) {
+  let symptoms = PHARM_SYMPTOMS;
+  if (query) {
+    symptoms = symptoms.filter(s =>
+      s.name.toLowerCase().includes(query) ||
+      s.desc.toLowerCase().includes(query) ||
+      s.tips.toLowerCase().includes(query)
+    );
+  }
+
+  if (symptoms.length === 0) {
+    container.innerHTML = '<div class="panel-empty">Nenhum sintoma encontrado.</div>';
+    return;
+  }
+
+  let html = '<div class="pharm-symptom-grid">';
+  for (const s of symptoms) {
+    html += `<div class="pharm-symptom-card" onclick="pharmShowSymptom('${s.id}')">
+      <div class="pharm-symptom-icon">${s.icon}</div>
+      <div class="pharm-symptom-name">${escapeHtml(s.name)}</div>
+      <div class="pharm-symptom-desc">${escapeHtml(s.desc)}</div>
+    </div>`;
+  }
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+/* ── Render: Natural Remedies ── */
+function pharmRenderNatural(container, query) {
+  let entries = Object.entries(PHARM_NATURAL);
+  if (query) {
+    entries = entries.filter(([k, v]) =>
+      v.name.toLowerCase().includes(query) ||
+      v.use.toLowerCase().includes(query) ||
+      k.toLowerCase().includes(query)
+    );
+  }
+
+  if (entries.length === 0) {
+    container.innerHTML = '<div class="panel-empty">Nenhum remedio natural encontrado.</div>';
+    return;
+  }
+
+  let html = `<div class="pharm-alert-box pharm-alert-info" style="margin-bottom:12px">
+    \ud83c\udf3f Substitutos naturais para quando nao ha medicamentos disponiveis. <strong>Nao substituem tratamento medico adequado.</strong>
+  </div>`;
+  html += '<div class="pharm-grid">';
+  for (const [key, n] of entries) {
+    // Find which meds reference this natural
+    const relatedMeds = PHARM_DB.filter(m => m.natural && m.natural.includes(key));
+    html += `<div class="pharm-card" onclick="pharmShowNatural('${key}')">
+      <div class="pharm-card-icon">${n.icon}</div>
+      <div class="pharm-card-name">${escapeHtml(n.name)}</div>
+      <div class="pharm-card-use">${escapeHtml(n.use)}</div>
+      ${relatedMeds.length ? `<div style="margin-top:4px;font-size:9px;color:var(--text-dim)">Substitui: ${relatedMeds.map(m => m.brand.split(',')[0]).join(', ')}</div>` : ''}
+    </div>`;
+  }
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+/* ── Render: Emergency Signs ── */
+function pharmRenderEmergency(container) {
+  let html = `<div class="pharm-alert-box pharm-alert-danger" style="margin-bottom:14px">
+    \ud83d\udea8 <strong>SINAIS DE ALERTA VERMELHO</strong> — Se identificar qualquer um destes sinais, trate como EMERGENCIA. Cada minuto conta.
+  </div>`;
+  html += '<div class="pharm-emergency-grid">';
+  for (const e of PHARM_EMERGENCIES) {
+    html += `<div class="pharm-emerg-card">
+      <h3>${e.title}</h3>
+      <h4 style="font-size:11px;color:var(--text-muted);margin:0 0 6px">\ud83d\udd34 Sinais:</h4>
+      <ul>${e.signs.map(s => `<li>${escapeHtml(s)}</li>`).join('')}</ul>
+      <div class="pharm-alert-box pharm-alert-warn" style="margin-top:8px">
+        <strong>\u26a1 Acao imediata:</strong> ${escapeHtml(e.action)}
+      </div>
+    </div>`;
+  }
+  html += '</div>';
+  html += `<div class="pharm-alert-box pharm-alert-danger" style="margin-top:14px">
+    \u260e\ufe0f <strong>Numeros de Emergencia Brasil:</strong> SAMU 192 | Bombeiros 193 | Policia 190 | CVV (suicidio) 188
+  </div>`;
+  container.innerHTML = html;
+}
+
+/* ── Render: Kit Basico ── */
+function pharmRenderKit(container) {
+  let html = `<div class="pharm-alert-box pharm-alert-info" style="margin-bottom:14px">
+    \ud83c\udfaf <strong>Kit Medico de Sobrevivencia</strong> — O essencial para ter preparado. Verificar validades a cada 6 meses.
+  </div>`;
+  html += '<div class="pharm-kit-grid">';
+  for (const section of PHARM_KIT) {
+    html += `<div class="pharm-kit-card">
+      <h3>${section.title}</h3>
+      <ul>`;
+    for (const item of section.items) {
+      html += `<li><strong>${escapeHtml(item.name)}</strong> — ${escapeHtml(item.qty)} <span style="color:var(--text-dim)">(${escapeHtml(item.note)})</span></li>`;
+    }
+    html += '</ul></div>';
+  }
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+/* ── Detail: Medication ── */
+function pharmShowDetail(medId) {
+  const med = PHARM_DB.find(m => m.id === medId);
+  if (!med) return;
+
+  const detail = document.getElementById('pharmDetail');
+  const inner = document.getElementById('pharmDetailInner');
+  if (!detail || !inner) return;
+
+  let html = `<button class="pharm-detail-back" onclick="pharmHideDetail()">\u2190 Voltar</button>`;
+  html += `<div class="pharm-detail-title">${PHARM_CAT_ICONS[med.category] || '\ud83d\udc8a'} ${escapeHtml(med.brand)}</div>`;
+  html += `<div class="pharm-detail-subtitle">${escapeHtml(med.generic)}</div>`;
+
+  html += `<div class="pharm-alert-box pharm-alert-danger" style="margin-bottom:14px">${PHARM_DISCLAIMER}</div>`;
+
+  html += `<div class="pharm-detail-section"><h4>Para que serve</h4><p>${escapeHtml(med.use)}</p></div>`;
+
+  html += `<div class="pharm-detail-section"><h4>Dosagem</h4>
+    <table class="pharm-dose-table">
+      <tr><th>Publico</th><th>Dose</th></tr>
+      <tr><td>\ud83e\uddd1 Adulto</td><td>${escapeHtml(med.doseAdult)}</td></tr>
+      <tr><td>\ud83d\udc76 Crianca</td><td>${escapeHtml(med.doseChild)}</td></tr>
+    </table>
+  </div>`;
+
+  html += `<div class="pharm-detail-section"><h4>\u26d4 Contraindicacoes</h4>
+    <div class="pharm-alert-box pharm-alert-danger">${escapeHtml(med.contraindications)}</div>
+  </div>`;
+
+  html += `<div class="pharm-detail-section"><h4>Efeitos colaterais</h4><p>${escapeHtml(med.sideEffects)}</p></div>`;
+
+  html += `<div class="pharm-detail-section"><h4>\u23f3 Validade tipica</h4><p>${escapeHtml(med.expiry)}</p></div>`;
+
+  if (med.notes) {
+    html += `<div class="pharm-detail-section"><h4>\ud83d\udcdd Observacoes</h4>
+      <div class="pharm-alert-box pharm-alert-warn">${escapeHtml(med.notes)}</div>
+    </div>`;
+  }
+
+  if (med.natural && med.natural.length > 0) {
+    html += `<div class="pharm-detail-section"><h4>\ud83c\udf3f Substitutos Naturais</h4><div>`;
+    for (const nKey of med.natural) {
+      const n = PHARM_NATURAL[nKey];
+      if (n) {
+        html += `<span class="pharm-natural-link" onclick="pharmShowNatural('${nKey}')">${n.icon} ${escapeHtml(n.name)}</span>`;
+      }
+    }
+    html += '</div></div>';
+  }
+
+  inner.innerHTML = html;
+  detail.classList.remove('hidden');
+}
+
+/* ── Detail: Symptom ── */
+function pharmShowSymptom(symptomId) {
+  const s = PHARM_SYMPTOMS.find(x => x.id === symptomId);
+  if (!s) return;
+
+  const detail = document.getElementById('pharmDetail');
+  const inner = document.getElementById('pharmDetailInner');
+  if (!detail || !inner) return;
+
+  let html = `<button class="pharm-detail-back" onclick="pharmHideDetail()">\u2190 Voltar</button>`;
+  html += `<div class="pharm-detail-title">${s.icon} ${escapeHtml(s.name)}</div>`;
+  html += `<div class="pharm-detail-subtitle">${escapeHtml(s.desc)}</div>`;
+
+  html += `<div class="pharm-alert-box pharm-alert-danger" style="margin-bottom:14px">${PHARM_DISCLAIMER}</div>`;
+
+  html += `<div class="pharm-detail-section"><h4>\ud83d\udc8a Medicamentos recomendados</h4><div>`;
+  for (const medId of s.meds) {
+    const med = PHARM_DB.find(m => m.id === medId);
+    if (med) {
+      html += `<span class="pharm-natural-link" style="background:var(--accent-dim);border-color:rgba(0,212,255,0.2);color:var(--accent)" onclick="pharmShowDetail('${med.id}')">\ud83d\udc8a ${escapeHtml(med.brand.split(',')[0])} (${escapeHtml(med.generic)})</span>`;
+    }
+  }
+  html += '</div></div>';
+
+  html += `<div class="pharm-detail-section"><h4>\ud83d\udca1 Dicas de tratamento</h4><p>${escapeHtml(s.tips)}</p></div>`;
+
+  html += `<div class="pharm-detail-section"><h4>\ud83d\udea8 Quando e EMERGENCIA</h4>
+    <div class="pharm-alert-box pharm-alert-danger">${escapeHtml(s.emergency)}</div>
+  </div>`;
+
+  // Related natural remedies
+  const naturalRefs = new Set();
+  for (const medId of s.meds) {
+    const med = PHARM_DB.find(m => m.id === medId);
+    if (med?.natural) med.natural.forEach(n => naturalRefs.add(n));
+  }
+  if (naturalRefs.size > 0) {
+    html += `<div class="pharm-detail-section"><h4>\ud83c\udf3f Alternativas naturais</h4><div>`;
+    for (const nKey of naturalRefs) {
+      const n = PHARM_NATURAL[nKey];
+      if (n) html += `<span class="pharm-natural-link" onclick="pharmShowNatural('${nKey}')">${n.icon} ${escapeHtml(n.name)}</span>`;
+    }
+    html += '</div></div>';
+  }
+
+  inner.innerHTML = html;
+  detail.classList.remove('hidden');
+}
+
+/* ── Detail: Natural Remedy ── */
+function pharmShowNatural(key) {
+  const n = PHARM_NATURAL[key];
+  if (!n) return;
+
+  const detail = document.getElementById('pharmDetail');
+  const inner = document.getElementById('pharmDetailInner');
+  if (!detail || !inner) return;
+
+  const relatedMeds = PHARM_DB.filter(m => m.natural && m.natural.includes(key));
+
+  let html = `<button class="pharm-detail-back" onclick="pharmHideDetail()">\u2190 Voltar</button>`;
+  html += `<div class="pharm-detail-title">${n.icon} ${escapeHtml(n.name)}</div>`;
+  html += `<div class="pharm-detail-subtitle">Remedio Natural</div>`;
+
+  html += `<div class="pharm-alert-box pharm-alert-warn" style="margin-bottom:14px">\u26a0\ufe0f Remedios naturais NAO substituem tratamento medico. Consulte um profissional de saude.</div>`;
+
+  html += `<div class="pharm-detail-section"><h4>Uso</h4><p>${escapeHtml(n.use)}</p></div>`;
+  html += `<div class="pharm-detail-section"><h4>Preparo</h4><p>${escapeHtml(n.prep)}</p></div>`;
+  html += `<div class="pharm-detail-section"><h4>\u26a0\ufe0f Cuidados</h4>
+    <div class="pharm-alert-box pharm-alert-danger">${escapeHtml(n.warn)}</div>
+  </div>`;
+
+  if (relatedMeds.length > 0) {
+    html += `<div class="pharm-detail-section"><h4>\ud83d\udc8a Substitui (em emergencia)</h4><div>`;
+    for (const med of relatedMeds) {
+      html += `<span class="pharm-natural-link" style="background:var(--accent-dim);border-color:rgba(0,212,255,0.2);color:var(--accent)" onclick="pharmShowDetail('${med.id}')">\ud83d\udc8a ${escapeHtml(med.brand.split(',')[0])}</span>`;
+    }
+    html += '</div></div>';
+  }
+
+  // Cross-reference with plants app if available
+  html += `<div class="pharm-detail-section"><h4>\ud83c\udf3f Guia de Plantas</h4>
+    <p style="font-size:11px;color:var(--text-muted)">Veja o app <strong>Guia de Plantas</strong> para informacoes detalhadas sobre identificacao, coleta e preparo de plantas medicinais.
+    <button class="pharm-natural-link" style="margin-top:6px" onclick="openApp('plants')">\ud83c\udf3f Abrir Guia de Plantas</button></p>
+  </div>`;
+
+  inner.innerHTML = html;
+  detail.classList.remove('hidden');
+}
+
+function pharmHideDetail() {
+  const detail = document.getElementById('pharmDetail');
+  if (detail) detail.classList.add('hidden');
+}
+
+function _pharmUpdateCount(count) {
+  const el = document.getElementById('pharmCount');
+  if (el) el.textContent = count + ' medicamento(s)';
+  const status = document.getElementById('pharmStatus');
+  if (status) status.textContent = _pharmSection === 'meds' ?
+    (_pharmCat !== 'all' ? PHARM_CAT_LABELS[_pharmCat] : 'Todos os medicamentos') :
+    _pharmSection === 'symptoms' ? 'Busca por sintomas' :
+    _pharmSection === 'natural' ? 'Substitutos naturais' :
+    _pharmSection === 'emergency' ? 'Sinais de emergencia' : 'Kit basico';
+}
+
+// Expose to window
+window.pharmacyInit = pharmacyInit;
+window.pharmSetSection = pharmSetSection;
+window.pharmSetCat = pharmSetCat;
+window.pharmFilter = pharmFilter;
+window.pharmShowDetail = pharmShowDetail;
+window.pharmShowSymptom = pharmShowSymptom;
+window.pharmShowNatural = pharmShowNatural;
+window.pharmHideDetail = pharmHideDetail;

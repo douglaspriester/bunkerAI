@@ -3118,6 +3118,69 @@ Responda no idioma do usuario. Use markdown.</textarea>
       </div>
     </div>
 
+    <!-- ═══ Pharmacy / Kit Medico ═══ -->
+    <div class="panel-view hidden" id="pharmacyView">
+      <div class="pharm-app" id="pharmApp">
+        <!-- Header -->
+        <div class="pharm-header">
+          <div class="pharm-hero">
+            <div class="pharm-hero-icon">&#128138;</div>
+            <div class="pharm-hero-text">
+              <h2>Farm&#225;cia &amp; Kit M&#233;dico</h2>
+              <p>Medicamentos essenciais, substitutos naturais e primeiros socorros</p>
+            </div>
+          </div>
+          <!-- Toolbar -->
+          <div class="pharm-toolbar">
+            <div class="pharm-search-box">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" id="pharmSearch" placeholder="Buscar medicamento ou sintoma..." oninput="pharmFilter()">
+            </div>
+            <div class="pharm-tabs" id="pharmTabs">
+              <button class="pharm-tab active" data-section="meds" onclick="pharmSetSection('meds')">&#128138; Medicamentos</button>
+              <button class="pharm-tab" data-section="symptoms" onclick="pharmSetSection('symptoms')">&#129298; Sintomas</button>
+              <button class="pharm-tab" data-section="natural" onclick="pharmSetSection('natural')">&#127807; Naturais</button>
+              <button class="pharm-tab" data-section="emergency" onclick="pharmSetSection('emergency')">&#128680; Emerg&#234;ncia</button>
+              <button class="pharm-tab" data-section="kit" onclick="pharmSetSection('kit')">&#129520; Kit B&#225;sico</button>
+            </div>
+          </div>
+          <!-- Category filter (only visible in meds section) -->
+          <div class="pharm-cats" id="pharmCats">
+            <button class="pharm-cat-btn active" data-cat="all" onclick="pharmSetCat('all')">Todos</button>
+            <button class="pharm-cat-btn" data-cat="pain" onclick="pharmSetCat('pain')">Dor/Febre</button>
+            <button class="pharm-cat-btn" data-cat="infection" onclick="pharmSetCat('infection')">Infec&#231;&#227;o</button>
+            <button class="pharm-cat-btn" data-cat="digestive" onclick="pharmSetCat('digestive')">Digestivo</button>
+            <button class="pharm-cat-btn" data-cat="allergy" onclick="pharmSetCat('allergy')">Alergia</button>
+            <button class="pharm-cat-btn" data-cat="cardiac" onclick="pharmSetCat('cardiac')">Card&#237;aco</button>
+            <button class="pharm-cat-btn" data-cat="skin" onclick="pharmSetCat('skin')">Pele/Feridas</button>
+            <button class="pharm-cat-btn" data-cat="respiratory" onclick="pharmSetCat('respiratory')">Respirat&#243;rio</button>
+            <button class="pharm-cat-btn" data-cat="other" onclick="pharmSetCat('other')">Outros</button>
+          </div>
+          <!-- Safety Warning -->
+          <div class="pharm-warning">
+            <span class="pharm-warning-icon">&#9888;&#65039;</span>
+            <span>&#9881;&#65039; <strong>CONSULTE UM M&#201;DICO</strong> antes de usar qualquer medicamento. Estas informa&#231;&#245;es s&#227;o para <strong>emerg&#234;ncias</strong> quando n&#227;o h&#225; acesso m&#233;dico.</span>
+          </div>
+        </div>
+
+        <!-- Content area -->
+        <div class="pharm-content" id="pharmContent">
+          <!-- Rendered by JS -->
+        </div>
+
+        <!-- Detail panel -->
+        <div class="pharm-detail hidden" id="pharmDetail">
+          <div class="pharm-detail-inner" id="pharmDetailInner"></div>
+        </div>
+
+        <!-- Statusbar -->
+        <div class="pharm-statusbar">
+          <span id="pharmStatus">Pronto</span>
+          <span id="pharmCount"></span>
+        </div>
+      </div>
+    </div>
+
   </main>
 
   </div><!-- /desktop -->

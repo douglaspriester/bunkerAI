@@ -10423,3 +10423,493 @@ body.font-lg .sos-card-steps li { font-size: 15px; }
   .nav-calc-row label { min-width: unset; }
   .nav-input, .nav-select { max-width: unset; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* ═══ Pharmacy / Kit Medico App ═══                                        */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+.pharm-app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.pharm-header {
+  flex-shrink: 0;
+  padding: 14px 18px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elevated);
+}
+
+.pharm-hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+
+.pharm-hero-icon {
+  font-size: 34px;
+  line-height: 1;
+  filter: drop-shadow(0 0 10px rgba(0,212,255,0.4));
+}
+
+.pharm-hero-text h2 {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-bright);
+  margin: 0;
+  letter-spacing: 0.5px;
+}
+
+.pharm-hero-text p {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin: 2px 0 0;
+}
+
+/* Toolbar */
+.pharm-toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.pharm-search-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 5px 10px;
+  flex: 1;
+  min-width: 160px;
+}
+
+.pharm-search-box svg { color: var(--text-muted); flex-shrink: 0; }
+
+.pharm-search-box input {
+  background: transparent;
+  border: none;
+  color: var(--text-bright);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  width: 100%;
+  outline: none;
+}
+
+/* Tabs */
+.pharm-tabs {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+}
+
+.pharm-tab {
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  padding: 4px 10px;
+  border-radius: var(--radius);
+  font-size: 11px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.pharm-tab:hover { border-color: var(--border-bright); color: var(--text); }
+.pharm-tab.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+/* Category filter */
+.pharm-cats {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.pharm-cat-btn {
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-dim);
+  padding: 3px 8px;
+  border-radius: var(--radius);
+  font-size: 10px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.pharm-cat-btn:hover { border-color: var(--border-bright); color: var(--text); }
+.pharm-cat-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+/* Warning */
+.pharm-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--danger-dim);
+  border: 1px solid rgba(255,26,71,0.25);
+  border-radius: var(--radius);
+  font-size: 11px;
+  color: var(--danger);
+  font-family: var(--font-mono);
+}
+
+.pharm-warning-icon { font-size: 16px; flex-shrink: 0; }
+.pharm-warning strong { color: #ff6b85; }
+
+/* Content */
+.pharm-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 18px;
+}
+
+/* Grid of medication cards */
+.pharm-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.pharm-card {
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.pharm-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 12px rgba(0,212,255,0.1);
+  transform: translateY(-1px);
+}
+
+.pharm-card-icon {
+  font-size: 22px;
+  margin-bottom: 6px;
+}
+
+.pharm-card-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-bright);
+  margin-bottom: 2px;
+}
+
+.pharm-card-generic {
+  font-size: 10px;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  margin-bottom: 4px;
+}
+
+.pharm-card-use {
+  font-size: 10px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.pharm-card-cat {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 9px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-family: var(--font-mono);
+}
+
+/* Detail panel */
+.pharm-detail {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+  z-index: 10;
+  overflow-y: auto;
+  animation: pharm-slide-in 0.2s ease;
+}
+
+@keyframes pharm-slide-in {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.pharm-detail-inner {
+  padding: 18px;
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.pharm-detail-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--accent);
+  padding: 5px 12px;
+  border-radius: var(--radius);
+  font-size: 11px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  margin-bottom: 14px;
+  transition: all 0.2s;
+}
+
+.pharm-detail-back:hover { background: var(--accent-dim); }
+
+.pharm-detail-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-bright);
+  margin-bottom: 4px;
+}
+
+.pharm-detail-subtitle {
+  font-size: 12px;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  margin-bottom: 14px;
+}
+
+.pharm-detail-section {
+  margin-bottom: 14px;
+}
+
+.pharm-detail-section h4 {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  margin: 0 0 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 4px;
+}
+
+.pharm-detail-section p,
+.pharm-detail-section li {
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.pharm-detail-section ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.pharm-detail-section li { margin-bottom: 3px; }
+
+.pharm-dose-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  font-family: var(--font-mono);
+}
+
+.pharm-dose-table th {
+  background: var(--surface-2);
+  color: var(--accent);
+  padding: 5px 8px;
+  text-align: left;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+}
+
+.pharm-dose-table td {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text);
+}
+
+.pharm-alert-box {
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  font-size: 11px;
+  font-family: var(--font-mono);
+  line-height: 1.5;
+}
+
+.pharm-alert-danger {
+  background: var(--danger-dim);
+  border: 1px solid rgba(255,26,71,0.25);
+  color: var(--danger);
+}
+
+.pharm-alert-warn {
+  background: rgba(255,170,0,0.08);
+  border: 1px solid rgba(255,170,0,0.2);
+  color: #ffa500;
+}
+
+.pharm-alert-info {
+  background: var(--accent-dim);
+  border: 1px solid rgba(0,212,255,0.2);
+  color: var(--accent);
+}
+
+.pharm-natural-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(57,255,20,0.08);
+  border: 1px solid rgba(57,255,20,0.2);
+  color: #39ff14;
+  padding: 3px 8px;
+  border-radius: var(--radius);
+  font-size: 10px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  transition: all 0.2s;
+  margin: 2px;
+}
+
+.pharm-natural-link:hover { background: rgba(57,255,20,0.15); }
+
+/* Symptoms section */
+.pharm-symptom-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+}
+
+.pharm-symptom-card {
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pharm-symptom-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 10px rgba(0,212,255,0.1);
+}
+
+.pharm-symptom-icon { font-size: 22px; margin-bottom: 6px; }
+
+.pharm-symptom-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-bright);
+  margin-bottom: 4px;
+}
+
+.pharm-symptom-desc {
+  font-size: 10px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* Emergency section */
+.pharm-emergency-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+}
+
+.pharm-emerg-card {
+  background: rgba(255,26,71,0.04);
+  border: 1px solid rgba(255,26,71,0.2);
+  border-radius: var(--radius);
+  padding: 14px;
+}
+
+.pharm-emerg-card h3 {
+  font-size: 14px;
+  color: var(--danger);
+  margin: 0 0 8px;
+}
+
+.pharm-emerg-card ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.pharm-emerg-card li {
+  font-size: 11px;
+  color: var(--text);
+  margin-bottom: 4px;
+  line-height: 1.4;
+}
+
+/* Kit section */
+.pharm-kit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+}
+
+.pharm-kit-card {
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  padding: 14px;
+}
+
+.pharm-kit-card h3 {
+  font-size: 13px;
+  color: var(--accent);
+  margin: 0 0 8px;
+}
+
+.pharm-kit-card ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.pharm-kit-card li {
+  font-size: 11px;
+  color: var(--text);
+  margin-bottom: 3px;
+  line-height: 1.4;
+}
+
+.pharm-kit-card li strong { color: var(--text-bright); }
+
+/* Statusbar */
+.pharm-statusbar {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  padding: 5px 18px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .pharm-header { padding: 8px 10px 6px; }
+  .pharm-content { padding: 10px; }
+  .pharm-tab { padding: 4px 8px; font-size: 10px; }
+  .pharm-cat-btn { padding: 2px 6px; font-size: 9px; }
+  .pharm-grid { grid-template-columns: 1fr; }
+  .pharm-symptom-grid { grid-template-columns: 1fr; }
+  .pharm-emergency-grid { grid-template-columns: 1fr; }
+  .pharm-kit-grid { grid-template-columns: 1fr; }
+  .pharm-detail-inner { padding: 10px; }
+}
