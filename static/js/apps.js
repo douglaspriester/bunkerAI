@@ -12344,3 +12344,573 @@ window.pharmShowDetail = pharmShowDetail;
 window.pharmShowSymptom = pharmShowSymptom;
 window.pharmShowNatural = pharmShowNatural;
 window.pharmHideDetail = pharmHideDetail;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Shelter & Construction App — Emergency shelter building for any biome
+// Types, materials, insulation, protection, tools, location, quick tips
+// ═══════════════════════════════════════════════════════════════════════════════
+
+let _shelterSection = 'types';
+
+const SHELTER_TYPES = [
+  {
+    id: 'leanto', name: 'Lean-To', icon: '\u{1F332}', difficulty: 'Facil',
+    time: '30-60 min', people: '1-2', biomes: ['forest','desert','urban'],
+    desc: 'Abrigo inclinado simples — ideal para primeira noite',
+    materials: ['1 tronco longo (2-3m)', '8-12 galhos grossos', 'Folhas, musgo ou casca', 'Cordas (opcional)'],
+    steps: [
+      'Encontre 2 arvores proximas (~2m de distancia) ou apoie um tronco entre uma arvore e o chao',
+      'Posicione o tronco principal (ridgepole) a ~1m de altura na extremidade mais alta',
+      'Apoie galhos menores em angulo de 45-60 graus contra o tronco — lado a lado, bem juntos',
+      'Cubra com camadas de folhas, musgo ou casca de dentro para fora (como telhas)',
+      'Coloque mais galhos por cima para prender a cobertura contra o vento',
+      'Faca uma cama de folhas secas de pelo menos 15cm de espessura no chao',
+      'Posicione a abertura OPOSTA ao vento predominante',
+      'Opcional: faca uma parede lateral se o vento mudar'
+    ],
+    tips: 'Incline a ~60 graus para melhor escoamento de chuva. A abertura deve ser menor que voce — conserva calor.'
+  },
+  {
+    id: 'aframe', name: 'A-Frame', icon: '\u26FA', difficulty: 'Facil',
+    time: '45-90 min', people: '1-2', biomes: ['forest','snow'],
+    desc: 'Formato de "A" — otimo contra chuva e vento bilateral',
+    materials: ['1 tronco longo (2.5-3m)', '12-20 galhos medios', 'Folhas, musgo ou barro', 'Cordas (opcionais)'],
+    steps: [
+      'Finca 2 forquilhas (galhos em Y) no chao, ~2.5m de distancia',
+      'Apoie o ridgepole (tronco principal) nas forquilhas a ~1m de altura',
+      'De ambos os lados, apoie galhos inclinados contra o ridgepole, como um "A"',
+      'Comece pelo chao e suba, sobrepondo galhos como costelas',
+      'Cubra com folhas grossas, musgo ou casca — comece pela base e suba',
+      'Adicione uma segunda camada de folhas mais finas por cima',
+      'Coloque galhos transversais para prender a cobertura',
+      'Feche uma das extremidades com galhos e folhas; deixe a outra como entrada'
+    ],
+    tips: 'Espaco interno justo conserva calor. Deixe a entrada pequena e use um "tapete" de folhas como porta.'
+  },
+  {
+    id: 'debrishut', name: 'Debris Hut', icon: '\u{1F33F}', difficulty: 'Medio',
+    time: '1-3 horas', people: '1', biomes: ['forest'],
+    desc: 'Cabana isolada com detritos — a mais quente sem fogo',
+    materials: ['1 tronco principal (2.5m)', '20-30 galhos', 'Grande volume de folhas secas', 'Musgo, grama ou samambaia'],
+    steps: [
+      'Apoie um tronco entre o chao e uma arvore/pedra a ~1m de altura',
+      'O interior deve caber voce deitado com pouco espaco extra (conserva calor)',
+      'Apoie galhos laterais como costelas de ambos os lados, a cada 15cm',
+      'Cubra com uma camada GROSSA de folhas (minimo 60-90cm de espessura)',
+      'Prenda as folhas com galhos leves por cima para nao voarem',
+      'Encha o interior COMPLETAMENTE com folhas secas soltas — voce dormira dentro delas',
+      'Faca uma "porta" com um monte de folhas para bloquear a entrada',
+      'A espessura das folhas e a diferenca entre vida e morte no frio'
+    ],
+    tips: 'Regra: se voce ve luz passando pelas paredes, precisa de mais folhas. Precisa de MUITO mais folhas do que voce imagina.'
+  },
+  {
+    id: 'snowcave', name: 'Caverna de Neve', icon: '\u2744\uFE0F', difficulty: 'Dificil',
+    time: '2-4 horas', people: '1-3', biomes: ['snow'],
+    desc: 'Abrigo escavado na neve — temperatura estavel acima de 0 C',
+    materials: ['Pa ou ferramenta de escavar', 'Neve compactada (minimo 1.5m profundidade)', 'Galho fino para ventilacao'],
+    steps: [
+      'Encontre uma encosta com neve profunda e compactada (minimo 1.5m)',
+      'Cave uma entrada BAIXA (50-60cm) — ar quente sobe e fica dentro',
+      'Escave para cima e para os lados, criando uma plataforma de dormir ACIMA da entrada',
+      'A camera interna deve ter ~1.5m de altura no centro',
+      'Alise as paredes internas em arco (evita gotejamento)',
+      'Faca 1-2 furos de ventilacao no teto com um galho (essencial!)',
+      'Crie um canal de drenagem no chao proximo a entrada',
+      'Bloqueie parcialmente a entrada com um bloco de neve (nao feche totalmente!)'
+    ],
+    tips: 'PERIGO: sem ventilacao = asfixia. Sempre mantenha furos abertos. A plataforma elevada e crucial pois o ar frio desce.'
+  },
+  {
+    id: 'tarp', name: 'Tarp Shelter', icon: '\u{1F9E5}', difficulty: 'Facil',
+    time: '10-30 min', people: '1-4', biomes: ['forest','desert','urban'],
+    desc: 'Abrigo versatil com lona — multiplas configuracoes',
+    materials: ['Lona ou poncho (minimo 2x3m)', 'Corda ou paracord (3-5m)', '4-6 estacas ou pedras pesadas', 'Opcional: 1-2 bastoes'],
+    steps: [
+      'CONFIGURACAO A-FRAME: Amarre corda entre 2 arvores a ~1m de altura',
+      'Jogue a lona por cima e estique as laterais com estacas no chao',
+      'LEAN-TO: Amarre um lado da lona na corda mais alto, estique o outro ate o chao',
+      'BARRACA: Use um bastao central e estaque as 4 pontas no chao',
+      'DIAMOND: Pendure um canto na arvore, estaque o oposto no chao, laterais abertas',
+      'Em chuva forte, cave um canal ao redor para drenar agua',
+      'Use pedras ou troncos nas bordas se nao tiver estacas',
+      'Angulo minimo de 45 graus para escoar chuva adequadamente'
+    ],
+    tips: 'A lona e o item mais versatil para abrigo. Leve uma de 3x3m — pesa pouco e resolve 90% das situacoes.'
+  },
+  {
+    id: 'hammock', name: 'Hamaca com Lona', icon: '\u{1F3D5}\uFE0F', difficulty: 'Facil',
+    time: '15-30 min', people: '1', biomes: ['forest'],
+    desc: 'Dormir elevado — protecao contra umidade, insetos e animais rasteiros',
+    materials: ['Rede/hamaca resistente', 'Lona ou rainfly (2x3m)', 'Corda (5m)', 'Carabinas ou nos (2)', 'Mosquiteiro (ideal)'],
+    steps: [
+      'Encontre 2 arvores saudaveis (vivas!) separadas por 3-5m',
+      'Amarre a hamaca a ~1.5m do chao (com peso ficara mais baixa)',
+      'Teste sentando antes de deitar — as amarracoes devem aguentar',
+      'Amarre a corda da lona ACIMA da hamaca entre as arvores (~2m altura)',
+      'Estenda a lona sobre a corda em A-frame; estaque ou amarre as pontas laterais',
+      'A lona deve se estender ~30cm alem das extremidades da hamaca',
+      'Pendure o mosquiteiro sob a lona, envolvendo toda a hamaca',
+      'Coloque um isolante ou cobertor na hamaca (perda de calor por baixo!)'
+    ],
+    tips: 'O frio vem de BAIXO — a hamaca comprime o isolamento sob voce. Use um underquilt ou manta por baixo.'
+  },
+  {
+    id: 'wickiup', name: 'Wickiup / Tipi', icon: '\u{1F3DA}\uFE0F', difficulty: 'Medio',
+    time: '2-4 horas', people: '2-4', biomes: ['forest','desert'],
+    desc: 'Estrutura conica autonoma — grande e permite fogueira interna',
+    materials: ['12-20 varas longas (3-4m)', 'Cordas ou cipro', 'Cobertura: peles, lona, folhas ou casca', 'Galhos finos para reforco'],
+    steps: [
+      'Selecione 3 varas fortes como tripe principal; amarre as pontas superiores juntas',
+      'Levante o tripe e posicione como um cone, base com ~3m de diametro',
+      'Apoie as demais varas ao redor, espacadas igualmente',
+      'Entrelace galhos finos horizontalmente entre as varas para rigidez',
+      'Cubra de BAIXO para CIMA com o material disponivel (folhas, cascas, lona)',
+      'Sobreponha cada camada como telhas — agua escorre para fora',
+      'Deixe uma abertura no topo para ventilacao (e fumaca se usar fogo)',
+      'Crie uma entrada baixa (~80cm) e use uma pele/lona como porta'
+    ],
+    tips: 'Com abertura no topo, permite fogueira pequena no centro. Cave um buraco raso para a fogueira e forre com pedras.'
+  },
+  {
+    id: 'urban', name: 'Abrigo Urbano', icon: '\u{1F3D7}\uFE0F', difficulty: 'Variavel',
+    time: '15-60 min', people: '1-6', biomes: ['urban'],
+    desc: 'Improvisacao em ruinas, predios e areas urbanas',
+    materials: ['Plastico, papelao, lonas', 'Cobertores, roupas extras', 'Fita adesiva resistente', 'Jornal para isolamento'],
+    steps: [
+      'PRIORIZE: predios abandonados com teto intacto, garagens, tuneis, viadutos',
+      'EVITE: predios com danos estruturais, vidro solto, pisos instáveis',
+      'Em ruinas: use moveis como paredes, colchoes como isolamento',
+      'Papelao em camadas no chao = excelente isolamento termico',
+      'Jornal amassado entre camadas de roupa = isolamento de emergencia',
+      'Sacos de lixo grandes = barreira contra vento e umidade',
+      'Em veiculos: boa protecao temporaria, use cobertores nas janelas',
+      'Sempre tenha 2 saidas de emergencia em qualquer abrigo urbano'
+    ],
+    tips: 'Em ambiente urbano, papelao e ouro. 3 camadas no chao isolam melhor que um colchao fino. Sacos de lixo cortados = poncho.'
+  }
+];
+
+const SHELTER_BIOME_MATERIALS = {
+  forest: {
+    name: 'Floresta', icon: '\u{1F332}', color: 'forest',
+    structural: ['Troncos caidos (2-4m)', 'Galhos secos grossos', 'Varas finas e flexiveis', 'Bambu (se disponivel)'],
+    cover: ['Folhas grandes (palmeiras, bananeira)', 'Casca de arvore (betula, cedro)', 'Musgo e samambaia', 'Capim longo'],
+    insulation: ['Folhas secas (MUITO volume)', 'Musgo seco', 'Agulhas de pinheiro', 'Samambaia seca'],
+    binding: ['Cipo e trepadeiras', 'Raizes finas expostas', 'Casca interna de arvores', 'Fibras de palmeira torcidas'],
+    water: 'Abundante — rios, orvalho, coleta de chuva em folhas grandes'
+  },
+  desert: {
+    name: 'Deserto', icon: '\u{1F3DC}\uFE0F', color: 'desert',
+    structural: ['Pedras empilhadas', 'Troncos de cacto morto', 'Galhos de arbusto seco', 'Ossos grandes (se disponivel)'],
+    cover: ['Lona ou tecido (crucial!)', 'Folhas de palmeira do deserto', 'Pedras planas', 'Areia (para enterrar/cobrir)'],
+    insulation: ['Areia seca (camada grossa)', 'Fibras de cacto', 'Gravetos secos', 'Roupas extras empilhadas'],
+    binding: ['Fibras de yucca/agave', 'Raizes secas', 'Tiras de tecido', 'Cipo seco do deserto'],
+    water: 'ESCASSA — priorize sombra para reduzir perda hidrica. Coleta de orvalho ao amanhecer.'
+  },
+  snow: {
+    name: 'Neve / Artico', icon: '\u2744\uFE0F', color: 'snow',
+    structural: ['Blocos de neve compactada', 'Neve profunda (para cavar)', 'Galhos de conifera', 'Gelo compactado'],
+    cover: ['Neve (isolamento natural)', 'Galhos de pinheiro densos', 'Lona/plastico', 'Peles de animais'],
+    insulation: ['Galhos de conifera (cama grossa!)', 'Neve seca solta', 'Peles/cobertores', 'Musgo artico seco'],
+    binding: ['Raizes de conifera', 'Corda/paracord', 'Tiras de casca', 'Gelo como "cola" (agua + gelo)'],
+    water: 'Neve derretida (nunca coma neve direto — gasta energia corporal). Derreta perto do corpo.'
+  },
+  urban: {
+    name: 'Urbano', icon: '\u{1F3D9}\uFE0F', color: 'urban',
+    structural: ['Moveis (mesas, estantes)', 'Portas e tabuas', 'Pallets de madeira', 'Tubulacoes e canos'],
+    cover: ['Lonas plasticas', 'Sacos de lixo grandes', 'Papelao grosso', 'Chapas metalicas'],
+    insulation: ['Papelao (multiplas camadas)', 'Jornal amassado', 'Espuma de embalagem', 'Roupas e tecidos'],
+    binding: ['Fita adesiva / silver tape', 'Arame fino', 'Ziper de plastico (zip ties)', 'Corda de varal'],
+    water: 'Torneiras, caixas dagua, coleta de chuva. Sempre filtre/ferva agua de fontes duvidosas.'
+  }
+};
+
+const SHELTER_INSULATION_DATA = {
+  principles: [
+    { title: 'Ar parado = isolamento', desc: 'O ar preso entre camadas e o melhor isolante. Folhas soltas, tecidos fofos, neve seca — todos funcionam porque prendem bolsoes de ar.' },
+    { title: 'Camadas vencem espessura', desc: '3 camadas finas com ar entre elas isolam MAIS que uma camada grossa. Aplique a roupas e ao abrigo.' },
+    { title: 'Seco = quente', desc: 'Material umido conduz calor 25x mais rapido que ar. Mantenha isolamento SECO a todo custo.' },
+    { title: 'Perda por baixo e critica', desc: 'O chao rouba mais calor que o ar. Priorize isolamento no piso: minimo 15cm de material fofo.' },
+    { title: 'Tamanho justo', desc: 'Abrigo grande = mais ar para aquecer = mais frio. O ideal cabe voce e mais ninguem.' },
+    { title: 'Reflexao de calor', desc: 'Superficies refletoras (manta termica, folha de aluminio) refletem ate 90% do calor radiante de volta ao corpo.' }
+  ],
+  natural_materials: [
+    { name: 'Folhas secas', rValue: 'Alto', thickness: '60-90cm', notes: 'O material mais disponivel. Precisa de MUITO volume — encha ate nao caber mais.' },
+    { name: 'Agulhas de pinheiro', rValue: 'Alto', thickness: '30-45cm', notes: 'Excelente isolante, repele insetos. Cheiro agradavel.' },
+    { name: 'Musgo seco', rValue: 'Muito alto', thickness: '15-20cm', notes: 'Um dos melhores isolantes naturais. Absorve umidade — mantenha seco.' },
+    { name: 'Capim/grama seca', rValue: 'Medio-alto', thickness: '30-45cm', notes: 'Facil de coletar. Amarre em feixes para melhor estrutura.' },
+    { name: 'Neve seca', rValue: 'Medio', thickness: '30cm+', notes: 'Paradoxo: neve isola por conter ar. Iglus ficam a 0C mesmo a -40C fora.' },
+    { name: 'Samambaia', rValue: 'Medio-alto', thickness: '20-30cm', notes: 'Repelente natural de insetos. Otima para cama e paredes.' },
+    { name: 'Papelao', rValue: 'Alto', thickness: '5-10cm (camadas)', notes: 'Em ambiente urbano, 3+ camadas no chao = isolamento excelente.' },
+    { name: 'Jornal amassado', rValue: 'Alto', thickness: '10-15cm', notes: 'Amassado prende mais ar. Enfie dentro da roupa como isolamento extra.' }
+  ],
+  layers_system: [
+    { layer: '1. Barreira de umidade', desc: 'Plastico, folhas grandes, casca — impede a umidade do solo de subir', icon: '\u{1F4A7}' },
+    { layer: '2. Isolamento base', desc: 'Camada grossa de folhas, musgo, ramos de conifera — minimo 15cm', icon: '\u{1F33F}' },
+    { layer: '3. Zona de dormir', desc: 'Voce fica aqui — envolto por isolamento por todos os lados', icon: '\u{1F6CF}\uFE0F' },
+    { layer: '4. Cobertura superior', desc: 'Folhas soltas, cobertor, roupas extras — prendendo ar quente', icon: '\u{1F9E5}' },
+    { layer: '5. Barreira contra vento', desc: 'Paredes do abrigo, lona, blocos de neve — corta o vento gelado', icon: '\u{1F32C}\uFE0F' }
+  ]
+};
+
+const SHELTER_PROTECTION = {
+  rain: {
+    title: '\u{1F327}\uFE0F Chuva', items: [
+      'Angulo minimo de 45 graus em superficies de escoamento',
+      'Sobreponha materiais como telhas — de baixo para cima',
+      'Cave canal de drenagem ao redor do abrigo (~10cm profundidade)',
+      'Nunca construa em area que acumula agua (depressoes)',
+      'Camada externa impermeavel: plastico, casca, folhas cerosas',
+      'Teste com agua antes de precisar — despeje agua e veja se goteja'
+    ]
+  },
+  wind: {
+    title: '\u{1F32C}\uFE0F Vento', items: [
+      'Posicione a COSTAS do abrigo contra o vento dominante',
+      'Use barreiras naturais: pedras, troncos caidos, morros',
+      'Reduza a abertura do abrigo — entrada menor = menos vento dentro',
+      'Reforce com peso: pedras nas bordas, galhos cruzados',
+      'Forma aerodinamica: teto inclinado contra o vento',
+      'Construa uma parede de vento (windbreak) com galhos empilhados a ~1m do abrigo'
+    ]
+  },
+  sun: {
+    title: '\u2600\uFE0F Sol / Calor', items: [
+      'Priorize SOMBRA sobre tudo — o primeiro abrigo no deserto e sombra',
+      'Eleve o abrigo do chao (~30cm) para circulacao de ar',
+      'Dupla camada de lona com espaco entre elas reduz calor em ate 20 graus',
+      'Escave 30-50cm no chao — temperatura cai significativamente',
+      'Oriente a abertura para captar brisa; bloqueie o sol direto',
+      'Em emergencia: sente-se na sombra de uma pedra grande. Minimalismo salva.'
+    ]
+  },
+  animals: {
+    title: '\u{1F43B} Animais', items: [
+      'Guarde alimentos LONGE do abrigo (30m+), pendurados em arvore',
+      'Fogo/fumaca afasta a maioria dos animais',
+      'Evite trilhas de animais, tocas e fontes de agua ao anoitecer',
+      'Em area de ursos: cozinhe longe do abrigo, guarde comida em container',
+      'Cobras: feche todas as aberturas baixas; sacuda calcados/roupas antes de vestir',
+      'Eleve-se do chao quando possivel (hamaca, plataforma)'
+    ]
+  },
+  insects: {
+    title: '\u{1F99F} Insetos', items: [
+      'Mosquiteiro e o item #1 de protecao (malha 1mm ou menor)',
+      'Fumaca de fogueira: lenha verde = mais fumaca = repele insetos',
+      'Folhas de eucalipto, citronela ou nim queimadas como repelente',
+      'Feche TODAS as aberturas ao anoitecer — insetos sao mais ativos',
+      'Evite agua parada proxima (cria mosquitos)',
+      'Samambaia no chao repele pulgas e carrapatos',
+      'Aplique barro/lama na pele como barreira de emergencia'
+    ]
+  }
+};
+
+const SHELTER_TOOLS = {
+  essential: [
+    { name: 'Faca fixa (full tang)', weight: '200-400g', uses: 'Cortar, bater, cavar, processar madeira, preparar cordame' },
+    { name: 'Paracord (15m)', weight: '100g', uses: 'Amarracoes, varal, torniquete, pescar, reparos' },
+    { name: 'Lona 3x3m', weight: '300-500g', uses: 'Abrigo instantaneo, coleta de agua, maca, saco' },
+    { name: 'Machadinha/hatchet', weight: '400-600g', uses: 'Cortar madeira, preparar lenha, martelar estacas' },
+    { name: 'Serra de bolso', weight: '50-100g', uses: 'Cortar galhos sem esforco; silenciosa' }
+  ],
+  improvised: [
+    { name: 'Sem faca', solution: 'Lascas de pedra afiada (silex, obsidiana, quartzo). Quebre controladamente para obter bordas cortantes.' },
+    { name: 'Sem corda', solution: 'Torcao de casca interna de arvores, cipos, raizes ou tiras de tecido. Torca 2 fios juntos para cordame forte.' },
+    { name: 'Sem lona', solution: 'Casca de betula em grandes pedacos, folhas de palmeira sobrepostas, ou sacos plasticos abertos/costurados.' },
+    { name: 'Sem machado', solution: 'Quebre galhos no angulo de forquilhas de arvores. Pedra pesada como martelo. Bata galhos contra troncos.' },
+    { name: 'Sem pa', solution: 'Cave com pedra chata, pedaco de madeira, casca rigida de arvore, ou um osso plano.' },
+    { name: 'Sem estacas', solution: 'Galhos bifurcados (Y) fincados no chao, pedras pesadas nas bordas, amarre em raizes expostas.' }
+  ]
+};
+
+const SHELTER_LOCATION = {
+  good: [
+    { rule: 'Terreno elevado e plano', reason: 'Agua escorre para baixo — evita inundacao. Plano = sono melhor.' },
+    { rule: 'Protecao natural contra vento', reason: 'Rochas, morros, vegetacao densa — reduz trabalho de construcao.' },
+    { rule: 'Proximo a agua (mas nao muito)', reason: '100-200m de agua: perto para coletar, longe de enchentes e insetos.' },
+    { rule: 'Materiais disponiveis por perto', reason: 'Menos energia gasta transportando. Galhos, folhas, pedras acessiveis.' },
+    { rule: 'Exposicao solar matinal (leste)', reason: 'Sol da manha aquece rapido apos noite fria. Seca o orvalho.' },
+    { rule: 'Solo seco e drenado', reason: 'Verifique: se o solo esta umido agora, estara pior com chuva.' }
+  ],
+  avoid: [
+    { rule: '\u{1F4A8} Topo de morros / cumes', reason: 'Vento maximo, zero protecao, raios. Muito exposto.' },
+    { rule: '\u{1F30A} Leito seco de rio/vala', reason: 'Enchente relampago MATA. Agua pode subir metros em minutos.' },
+    { rule: '\u{1F332} Debaixo de arvores mortas', reason: 'Galhos caem sem aviso ("widow makers"). Risco mortal.' },
+    { rule: '\u{1FA78} Encostas instaveis', reason: 'Deslizamento de terra. Evite encostas com solo solto ou apos chuvas.' },
+    { rule: '\u{1F99F} Perto de agua parada', reason: 'Mosquitos, insetos e animais. Umidade constante = frio.' },
+    { rule: '\u26A1 Areas abertas isoladas', reason: 'Risco de raios. Sem protecao contra vento.' },
+    { rule: '\u{1F40D} Pedras soltas / pedregulhos', reason: 'Escorpioes, cobras e aranhas vivem embaixo. Solo instavel.' },
+    { rule: '\u{1F525} Perto de fogueira alheia', reason: 'Fogo pode se espalhar. Fumaca e toxica para dormir.' }
+  ]
+};
+
+const SHELTER_TIPS = [
+  { icon: '\u23F1\uFE0F', title: 'Regra das 3 Horas', text: 'Voce pode morrer de hipotermia em 3 horas. ABRIGO e prioridade #1 em sobrevivencia, antes de agua e comida.' },
+  { icon: '\u{1F4CF}', title: 'Teste do Braco', text: 'Se a camada de isolamento no teto for mais fina que seu braco esticado — adicione mais material.' },
+  { icon: '\u{1F525}', title: 'Refletor de Calor', text: 'Construa uma parede de troncos empilhados atras da fogueira. O calor reflete para o abrigo como um espelho.' },
+  { icon: '\u{1F327}\uFE0F', title: 'Teste de Chuva', text: 'Antes de confiar no abrigo, jogue agua no teto. Se gotejar, adicione mais camadas ou ajuste angulos.' },
+  { icon: '\u{1F9ED}', title: 'Posicionamento Solar', text: 'Abertura para LESTE = sol da manha para aquecer. Nunca faca a abertura para a direcao do vento predominante.' },
+  { icon: '\u{1F4AA}', title: 'Prioridade de Energia', text: 'Construa o abrigo MAIS SIMPLES possivel primeiro. Melhore depois. Gastar toda energia em um abrigo perfeito e perigoso.' },
+  { icon: '\u{1F332}', title: 'Cama Primeiro', text: 'Se so tem tempo para uma coisa, faca a CAMA. 15cm de folhas entre voce e o chao salva mais vidas que paredes.' },
+  { icon: '\u{1F9CA}', title: 'Paradoxo da Neve', text: 'Neve isola. Um iglu a -40C fora mantem 0C dentro. Nao tema usar neve — tame-a como isolamento.' },
+  { icon: '\u{1F9F1}', title: 'Pilha de Pedras', text: 'Pedras absorvem calor durante o dia. Coloque pedras aquecidas (por fogo) dentro do abrigo antes de dormir.' },
+  { icon: '\u{1F4A7}', title: 'Condensacao Interna', text: 'Umidade interna e inevitavel (respiracao). Ventile levemente para evitar que tudo fique molhado por dentro.' },
+  { icon: '\u{1F33F}', title: 'Eucalipto Repelente', text: 'Folhas de eucalipto frescas espalhadas no chao do abrigo repelem insetos e aracnideos naturalmente.' },
+  { icon: '\u{1F512}', title: 'Sinalize sua Posicao', text: 'Marque seu abrigo com algo visivel de cima (X no chao, tecido colorido) para facilitar resgate.' }
+];
+
+function shelterInit() {
+  _shelterSection = 'types';
+  _shelterRender();
+}
+
+function shelterSetSection(sec) {
+  _shelterSection = sec;
+  document.querySelectorAll('.shelter-tab').forEach(b => b.classList.toggle('active', b.dataset.section === sec));
+  shelterHideDetail();
+  _shelterRender();
+}
+
+function _shelterRender() {
+  const c = document.getElementById('shelterContent');
+  if (!c) return;
+  const sections = {
+    types:      _shelterTypes,
+    materials:  _shelterMaterials,
+    insulation: _shelterInsulation,
+    protection: _shelterProtection,
+    tools:      _shelterTools,
+    location:   _shelterLocation,
+    tips:       _shelterTips,
+  };
+  c.innerHTML = (sections[_shelterSection] || _shelterTypes)();
+  const st = document.getElementById('shelterStatus');
+  if (st) {
+    const labels = {
+      types: 'Tipos de abrigo', materials: 'Materiais por bioma', insulation: 'Isolamento termico',
+      protection: 'Protecao contra elementos', tools: 'Ferramentas minimas', location: 'Escolha de local', tips: 'Dicas rapidas'
+    };
+    st.textContent = labels[_shelterSection] || '';
+  }
+  const cnt = document.getElementById('shelterCount');
+  if (cnt) {
+    if (_shelterSection === 'types') cnt.textContent = SHELTER_TYPES.length + ' tipos';
+    else if (_shelterSection === 'tips') cnt.textContent = SHELTER_TIPS.length + ' dicas';
+    else cnt.textContent = '';
+  }
+}
+
+/* ── Types ──────────────────────────────────────────────────────────────────── */
+function _shelterTypes() {
+  let html = '<div class="shelter-section"><div class="shelter-grid">';
+  for (const s of SHELTER_TYPES) {
+    const badges = s.biomes.map(b => {
+      const labels = { forest: 'Floresta', desert: 'Deserto', snow: 'Neve', urban: 'Urbano' };
+      return `<span class="shelter-badge shelter-badge-${b}">${labels[b]}</span>`;
+    }).join('');
+    html += `
+    <div class="shelter-card shelter-card-clickable" onclick="shelterShowType('${s.id}')">
+      <h3>${s.icon} ${s.name}</h3>
+      <p class="shelter-desc">${s.desc}</p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:0.75rem;color:var(--text-muted);margin-bottom:8px">
+        <span>\u23F1 ${s.time}</span>
+        <span>\u{1F465} ${s.people}</span>
+        <span>\u{1F4AA} ${s.difficulty}</span>
+      </div>
+      <div>${badges}</div>
+    </div>`;
+  }
+  html += '</div></div>';
+  return html;
+}
+
+function shelterShowType(id) {
+  const s = SHELTER_TYPES.find(t => t.id === id);
+  if (!s) return;
+  const inner = document.getElementById('shelterDetailInner');
+  const detail = document.getElementById('shelterDetail');
+  if (!inner || !detail) return;
+
+  const badges = s.biomes.map(b => {
+    const labels = { forest: 'Floresta', desert: 'Deserto', snow: 'Neve', urban: 'Urbano' };
+    return `<span class="shelter-badge shelter-badge-${b}">${labels[b]}</span>`;
+  }).join(' ');
+
+  let html = `
+  <button class="shelter-detail-back" onclick="shelterHideDetail()">\u2190 Voltar</button>
+  <div class="shelter-card shelter-card-primary">
+    <h3>${s.icon} ${s.name}</h3>
+    <p class="shelter-desc">${s.desc}</p>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:0.8rem;color:var(--text-muted);margin-bottom:10px">
+      <span>\u23F1\uFE0F Tempo: <strong>${s.time}</strong></span>
+      <span>\u{1F465} Pessoas: <strong>${s.people}</strong></span>
+      <span>\u{1F4AA} Dificuldade: <strong>${s.difficulty}</strong></span>
+    </div>
+    <div style="margin-bottom:12px">${badges}</div>
+  </div>
+
+  <div class="shelter-card">
+    <h3>\u{1F9F1} Materiais Necessarios</h3>
+    <ul class="shelter-list">
+      ${s.materials.map(m => `<li>${m}</li>`).join('')}
+    </ul>
+  </div>
+
+  <div class="shelter-card shelter-card-primary">
+    <h3>\u{1F527} Passo a Passo</h3>
+    <div class="shelter-steps">
+      ${s.steps.map((step, i) => `<div class="shelter-step"><span class="shelter-step-num">${i + 1}</span><span>${step}</span></div>`).join('')}
+    </div>
+  </div>
+
+  <div class="shelter-warning">
+    <span class="shelter-warning-icon">\u{1F4A1}</span>
+    <span>${s.tips}</span>
+  </div>`;
+
+  inner.innerHTML = html;
+  detail.classList.remove('hidden');
+}
+
+function shelterHideDetail() {
+  const detail = document.getElementById('shelterDetail');
+  if (detail) detail.classList.add('hidden');
+}
+
+/* ── Materials ─────────────────────────────────────────────────────────────── */
+function _shelterMaterials() {
+  let html = '<div class="shelter-section">';
+  for (const [key, biome] of Object.entries(SHELTER_BIOME_MATERIALS)) {
+    html += `
+    <div class="shelter-card">
+      <h3><span class="shelter-badge shelter-badge-${biome.color}">${biome.icon} ${biome.name}</span></h3>
+      <table class="shelter-table">
+        <tr><th>Categoria</th><th>Materiais</th></tr>
+        <tr><td>\u{1F9F1} Estrutural</td><td>${biome.structural.join(', ')}</td></tr>
+        <tr><td>\u{1F3DA}\uFE0F Cobertura</td><td>${biome.cover.join(', ')}</td></tr>
+        <tr><td>\u{1F321}\uFE0F Isolamento</td><td>${biome.insulation.join(', ')}</td></tr>
+        <tr><td>\u{1F9F6} Amarracao</td><td>${biome.binding.join(', ')}</td></tr>
+      </table>
+      <div class="shelter-warning" style="margin-top:10px">
+        <span class="shelter-warning-icon">\u{1F4A7}</span>
+        <span><strong>Agua:</strong> ${biome.water}</span>
+      </div>
+    </div>`;
+  }
+  html += '</div>';
+  return html;
+}
+
+/* ── Insulation ────────────────────────────────────────────────────────────── */
+function _shelterInsulation() {
+  const data = SHELTER_INSULATION_DATA;
+  let html = '<div class="shelter-section">';
+
+  // Principles
+  html += '<div class="shelter-card shelter-card-primary"><h3>\u{1F9EA} Principios de Isolamento</h3><div class="shelter-steps">';
+  for (const p of data.principles) {
+    html += `<div class="shelter-step"><span class="shelter-step-num">\u2022</span><span><strong>${p.title}:</strong> ${p.desc}</span></div>`;
+  }
+  html += '</div></div>';
+
+  // Layer system
+  html += '<div class="shelter-card"><h3>\u{1F4DA} Sistema de Camadas (de baixo para cima)</h3><div class="shelter-steps">';
+  for (const l of data.layers_system) {
+    html += `<div class="shelter-step"><span style="font-size:1rem;flex-shrink:0">${l.icon}</span><span><strong>${l.layer}:</strong> ${l.desc}</span></div>`;
+  }
+  html += '</div></div>';
+
+  // Natural materials table
+  html += `<div class="shelter-card"><h3>\u{1F33F} Materiais Naturais de Isolamento</h3>
+    <table class="shelter-table">
+      <tr><th>Material</th><th>Eficiencia</th><th>Espessura Min.</th><th>Notas</th></tr>
+      ${data.natural_materials.map(m => `<tr><td><strong>${m.name}</strong></td><td>${m.rValue}</td><td>${m.thickness}</td><td>${m.notes}</td></tr>`).join('')}
+    </table>
+  </div>`;
+
+  html += '</div>';
+  return html;
+}
+
+/* ── Protection ────────────────────────────────────────────────────────────── */
+function _shelterProtection() {
+  let html = '<div class="shelter-section">';
+  for (const [key, prot] of Object.entries(SHELTER_PROTECTION)) {
+    html += `<div class="shelter-card"><h3>${prot.title}</h3><ul class="shelter-list">
+      ${prot.items.map(item => `<li>${item}</li>`).join('')}
+    </ul></div>`;
+  }
+  html += '</div>';
+  return html;
+}
+
+/* ── Tools ─────────────────────────────────────────────────────────────────── */
+function _shelterTools() {
+  let html = '<div class="shelter-section">';
+
+  // Essential tools
+  html += `<div class="shelter-card shelter-card-primary"><h3>\u{1F9F0} Kit Essencial de Abrigo</h3>
+    <table class="shelter-table">
+      <tr><th>Ferramenta</th><th>Peso</th><th>Usos</th></tr>
+      ${SHELTER_TOOLS.essential.map(t => `<tr><td><strong>${t.name}</strong></td><td>${t.weight}</td><td>${t.uses}</td></tr>`).join('')}
+    </table>
+  </div>`;
+
+  // Improvised
+  html += '<div class="shelter-card"><h3>\u{1F4A1} Improvisacao sem Ferramentas</h3><div class="shelter-steps">';
+  for (const imp of SHELTER_TOOLS.improvised) {
+    html += `<div class="shelter-step"><span class="shelter-step-num">!</span><span><strong>${imp.name}:</strong> ${imp.solution}</span></div>`;
+  }
+  html += '</div></div>';
+
+  html += '</div>';
+  return html;
+}
+
+/* ── Location ──────────────────────────────────────────────────────────────── */
+function _shelterLocation() {
+  let html = '<div class="shelter-section">';
+
+  // Good locations
+  html += '<div class="shelter-card shelter-card-primary"><h3>\u2705 Locais Ideais</h3><div class="shelter-steps">';
+  for (const g of SHELTER_LOCATION.good) {
+    html += `<div class="shelter-step"><span class="shelter-step-num">\u2713</span><span><strong>${g.rule}:</strong> ${g.reason}</span></div>`;
+  }
+  html += '</div></div>';
+
+  // Avoid
+  html += '<div class="shelter-card"><h3>\u274C Locais para EVITAR</h3><div class="shelter-steps">';
+  for (const a of SHELTER_LOCATION.avoid) {
+    html += `<div class="shelter-step"><span class="shelter-step-num" style="background:rgba(244,67,54,0.15);color:#f44336">\u2717</span><span><strong>${a.rule}:</strong> ${a.reason}</span></div>`;
+  }
+  html += '</div></div>';
+
+  html += '</div>';
+  return html;
+}
+
+/* ── Tips ──────────────────────────────────────────────────────────────────── */
+function _shelterTips() {
+  let html = '<div class="shelter-section"><div class="shelter-tip-grid">';
+  for (const tip of SHELTER_TIPS) {
+    html += `
+    <div class="shelter-tip-card">
+      <div class="shelter-tip-icon">${tip.icon}</div>
+      <div class="shelter-tip-text">
+        <h4>${tip.title}</h4>
+        <p>${tip.text}</p>
+      </div>
+    </div>`;
+  }
+  html += '</div></div>';
+  return html;
+}
+
+// Expose to window
+window.shelterInit = shelterInit;
+window.shelterSetSection = shelterSetSection;
+window.shelterShowType = shelterShowType;
+window.shelterHideDetail = shelterHideDetail;

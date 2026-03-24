@@ -3181,6 +3181,86 @@ Responda no idioma do usuario. Use markdown.</textarea>
       </div>
     </div>
 
+    <!-- ═══ Shelter & Construction App ═══ -->
+    <div class="panel-view hidden" id="shelterView">
+      <div class="shelter-app" id="shelterApp">
+        <!-- Header -->
+        <div class="shelter-header">
+          <div class="shelter-hero">
+            <div class="shelter-hero-icon">&#9978;</div>
+            <div class="shelter-hero-text">
+              <h2>Abrigos &amp; Constru&#231;&#227;o</h2>
+              <p>Constru&#231;&#227;o de abrigos de emerg&#234;ncia para qualquer bioma</p>
+            </div>
+          </div>
+          <div class="shelter-tabs" id="shelterTabs">
+            <button class="shelter-tab active" data-section="types" onclick="shelterSetSection('types')">&#127969; Tipos</button>
+            <button class="shelter-tab" data-section="materials" onclick="shelterSetSection('materials')">&#129717; Materiais</button>
+            <button class="shelter-tab" data-section="insulation" onclick="shelterSetSection('insulation')">&#127777;&#65039; Isolamento</button>
+            <button class="shelter-tab" data-section="protection" onclick="shelterSetSection('protection')">&#128737;&#65039; Prote&#231;&#227;o</button>
+            <button class="shelter-tab" data-section="tools" onclick="shelterSetSection('tools')">&#128295; Ferramentas</button>
+            <button class="shelter-tab" data-section="location" onclick="shelterSetSection('location')">&#128205; Localiza&#231;&#227;o</button>
+            <button class="shelter-tab" data-section="tips" onclick="shelterSetSection('tips')">&#9889; Dicas</button>
+          </div>
+        </div>
+
+        <!-- Content -->
+        <div class="shelter-content" id="shelterContent">
+          <!-- Rendered by JS -->
+        </div>
+
+        <!-- Detail panel (for step-by-step shelter building) -->
+        <div class="shelter-detail hidden" id="shelterDetail">
+          <div class="shelter-detail-inner" id="shelterDetailInner"></div>
+        </div>
+
+        <!-- Statusbar -->
+        <div class="shelter-statusbar">
+          <span id="shelterStatus">Selecione uma categoria</span>
+          <span id="shelterCount"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ Energy & Electricity ═══ -->
+    <div class="panel-view hidden" id="energyView">
+      <div class="energy-app" id="energyApp">
+        <!-- Header -->
+        <div class="energy-header">
+          <div class="energy-hero">
+            <div class="energy-hero-icon">
+              <svg width="44" height="44" viewBox="0 0 48 48" fill="none">
+                <rect x="4" y="4" width="40" height="40" rx="8" stroke="#f0c040" stroke-width="2.5" fill="rgba(240,192,64,0.08)"/>
+                <path d="M28 8L16 26h8l-4 14 12-18h-8l4-14z" fill="#f0c040" opacity="0.9"/>
+              </svg>
+            </div>
+            <div>
+              <h2 class="energy-title">Energia &amp; Eletricidade</h2>
+              <p class="energy-subtitle">Circuitos, baterias, solar, geradores &mdash; offline</p>
+            </div>
+          </div>
+          <!-- Tabs -->
+          <div class="energy-tabs" id="energyTabs">
+            <button class="energy-tab active" data-section="circuits" onclick="energySetSection('circuits')">&#9889; Circuitos</button>
+            <button class="energy-tab" data-section="batteries" onclick="energySetSection('batteries')">&#128267; Baterias</button>
+            <button class="energy-tab" data-section="solar" onclick="energySetSection('solar')">&#9728;&#65039; Solar</button>
+            <button class="energy-tab" data-section="generator" onclick="energySetSection('generator')">&#9881;&#65039; Gerador</button>
+            <button class="energy-tab" data-section="conservation" onclick="energySetSection('conservation')">&#128161; Conservar</button>
+            <button class="energy-tab" data-section="fire" onclick="energySetSection('fire')">&#128293; Fogo</button>
+            <button class="energy-tab" data-section="calculator" onclick="energySetSection('calculator')">&#128290; Calc</button>
+          </div>
+        </div>
+
+        <!-- Content area (rendered by JS) -->
+        <div class="energy-content" id="energyContent"></div>
+
+        <!-- Statusbar -->
+        <div class="energy-statusbar">
+          <span id="energyStatus">&#9889; Pronto &mdash; 100% offline</span>
+        </div>
+      </div>
+    </div>
+
   </main>
 
   </div><!-- /desktop -->

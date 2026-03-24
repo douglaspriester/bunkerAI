@@ -206,6 +206,7 @@ function wireAppCallbacks() {
     plants:     () => window.plantsInit?.(),
     navigation: () => window.navigationInit?.(),
     pharmacy: () => window.pharmacyInit?.(),
+    shelter: () => window.shelterInit?.(),
   };
   Object.entries(openMap).forEach(([appId, fn]) => registerAppOpen(appId, fn));
 
