@@ -198,6 +198,7 @@ function wireAppCallbacks() {
     survRef:    () => window.survRefInit?.(),
     modelMgr:   () => window.modelMgrInit?.(),
     companion:  () => initCompanion(),
+    pendrive:   () => window.pendriveInit?.(),
   };
   Object.entries(openMap).forEach(([appId, fn]) => registerAppOpen(appId, fn));
 

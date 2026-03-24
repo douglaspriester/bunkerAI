@@ -39,6 +39,7 @@ export const OS_APPS = [
   { id: 'survRef',    name: 'Refer\u00EAncia', icon: '\u{1F4D6}', width: 650, height: 520, viewId: 'survRefView' },
   { id: 'modelMgr',  name: 'Modelos IA', icon: '\u{1F9E0}', width: 600, height: 520, viewId: 'modelMgrView' },
   { id: 'companion', name: 'Companheiro', icon: '\u{1F9D1}\u200D\u{1F680}', width: 480, height: 620, viewId: 'companionView' },
+  { id: 'pendrive', name: 'Preparar Pendrive', icon: '\u{1F4BE}', width: 580, height: 600, viewId: 'pendriveView' },
   { id: 'settings',   name: 'Configura\u00E7\u00F5es', icon: '\u2699\uFE0F', width: 560, height: 520, viewId: null },
 ];
 
@@ -716,6 +717,10 @@ export function runShutdownSequence() {
 }
 
 // ─── Clock ──────────────────────────────────────────────────────────────────
+const _bootTime = Date.now();
+const _dayNames = ['Domingo', 'Segunda', 'Terca', 'Quarta', 'Quinta', 'Sexta', 'Sabado'];
+const _monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
 function updateTaskbarClock() {
   const el = document.getElementById('taskbarClock');
   if (!el) return;
@@ -727,6 +732,48 @@ function updateTaskbarClock() {
   const day = String(now.getDate()).padStart(2, '0');
   const mon = String(now.getMonth() + 1).padStart(2, '0');
   el.title = `${day}/${mon}/${now.getFullYear()} ${hh}:${mm}:${ss}`;
+
+  // Update desktop widget
+  _updateDesktopWidget(now, hh, mm, ss);
+}
+
+function _updateDesktopWidget(now, hh, mm, ss) {
+  const dwTime = document.getElementById('dwTime');
+  const dwSec = document.getElementById('dwSeconds');
+  const dwDate = document.getElementById('dwDate');
+  const dwUptime = document.getElementById('dwUptimeVal');
+  const dwAI = document.getElementById('dwAIVal');
+  const dwModels = document.getElementById('dwModelsVal');
+  if (!dwTime) return;
+
+  dwTime.textContent = hh + ':' + mm;
+  dwSec.textContent = ':' + ss;
+
+  const dayName = _dayNames[now.getDay()];
+  const dayNum = now.getDate();
+  const monthName = _monthNames[now.getMonth()];
+  const year = now.getFullYear();
+  dwDate.textContent = `${dayName}, ${dayNum} ${monthName} ${year}`;
+
+  // Uptime
+  const uptimeMs = Date.now() - _bootTime;
+  const uptimeH = Math.floor(uptimeMs / 3600000);
+  const uptimeM = Math.floor((uptimeMs % 3600000) / 60000);
+  dwUptime.textContent = uptimeH + 'h' + String(uptimeM).padStart(2, '0') + 'm';
+
+  // AI status (read from existing tray elements)
+  const aiLabel = document.getElementById('trayAILabel');
+  if (aiLabel) dwAI.textContent = aiLabel.textContent || '--';
+
+  // Model count (read from existing tray, updated every 10s)
+  if (now.getSeconds() % 10 === 0 || !dwModels.dataset.init) {
+    dwModels.dataset.init = '1';
+    const trayAI = document.getElementById('trayAI');
+    if (trayAI) {
+      const title = trayAI.title || '';
+      dwModels.textContent = title || dwAI.textContent || '--';
+    }
+  }
 }
 
 export function startTaskbarClock() {

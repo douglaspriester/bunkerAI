@@ -6944,3 +6944,234 @@ window.trayInit = trayInit;
 window.trayRefresh = trayRefresh;
 window.toggleTrayPopup = toggleTrayPopup;
 window.closeTrayPopup = closeTrayPopup;
+
+
+// ═══ Preparar Pendrive App ═══════════════════════════════════════════════════
+
+let _pendriveSelectedDrive = null;
+let _pendriveEstimate = null;
+let _pendriveProgressTimer = null;
+
+async function pendriveInit() {
+  pendriveRefreshDrives();
+}
+
+async function pendriveRefreshDrives() {
+  const list = document.getElementById('pendriveDriveList');
+  if (!list) return;
+  list.innerHTML = '<div class="pendrive-loading"><span class="pendrive-spinner"></span> Detectando drives...</div>';
+  try {
+    const r = await fetch('/api/pendrive/drives');
+    const data = await r.json();
+    if (!data.drives || data.drives.length === 0) {
+      list.innerHTML = '<div class="pendrive-empty">Nenhum drive detectado. Use o campo abaixo para digitar um caminho.</div>';
+      return;
+    }
+    let html = '';
+    for (const d of data.drives) {
+      const pct = d.total > 0 ? Math.round((1 - d.free / d.total) * 100) : 0;
+      const isRemovable = d.type === 'removable';
+      const safePath = d.path.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      html += '<div class="pendrive-drive ' + (isRemovable ? 'pendrive-drive-removable' : '') + '" onclick="pendriveSelectDrive(\'' + safePath + '\', ' + d.free + ')">'
+        + '<div class="pendrive-drive-icon">' + (isRemovable ? '\u{1F4BE}' : '\u{1F4BD}') + '</div>'
+        + '<div class="pendrive-drive-info">'
+        + '<div class="pendrive-drive-name">' + (d.letter ? d.letter + ':' : '') + ' ' + escapeHtml(d.label || 'Sem nome') + '</div>'
+        + '<div class="pendrive-drive-meta">' + (d.type === 'removable' ? 'Removivel' : 'Fixo') + ' &middot; ' + d.free_fmt + ' livre de ' + d.total_fmt + '</div>'
+        + '<div class="pendrive-drive-bar"><div class="pendrive-drive-bar-fill" style="width:' + pct + '%"></div></div>'
+        + '</div></div>';
+    }
+    list.innerHTML = html;
+  } catch (e) {
+    list.innerHTML = '<div class="pendrive-empty">Erro ao detectar drives: ' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+function pendriveSelectDrive(path, freeSpace) {
+  _pendriveSelectedDrive = { path, free: freeSpace };
+  pendriveShowStep2();
+}
+
+function pendriveSelectCustomPath() {
+  const input = document.getElementById('pendriveCustomPath');
+  if (!input || !input.value.trim()) return;
+  _pendriveSelectedDrive = { path: input.value.trim(), free: 0 };
+  pendriveShowStep2();
+}
+
+async function pendriveShowStep2() {
+  document.getElementById('pendriveStep1').style.display = 'none';
+  document.getElementById('pendriveStep2').style.display = '';
+  try {
+    const r = await fetch('/api/pendrive/estimate?include_models=true&include_data=true&include_tts=true&include_zim=true&include_sd=true&include_books=true');
+    _pendriveEstimate = await r.json();
+    renderPendriveOptions();
+  } catch (e) {
+    document.getElementById('pendriveOptions').innerHTML = '<div class="pendrive-empty">Erro: ' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+function renderPendriveOptions() {
+  const container = document.getElementById('pendriveOptions');
+  if (!_pendriveEstimate || !container) return;
+  let html = '';
+  for (const item of _pendriveEstimate.items) {
+    const checked = item.required || ['core', 'tools', 'data', 'models', 'books'].includes(item.id);
+    html += '<label class="pendrive-option ' + (item.required ? 'pendrive-option-required' : '') + '">'
+      + '<input type="checkbox" data-item-id="' + item.id + '" data-item-size="' + item.size + '" '
+      + (checked ? 'checked ' : '') + (item.required ? 'disabled ' : '') + ' onchange="pendriveUpdateSize()">'
+      + '<div class="pendrive-option-info">'
+      + '<span class="pendrive-option-name">' + escapeHtml(item.name) + '</span>'
+      + '<span class="pendrive-option-size">' + item.size_fmt + '</span>'
+      + '</div>'
+      + (item.required ? '<span class="pendrive-badge">Obrigatorio</span>' : '')
+      + '</label>';
+  }
+  container.innerHTML = html;
+  pendriveUpdateSize();
+}
+
+function pendriveUpdateSize() {
+  const checks = document.querySelectorAll('#pendriveOptions input[type=checkbox]');
+  let total = 0;
+  checks.forEach(function(cb) {
+    if (cb.checked) total += parseInt(cb.dataset.itemSize || '0');
+  });
+  document.getElementById('pendriveTotalSize').textContent = _formatSizeJS(total);
+  const freeEl = document.getElementById('pendriveFreeSpace');
+  const fillEl = document.getElementById('pendriveCapacityFill');
+  const startBtn = document.getElementById('pendriveStartBtn');
+  if (_pendriveSelectedDrive && _pendriveSelectedDrive.free > 0) {
+    freeEl.textContent = _formatSizeJS(_pendriveSelectedDrive.free);
+    const pct = Math.min(100, Math.round(total / _pendriveSelectedDrive.free * 100));
+    fillEl.style.width = pct + '%';
+    fillEl.className = 'pendrive-capacity-fill' + (pct > 90 ? ' pendrive-capacity-danger' : pct > 70 ? ' pendrive-capacity-warn' : '');
+    if (total > _pendriveSelectedDrive.free) {
+      startBtn.disabled = true;
+      startBtn.title = 'Espaco insuficiente';
+    } else {
+      startBtn.disabled = false;
+      startBtn.title = '';
+    }
+  } else {
+    freeEl.textContent = 'Desconhecido';
+    fillEl.style.width = '0%';
+    startBtn.disabled = false;
+  }
+}
+
+function _formatSizeJS(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+}
+
+function pendriveGoBack() {
+  document.getElementById('pendriveStep2').style.display = 'none';
+  document.getElementById('pendriveStep1').style.display = '';
+}
+
+async function pendriveStartCopy() {
+  if (!_pendriveSelectedDrive) return;
+  const checks = document.querySelectorAll('#pendriveOptions input[type=checkbox]');
+  const options = { dest_path: _pendriveSelectedDrive.path };
+  checks.forEach(function(cb) {
+    const id = cb.dataset.itemId;
+    if (id === 'models') options.include_models = cb.checked;
+    else if (id === 'data') options.include_data = cb.checked;
+    else if (id === 'tts') options.include_tts = cb.checked;
+    else if (id === 'zim') options.include_zim = cb.checked;
+    else if (id === 'sd') options.include_sd = cb.checked;
+    else if (id === 'books') options.include_books = cb.checked;
+  });
+
+  document.getElementById('pendriveStep2').style.display = 'none';
+  document.getElementById('pendriveStep3').style.display = '';
+  document.getElementById('pendriveLog').innerHTML = '';
+  document.getElementById('pendriveProgressFill').style.width = '0%';
+  document.getElementById('pendriveProgressPct').textContent = '0%';
+  document.getElementById('pendriveProgressStep').textContent = 'Iniciando...';
+
+  try {
+    const r = await fetch('/api/pendrive/prepare', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(options)
+    });
+    if (!r.ok) {
+      const err = await r.json();
+      throw new Error(err.error || 'Erro desconhecido');
+    }
+    _pendriveProgressTimer = setInterval(pendrivePollProgress, 500);
+  } catch (e) {
+    document.getElementById('pendriveProgressStep').textContent = 'Erro: ' + e.message;
+    osToast('Erro: ' + e.message, 4000, 'error');
+  }
+}
+
+async function pendrivePollProgress() {
+  try {
+    const r = await fetch('/api/pendrive/progress');
+    const data = await r.json();
+    document.getElementById('pendriveProgressFill').style.width = data.percent + '%';
+    document.getElementById('pendriveProgressPct').textContent = data.percent + '%';
+    document.getElementById('pendriveProgressStep').textContent = data.step || '';
+
+    const logEl = document.getElementById('pendriveLog');
+    if (data.log && data.log.length > 0) {
+      logEl.innerHTML = data.log.map(function(l) {
+        if (l.includes('[OK]')) return '<div class="pendrive-log-ok">' + escapeHtml(l) + '</div>';
+        if (l.includes('[ERRO]') || l.includes('[X]')) return '<div class="pendrive-log-err">' + escapeHtml(l) + '</div>';
+        if (l.includes('===')) return '<div class="pendrive-log-done">' + escapeHtml(l) + '</div>';
+        return '<div>' + escapeHtml(l) + '</div>';
+      }).join('');
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    if (data.done) {
+      clearInterval(_pendriveProgressTimer);
+      _pendriveProgressTimer = null;
+      if (data.error) {
+        osToast('Erro na preparacao: ' + data.error, 5000, 'error');
+      } else {
+        document.getElementById('pendriveStep3').style.display = 'none';
+        document.getElementById('pendriveStep4').style.display = '';
+        document.getElementById('pendriveDoneText').textContent =
+          'BunkerAI copiado para ' + (data.dest || 'pendrive') + ' (' + (data.final_size || '') + ')';
+        osToast('Pendrive preparado com sucesso!', 4000);
+      }
+    }
+  } catch (e) { /* ignore polling errors */ }
+}
+
+async function pendriveCancelCopy() {
+  try {
+    await fetch('/api/pendrive/cancel', { method: 'POST' });
+    osToast('Cancelando...', 2000);
+  } catch (e) { /* ignore */ }
+}
+
+function pendriveReset() {
+  _pendriveSelectedDrive = null;
+  _pendriveEstimate = null;
+  if (_pendriveProgressTimer) {
+    clearInterval(_pendriveProgressTimer);
+    _pendriveProgressTimer = null;
+  }
+  document.getElementById('pendriveStep1').style.display = '';
+  document.getElementById('pendriveStep2').style.display = 'none';
+  document.getElementById('pendriveStep3').style.display = 'none';
+  document.getElementById('pendriveStep4').style.display = 'none';
+  pendriveRefreshDrives();
+}
+
+// Exports
+window.pendriveInit = pendriveInit;
+window.pendriveRefreshDrives = pendriveRefreshDrives;
+window.pendriveSelectDrive = pendriveSelectDrive;
+window.pendriveSelectCustomPath = pendriveSelectCustomPath;
+window.pendriveUpdateSize = pendriveUpdateSize;
+window.pendriveGoBack = pendriveGoBack;
+window.pendriveStartCopy = pendriveStartCopy;
+window.pendriveCancelCopy = pendriveCancelCopy;
+window.pendriveReset = pendriveReset;

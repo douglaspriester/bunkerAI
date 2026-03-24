@@ -44,6 +44,39 @@
   <!-- Desktop Icons Grid -->
   <div id="desktopIcons" class="desktop-icons"></div>
 
+  <!-- Desktop Clock & Status Widget -->
+  <div id="desktopWidget" class="desktop-widget">
+    <div class="dw-clock-row">
+      <div class="dw-time" id="dwTime">00:00</div>
+      <div class="dw-seconds" id="dwSeconds">:00</div>
+    </div>
+    <div class="dw-date" id="dwDate">--</div>
+    <div class="dw-divider"></div>
+    <div class="dw-stats">
+      <div class="dw-stat" id="dwUptime" title="Tempo ligado">
+        <span class="dw-stat-icon">&#9201;</span>
+        <span class="dw-stat-val" id="dwUptimeVal">0h0m</span>
+      </div>
+      <div class="dw-stat" id="dwAI" title="Status IA">
+        <span class="dw-stat-icon">&#129302;</span>
+        <span class="dw-stat-val" id="dwAIVal">--</span>
+      </div>
+      <div class="dw-stat" id="dwModels" title="Modelos disponiveis">
+        <span class="dw-stat-icon">&#129504;</span>
+        <span class="dw-stat-val" id="dwModelsVal">--</span>
+      </div>
+    </div>
+    <div class="dw-divider"></div>
+    <div class="dw-quick">
+      <button class="dw-quick-btn" onclick="openApp('chat')" title="AI Chat">&#129302;</button>
+      <button class="dw-quick-btn" onclick="openApp('guides')" title="Guias">&#128203;</button>
+      <button class="dw-quick-btn" onclick="openApp('protocols')" title="Protocolos">&#128680;</button>
+      <button class="dw-quick-btn" onclick="openApp('map')" title="Mapas">&#128506;&#65039;</button>
+      <button class="dw-quick-btn" onclick="openApp('notepad')" title="Bloco de Notas">&#128221;</button>
+      <button class="dw-quick-btn" onclick="openApp('journal')" title="Diario">&#128211;</button>
+    </div>
+  </div>
+
   <!-- Emergency Quick Panel (desktop widget) -->
   <div id="sosWidget" class="sos-widget">
     <button class="sos-toggle" onclick="toggleSosWidget()" title="Painel de Emergencia">🆘</button>
@@ -1554,6 +1587,114 @@ Responda no idioma do usuario. Use markdown.</textarea>
             onmousedown="companionStartVoice()" onmouseup="companionStopVoice()"
             ontouchstart="companionStartVoice()" ontouchend="companionStopVoice()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="1" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></button>
           <button onclick="companionSendMsg()" class="btn-action" style="padding:8px 14px">Enviar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ PREPARAR PENDRIVE ═══ -->
+    <div class="panel-view hidden" id="pendriveView">
+      <div class="pendrive-app">
+        <!-- Header -->
+        <div class="pendrive-header">
+          <div class="pendrive-hero">
+            <div class="pendrive-hero-icon">
+              <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                <rect x="12" y="6" width="24" height="36" rx="4" stroke="var(--accent)" stroke-width="2" fill="none"/>
+                <rect x="16" y="2" width="16" height="8" rx="2" fill="var(--accent)" opacity="0.3"/>
+                <circle cx="24" cy="30" r="4" stroke="var(--accent)" stroke-width="1.5" fill="none"/>
+                <rect x="18" y="16" width="12" height="2" rx="1" fill="var(--accent)" opacity="0.5"/>
+                <rect x="18" y="20" width="8" height="2" rx="1" fill="var(--accent)" opacity="0.3"/>
+              </svg>
+            </div>
+            <div>
+              <h2 class="pendrive-title">Preparar Pendrive</h2>
+              <p class="pendrive-subtitle">Clone o Bunker AI para um USB. Leve sobrevivencia no bolso.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 1: Drive Selection -->
+        <div id="pendriveStep1" class="pendrive-step">
+          <div class="pendrive-step-header">
+            <span class="pendrive-step-num">1</span>
+            <span>Escolha o destino</span>
+            <button class="btn-sm pendrive-refresh" onclick="pendriveRefreshDrives()" title="Atualizar">&#x21BB;</button>
+          </div>
+          <div id="pendriveDriveList" class="pendrive-drive-list">
+            <div class="pendrive-loading">Detectando drives...</div>
+          </div>
+          <div class="pendrive-custom-path">
+            <label>Ou digite um caminho:</label>
+            <div style="display:flex;gap:8px">
+              <input type="text" id="pendriveCustomPath" placeholder="Ex: E:\ ou /media/usb" class="pendrive-input"/>
+              <button class="btn-sm btn-accent" onclick="pendriveSelectCustomPath()">Usar</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2: Content Selection -->
+        <div id="pendriveStep2" class="pendrive-step" style="display:none">
+          <div class="pendrive-step-header">
+            <span class="pendrive-step-num">2</span>
+            <span>O que incluir</span>
+          </div>
+          <div id="pendriveOptions" class="pendrive-options"></div>
+          <div class="pendrive-size-bar">
+            <div class="pendrive-size-info">
+              <span>Tamanho estimado: <strong id="pendriveTotalSize">--</strong></span>
+              <span>Espaco livre: <strong id="pendriveFreeSpace">--</strong></span>
+            </div>
+            <div class="pendrive-capacity-bar">
+              <div class="pendrive-capacity-fill" id="pendriveCapacityFill"></div>
+            </div>
+          </div>
+          <div class="pendrive-actions">
+            <button class="btn-sm" onclick="pendriveGoBack()">&#8592; Voltar</button>
+            <button class="btn-sm btn-accent pendrive-go" id="pendriveStartBtn" onclick="pendriveStartCopy()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+              Preparar Pendrive
+            </button>
+          </div>
+        </div>
+
+        <!-- Step 3: Progress -->
+        <div id="pendriveStep3" class="pendrive-step" style="display:none">
+          <div class="pendrive-step-header">
+            <span class="pendrive-step-num">3</span>
+            <span>Preparando...</span>
+          </div>
+          <div class="pendrive-progress">
+            <div class="pendrive-progress-bar">
+              <div class="pendrive-progress-fill" id="pendriveProgressFill"></div>
+            </div>
+            <div class="pendrive-progress-text">
+              <span id="pendriveProgressStep">Iniciando...</span>
+              <span id="pendriveProgressPct">0%</span>
+            </div>
+          </div>
+          <div class="pendrive-log" id="pendriveLog"></div>
+          <div class="pendrive-actions">
+            <button class="btn-sm pendrive-cancel" id="pendriveCancelBtn" onclick="pendriveCancelCopy()">Cancelar</button>
+          </div>
+        </div>
+
+        <!-- Step 4: Done -->
+        <div id="pendriveStep4" class="pendrive-step" style="display:none">
+          <div class="pendrive-done-icon">&#10003;</div>
+          <h3 class="pendrive-done-title">Pendrive Pronto!</h3>
+          <p class="pendrive-done-text" id="pendriveDoneText">Seu BunkerAI portatil esta pronto para uso.</p>
+          <div class="pendrive-done-instructions">
+            <h4>Como usar:</h4>
+            <ol>
+              <li>Espete o pendrive em qualquer computador</li>
+              <li>Abra a pasta <code>BunkerAI</code></li>
+              <li>Duplo-clique em <code>INICIAR.bat</code> (Windows) ou <code>INICIAR.command</code> (Mac)</li>
+              <li>O sistema abre automaticamente no navegador</li>
+            </ol>
+          </div>
+          <div class="pendrive-actions">
+            <button class="btn-sm btn-accent" onclick="pendriveReset()">Preparar Outro</button>
+          </div>
         </div>
       </div>
     </div>

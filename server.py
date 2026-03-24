@@ -3585,6 +3585,373 @@ async def imagine_delete_image(filename: str):
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
+# ─── Preparar Pendrive (USB Drive Clone) ─────────────────────────────────────
+
+# Track active pendrive preparation
+_pendrive_progress = {"active": False, "step": "", "percent": 0, "error": None, "done": False, "log": []}
+
+
+def _get_dir_size(path: Path) -> int:
+    """Get total size of a directory in bytes."""
+    total = 0
+    try:
+        for f in path.rglob("*"):
+            if f.is_file():
+                total += f.stat().st_size
+    except Exception:
+        pass
+    return total
+
+
+def _format_size(b: int) -> str:
+    if b < 1024:
+        return f"{b} B"
+    elif b < 1024**2:
+        return f"{b/1024:.1f} KB"
+    elif b < 1024**3:
+        return f"{b/1024**2:.1f} MB"
+    else:
+        return f"{b/1024**3:.2f} GB"
+
+
+@app.get("/api/pendrive/drives")
+async def pendrive_list_drives():
+    """List available drives/mount points for USB preparation."""
+    drives = []
+    sys_platform = platform.system()
+    if sys_platform == "Windows":
+        # Use ctypes to get drive info on Windows
+        try:
+            import ctypes
+            bitmask = ctypes.windll.kernel32.GetLogicalDrives()
+            for letter_idx in range(26):
+                if bitmask & (1 << letter_idx):
+                    letter = chr(ord('A') + letter_idx)
+                    drive_path = f"{letter}:\\"
+                    drive_type = ctypes.windll.kernel32.GetDriveTypeW(drive_path)
+                    # 2=Removable, 3=Fixed, 4=Network, 5=CDROM, 6=RAMDisk
+                    if drive_type in (2, 3):
+                        try:
+                            usage = shutil.disk_usage(drive_path)
+                            # Get volume name
+                            vol_buf = ctypes.create_unicode_buffer(256)
+                            ctypes.windll.kernel32.GetVolumeInformationW(
+                                drive_path, vol_buf, 256, None, None, None, None, 0
+                            )
+                            drives.append({
+                                "path": drive_path,
+                                "letter": letter,
+                                "label": vol_buf.value or "",
+                                "type": "removable" if drive_type == 2 else "fixed",
+                                "total": usage.total,
+                                "free": usage.free,
+                                "total_fmt": _format_size(usage.total),
+                                "free_fmt": _format_size(usage.free),
+                            })
+                        except Exception:
+                            pass
+        except Exception as e:
+            return {"drives": [], "error": str(e)}
+    elif sys_platform == "Darwin":
+        # macOS: look in /Volumes
+        volumes = Path("/Volumes")
+        if volumes.exists():
+            for vol in sorted(volumes.iterdir()):
+                try:
+                    usage = shutil.disk_usage(str(vol))
+                    drives.append({
+                        "path": str(vol),
+                        "letter": "",
+                        "label": vol.name,
+                        "type": "volume",
+                        "total": usage.total,
+                        "free": usage.free,
+                        "total_fmt": _format_size(usage.total),
+                        "free_fmt": _format_size(usage.free),
+                    })
+                except Exception:
+                    pass
+    else:
+        # Linux: look in /media and /mnt
+        for base in [Path("/media"), Path("/mnt")]:
+            if base.exists():
+                for vol in sorted(base.iterdir()):
+                    try:
+                        usage = shutil.disk_usage(str(vol))
+                        drives.append({
+                            "path": str(vol),
+                            "letter": "",
+                            "label": vol.name,
+                            "type": "mount",
+                            "total": usage.total,
+                            "free": usage.free,
+                            "total_fmt": _format_size(usage.total),
+                            "free_fmt": _format_size(usage.free),
+                        })
+                    except Exception:
+                        pass
+    return {"drives": drives, "platform": sys_platform}
+
+
+@app.get("/api/pendrive/estimate")
+async def pendrive_estimate(
+    include_models: bool = True,
+    include_data: bool = True,
+    include_tts: bool = True,
+    include_zim: bool = False,
+    include_sd: bool = False,
+    include_books: bool = True,
+):
+    """Estimate the total size for a pendrive clone."""
+    items = []
+    # Core code (always)
+    core_size = 0
+    for f in ["server.py", "requirements.txt", "start.bat", "start.sh", "LEIA-ME.txt"]:
+        p = Path(f)
+        if p.exists():
+            core_size += p.stat().st_size
+    static_size = _get_dir_size(Path("static"))
+    items.append({"id": "core", "name": "Codigo + Frontend", "size": core_size + static_size, "size_fmt": _format_size(core_size + static_size), "required": True})
+
+    # Launchers
+    for f in ["INICIAR.bat", "INICIAR.command"]:
+        p = Path(f)
+        if p.exists():
+            core_size += p.stat().st_size
+
+    # Tools (llama-server, sd-server, etc.)
+    tools_size = _get_dir_size(Path("tools"))
+    if tools_size > 0:
+        items.append({"id": "tools", "name": "Ferramentas (llama-server, etc.)", "size": tools_size, "size_fmt": _format_size(tools_size), "required": True})
+
+    # Models
+    if include_models:
+        models_size = _get_dir_size(Path("models"))
+        if models_size > 0:
+            items.append({"id": "models", "name": "Modelos IA (LLM)", "size": models_size, "size_fmt": _format_size(models_size), "required": False})
+
+    # Data (guides, protocols, games)
+    if include_data:
+        data_size = 0
+        for sub in ["guides", "protocols", "games"]:
+            data_size += _get_dir_size(Path("data") / sub)
+        data_size += _get_dir_size(Path("data") / "db")
+        if data_size > 0:
+            items.append({"id": "data", "name": "Guias, Protocolos, Jogos", "size": data_size, "size_fmt": _format_size(data_size), "required": False})
+
+    # Books
+    if include_books:
+        books_size = _get_dir_size(Path("data") / "books")
+        if books_size > 0:
+            items.append({"id": "books", "name": "Biblioteca (ePub)", "size": books_size, "size_fmt": _format_size(books_size), "required": False})
+
+    # TTS
+    if include_tts:
+        tts_size = _get_dir_size(Path("kokoro_models"))
+        voice_size = _get_dir_size(Path("voice_models"))
+        total_tts = tts_size + voice_size
+        if total_tts > 0:
+            items.append({"id": "tts", "name": "Vozes TTS (Kokoro)", "size": total_tts, "size_fmt": _format_size(total_tts), "required": False})
+
+    # Wikipedia ZIM
+    if include_zim:
+        zim_size = _get_dir_size(Path("data") / "zim")
+        if zim_size > 0:
+            items.append({"id": "zim", "name": "Wikipedia Offline (ZIM)", "size": zim_size, "size_fmt": _format_size(zim_size), "required": False})
+
+    # Stable Diffusion models
+    if include_sd:
+        sd_size = _get_dir_size(Path("sd_models"))
+        if sd_size > 0:
+            items.append({"id": "sd", "name": "Modelos Imagem (SD)", "size": sd_size, "size_fmt": _format_size(sd_size), "required": False})
+
+    total = sum(it["size"] for it in items)
+    return {"items": items, "total": total, "total_fmt": _format_size(total)}
+
+
+def _copy_tree_progress(src: Path, dst: Path, label: str, progress_base: int, progress_span: int):
+    """Copy directory tree with progress tracking."""
+    global _pendrive_progress
+    if not src.exists():
+        return
+    files = [f for f in src.rglob("*") if f.is_file()]
+    total_files = len(files)
+    for i, f in enumerate(files):
+        if _pendrive_progress.get("cancel"):
+            raise Exception("Cancelado pelo usuario")
+        rel = f.relative_to(src)
+        dest = dst / rel
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(str(f), str(dest))
+        pct = progress_base + int((i + 1) / max(total_files, 1) * progress_span)
+        _pendrive_progress["percent"] = min(pct, progress_base + progress_span)
+        _pendrive_progress["step"] = f"{label}: {i+1}/{total_files}"
+
+
+def _run_pendrive_prepare(dest_path: str, options: dict):
+    """Background task to prepare pendrive."""
+    global _pendrive_progress
+    _pendrive_progress = {"active": True, "step": "Iniciando...", "percent": 0, "error": None, "done": False, "log": [], "cancel": False}
+
+    try:
+        dest = Path(dest_path) / "BunkerAI"
+        app_dir = dest / "app"
+        app_dir.mkdir(parents=True, exist_ok=True)
+
+        # Step 1: Core code (0-15%)
+        _pendrive_progress["step"] = "Copiando codigo..."
+        _pendrive_progress["log"].append("[1] Copiando codigo e frontend...")
+        for f in ["server.py", "requirements.txt", "start.bat", "start.sh"]:
+            src = Path(f)
+            if src.exists():
+                shutil.copy2(str(src), str(app_dir / f))
+        # Launchers to root
+        for f in ["INICIAR.bat", "INICIAR.command", "LEIA-ME.txt"]:
+            src = Path(f)
+            if src.exists():
+                shutil.copy2(str(src), str(dest / f))
+        _pendrive_progress["percent"] = 5
+
+        # Static files
+        _copy_tree_progress(Path("static"), app_dir / "static", "Frontend", 5, 10)
+        _pendrive_progress["log"].append("  [OK] Frontend copiado")
+
+        # Step 2: Tools (15-20%)
+        _copy_tree_progress(Path("tools"), app_dir / "tools", "Ferramentas", 15, 5)
+        _pendrive_progress["log"].append("  [OK] Ferramentas copiadas")
+
+        # Step 3: Data (20-30%)
+        if options.get("include_data", True):
+            _pendrive_progress["step"] = "Copiando dados..."
+            _pendrive_progress["log"].append("[2] Copiando guias, protocolos, jogos...")
+            for sub in ["guides", "protocols", "games", "db"]:
+                _copy_tree_progress(Path("data") / sub, app_dir / "data" / sub, f"Dados/{sub}", 20, 2)
+            _pendrive_progress["log"].append("  [OK] Dados copiados")
+
+        # Step 4: Books (30-35%)
+        if options.get("include_books", True):
+            _pendrive_progress["step"] = "Copiando livros..."
+            _pendrive_progress["log"].append("[3] Copiando biblioteca...")
+            _copy_tree_progress(Path("data") / "books", app_dir / "data" / "books", "Livros", 30, 5)
+            _pendrive_progress["log"].append("  [OK] Livros copiados")
+
+        # Step 5: Models (35-70%)
+        if options.get("include_models", True):
+            _pendrive_progress["step"] = "Copiando modelos IA..."
+            _pendrive_progress["log"].append("[4] Copiando modelos de IA (pode demorar)...")
+            _copy_tree_progress(Path("models"), app_dir / "models", "Modelos IA", 35, 35)
+            _pendrive_progress["log"].append("  [OK] Modelos copiados")
+
+        # Step 6: TTS (70-80%)
+        if options.get("include_tts", True):
+            _pendrive_progress["step"] = "Copiando vozes TTS..."
+            _pendrive_progress["log"].append("[5] Copiando vozes TTS...")
+            _copy_tree_progress(Path("kokoro_models"), app_dir / "kokoro_models", "Kokoro TTS", 70, 5)
+            _copy_tree_progress(Path("voice_models"), app_dir / "voice_models", "Voice Models", 75, 5)
+            _pendrive_progress["log"].append("  [OK] Vozes copiadas")
+
+        # Step 7: Wikipedia ZIM (80-90%)
+        if options.get("include_zim", False):
+            _pendrive_progress["step"] = "Copiando Wikipedia offline..."
+            _pendrive_progress["log"].append("[6] Copiando Wikipedia ZIM (grande)...")
+            _copy_tree_progress(Path("data") / "zim", app_dir / "data" / "zim", "Wikipedia", 80, 10)
+            # Also copy kiwix-serve
+            kiwix = Path("tools") / "kiwix-serve.exe"
+            if kiwix.exists():
+                (app_dir / "tools").mkdir(parents=True, exist_ok=True)
+                shutil.copy2(str(kiwix), str(app_dir / "tools" / "kiwix-serve.exe"))
+            _pendrive_progress["log"].append("  [OK] Wikipedia copiada")
+
+        # Step 8: SD models (90-95%)
+        if options.get("include_sd", False):
+            _pendrive_progress["step"] = "Copiando modelos de imagem..."
+            _pendrive_progress["log"].append("[7] Copiando modelos Stable Diffusion...")
+            _copy_tree_progress(Path("sd_models"), app_dir / "sd_models", "SD Models", 90, 5)
+            _pendrive_progress["log"].append("  [OK] Modelos SD copiados")
+
+        # Step 9: Verify (95-100%)
+        _pendrive_progress["step"] = "Verificando..."
+        _pendrive_progress["percent"] = 95
+        _pendrive_progress["log"].append("[*] Verificando integridade...")
+
+        checks = [
+            (dest / "INICIAR.bat", "INICIAR.bat"),
+            (app_dir / "server.py", "server.py"),
+            (app_dir / "static" / "index.html", "Frontend"),
+        ]
+        all_ok = True
+        for check_path, check_name in checks:
+            if check_path.exists():
+                _pendrive_progress["log"].append(f"  [OK] {check_name}")
+            else:
+                _pendrive_progress["log"].append(f"  [X] {check_name} FALTANDO")
+                all_ok = False
+
+        # Calculate final size
+        final_size = _get_dir_size(dest)
+        _pendrive_progress["percent"] = 100
+        _pendrive_progress["step"] = "Concluido!" if all_ok else "Concluido com avisos"
+        _pendrive_progress["done"] = True
+        _pendrive_progress["final_size"] = _format_size(final_size)
+        _pendrive_progress["dest"] = str(dest)
+        _pendrive_progress["log"].append("")
+        _pendrive_progress["log"].append(f"=== PENDRIVE PRONTO! ({_format_size(final_size)}) ===")
+        _pendrive_progress["log"].append(f"Destino: {dest}")
+
+    except Exception as e:
+        _pendrive_progress["error"] = str(e)
+        _pendrive_progress["step"] = f"Erro: {e}"
+        _pendrive_progress["log"].append(f"[ERRO] {e}")
+        _pendrive_progress["done"] = True
+
+
+@app.post("/api/pendrive/prepare")
+async def pendrive_prepare(request: Request, background_tasks: BackgroundTasks):
+    """Start USB drive preparation in background."""
+    global _pendrive_progress
+    if _pendrive_progress.get("active") and not _pendrive_progress.get("done"):
+        return JSONResponse({"error": "Preparacao ja em andamento"}, status_code=409)
+    body = await request.json()
+    dest_path = body.get("dest_path", "")
+    if not dest_path or not Path(dest_path).exists():
+        return JSONResponse({"error": "Caminho invalido"}, status_code=400)
+    # Check free space
+    try:
+        usage = shutil.disk_usage(dest_path)
+        if usage.free < 500 * 1024 * 1024:  # Minimum 500MB
+            return JSONResponse({"error": "Espaco insuficiente (minimo 500MB)"}, status_code=400)
+    except Exception:
+        pass
+    options = {
+        "include_models": body.get("include_models", True),
+        "include_data": body.get("include_data", True),
+        "include_tts": body.get("include_tts", True),
+        "include_zim": body.get("include_zim", False),
+        "include_sd": body.get("include_sd", False),
+        "include_books": body.get("include_books", True),
+    }
+    import threading
+    t = threading.Thread(target=_run_pendrive_prepare, args=(dest_path, options), daemon=True)
+    t.start()
+    return {"status": "started", "dest": str(Path(dest_path) / "BunkerAI")}
+
+
+@app.get("/api/pendrive/progress")
+async def pendrive_progress():
+    """Get current pendrive preparation progress."""
+    return _pendrive_progress
+
+
+@app.post("/api/pendrive/cancel")
+async def pendrive_cancel():
+    """Cancel an active pendrive preparation."""
+    global _pendrive_progress
+    if _pendrive_progress.get("active") and not _pendrive_progress.get("done"):
+        _pendrive_progress["cancel"] = True
+        return {"status": "cancelling"}
+    return {"status": "not_active"}
+
+
 # ─── Static (with no-cache for JS/CSS to avoid stale code) ──────────────────
 
 from starlette.middleware.base import BaseHTTPMiddleware
