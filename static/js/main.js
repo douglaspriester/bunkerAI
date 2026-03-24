@@ -201,6 +201,7 @@ function wireAppCallbacks() {
     weather:    () => window.weatherInit?.(),
     pendrive:   () => window.pendriveInit?.(),
     firstaid:   () => window.firstaidInit?.(),
+    crypto:     () => window.cryptoInit?.(),
   };
   Object.entries(openMap).forEach(([appId, fn]) => registerAppOpen(appId, fn));
 

@@ -1901,6 +1901,242 @@ Responda no idioma do usuario. Use markdown.</textarea>
       </div>
     </div>
 
+    <!-- Crypto / Encryption View -->
+    <div class="panel-view hidden" id="cryptoView">
+      <div class="crypto-app" id="cryptoApp">
+        <!-- Header -->
+        <div class="crypto-header">
+          <div class="crypto-hero">
+            <div class="crypto-hero-icon">
+              <svg width="44" height="44" viewBox="0 0 48 48" fill="none">
+                <rect x="4" y="4" width="40" height="40" rx="8" stroke="#00e5ff" stroke-width="2" fill="rgba(0,229,255,0.08)"/>
+                <rect x="14" y="20" width="20" height="16" rx="3" stroke="#00e5ff" stroke-width="2" fill="none"/>
+                <path d="M18 20v-4a6 6 0 0112 0v4" stroke="#00e5ff" stroke-width="2" fill="none" stroke-linecap="round"/>
+                <circle cx="24" cy="29" r="2.5" fill="#00e5ff"/>
+                <line x1="24" y1="31.5" x2="24" y2="34" stroke="#00e5ff" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div>
+              <h2 class="crypto-title">Criptografia</h2>
+              <p class="crypto-subtitle">Cifrar e decifrar mensagens. 100% offline, sem rastros.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Method tabs -->
+        <div class="crypto-tabs" id="cryptoTabs">
+          <button class="crypto-tab active" data-method="aes" onclick="cryptoSwitchTab('aes')">AES-256</button>
+          <button class="crypto-tab" data-method="caesar" onclick="cryptoSwitchTab('caesar')">Caesar</button>
+          <button class="crypto-tab" data-method="vigenere" onclick="cryptoSwitchTab('vigenere')">Vigen&egrave;re</button>
+          <button class="crypto-tab" data-method="otp" onclick="cryptoSwitchTab('otp')">One-Time Pad</button>
+          <button class="crypto-tab" data-method="hash" onclick="cryptoSwitchTab('hash')">Hash SHA</button>
+          <button class="crypto-tab" data-method="base64" onclick="cryptoSwitchTab('base64')">Base64</button>
+        </div>
+
+        <!-- Content area -->
+        <div class="crypto-body" id="cryptoBody">
+
+          <!-- ── AES-256 Panel ── -->
+          <div class="crypto-panel" id="cryptoPanel-aes">
+            <div class="crypto-info-badge">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              Criptografia militar AES-256-GCM. Usa Web Crypto API nativa do navegador.
+            </div>
+            <div class="crypto-field-group">
+              <label class="crypto-label">Senha / Chave</label>
+              <div class="crypto-input-row">
+                <input type="password" id="cryptoAesKey" class="crypto-input" placeholder="Senha forte..." autocomplete="off"/>
+                <button class="crypto-btn-icon" onclick="cryptoTogglePassword('cryptoAesKey')" title="Mostrar/ocultar">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+                <button class="crypto-btn-sm" onclick="cryptoGenPassword()" title="Gerar senha forte">Gerar</button>
+              </div>
+              <div class="crypto-strength-bar" id="cryptoStrengthBar"><div class="crypto-strength-fill" id="cryptoStrengthFill"></div></div>
+              <span class="crypto-strength-label" id="cryptoStrengthLabel"></span>
+            </div>
+            <div class="crypto-field-group">
+              <label class="crypto-label">Mensagem</label>
+              <textarea id="cryptoAesInput" class="crypto-textarea" rows="4" placeholder="Texto para cifrar ou decifrar..."></textarea>
+            </div>
+            <div class="crypto-actions">
+              <button class="crypto-btn crypto-btn-encrypt" onclick="cryptoAesEncrypt()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                Cifrar
+              </button>
+              <button class="crypto-btn crypto-btn-decrypt" onclick="cryptoAesDecrypt()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 019.9-1"/></svg>
+                Decifrar
+              </button>
+            </div>
+            <div class="crypto-field-group">
+              <label class="crypto-label">Resultado</label>
+              <textarea id="cryptoAesOutput" class="crypto-textarea crypto-output" rows="4" readonly placeholder="Resultado aparece aqui..."></textarea>
+              <div class="crypto-output-actions">
+                <button class="crypto-btn-sm" onclick="cryptoCopy('cryptoAesOutput')">Copiar</button>
+                <button class="crypto-btn-sm" onclick="cryptoSwap('cryptoAesInput','cryptoAesOutput')">Usar como entrada</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Caesar Panel ── -->
+          <div class="crypto-panel hidden" id="cryptoPanel-caesar">
+            <div class="crypto-info-badge">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+              Cifra de Cesar — desloca cada letra por N posicoes. Simples mas util para codigos rapidos.
+            </div>
+            <div class="crypto-field-group">
+              <label class="crypto-label">Deslocamento (1-25)</label>
+              <div class="crypto-input-row">
+                <input type="number" id="cryptoCaesarShift" class="crypto-input crypto-input-short" value="13" min="1" max="25"/>
+                <button class="crypto-btn-sm" onclick="document.getElementById('cryptoCaesarShift').value=13">ROT13</button>
+              </div>
+            </div>
+            <div class="crypto-field-group">
+              <label class="crypto-label">Mensagem</label>
+              <textarea id="cryptoCaesarInput" class="crypto-textarea" rows="4" placeholder="Texto para cifrar..."></textarea>
+            </div>
+            <div class="crypto-actions">
+              <button class="crypto-btn crypto-btn-encrypt" onclick="cryptoCaesarRun(1)">Cifrar</button>
+              <button class="crypto-btn crypto-btn-decrypt" onclick="cryptoCaesarRun(-1)">Decifrar</button>
+              <button class="crypto-btn" onclick="cryptoCaesarBrute()">Forca Bruta (todas as chaves)</button>
+            </div>
+            <div class="crypto-field-group">
+              <label class="crypto-label">Resultado</label>
+              <div id="cryptoCaesarOutput" class="crypto-textarea crypto-output crypto-brute-output"></div>
+              <div class="crypto-output-actions">
+                <button class="crypto-btn-sm" onclick="cryptoCopy('cryptoCaesarOutput')">Copiar</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Vigenere Panel ── -->
+          <div class="crypto-panel hidden" id="cryptoPanel-vigenere">
+            <div class="crypto-info-badge">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+              Cifra polialfabetica — usa uma palavra-chave para variar o deslocamento de cada letra.
+            </div>
+            <div class="crypto-field-group">
+              <label class="crypto-label">Palavra-chave</label>
+              <input type="text" id="cryptoVigKey" class="crypto-input" placeholder="Ex: BUNKER" autocomplete="off"/>
+            </div>
+            <div class="crypto-field-group">
+              <label class="crypto-label">Mensagem</label>
+              <textarea id="cryptoVigInput" class="crypto-textarea" rows="4" placeholder="Texto para cifrar..."></textarea>
+            </div>
+            <div class="crypto-actions">
+              <button class="crypto-btn crypto-btn-encrypt" onclick="cryptoVigenereRun('encrypt')">Cifrar</button>
+              <button class="crypto-btn crypto-btn-decrypt" onclick="cryptoVigenereRun('decrypt')">Decifrar</button>
+            </div>
+            <div class="crypto-field-group">
+              <label class="crypto-label">Resultado</label>
+              <textarea id="cryptoVigOutput" class="crypto-textarea crypto-output" rows="4" readonly></textarea>
+              <div class="crypto-output-actions">
+                <button class="crypto-btn-sm" onclick="cryptoCopy('cryptoVigOutput')">Copiar</button>
+                <button class="crypto-btn-sm" onclick="cryptoSwap('cryptoVigInput','cryptoVigOutput')">Usar como entrada</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── One-Time Pad Panel ── -->
+          <div class="crypto-panel hidden" id="cryptoPanel-otp">
+            <div class="crypto-info-badge crypto-info-gold">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              Teoricamente inquebravel se a chave for verdadeiramente aleatoria, usada UMA UNICA vez, e tao longa quanto a mensagem.
+            </div>
+            <div class="crypto-field-group">
+              <label class="crypto-label">Mensagem</label>
+              <textarea id="cryptoOtpInput" class="crypto-textarea" rows="3" placeholder="Texto para cifrar..." oninput="cryptoOtpAutoKey()"></textarea>
+            </div>
+            <div class="crypto-field-group">
+              <label class="crypto-label">Chave (mesmo tamanho da mensagem)</label>
+              <div class="crypto-input-row">
+                <textarea id="cryptoOtpKey" class="crypto-textarea" rows="2" placeholder="Chave aleatoria..."></textarea>
+                <button class="crypto-btn-sm" onclick="cryptoOtpGenKey()" title="Gerar chave aleatoria" style="align-self:flex-start;margin-top:4px">Gerar</button>
+              </div>
+            </div>
+            <div class="crypto-actions">
+              <button class="crypto-btn crypto-btn-encrypt" onclick="cryptoOtpRun('encrypt')">Cifrar</button>
+              <button class="crypto-btn crypto-btn-decrypt" onclick="cryptoOtpRun('decrypt')">Decifrar</button>
+            </div>
+            <div class="crypto-field-group">
+              <label class="crypto-label">Resultado (hex)</label>
+              <textarea id="cryptoOtpOutput" class="crypto-textarea crypto-output" rows="3" readonly></textarea>
+              <div class="crypto-output-actions">
+                <button class="crypto-btn-sm" onclick="cryptoCopy('cryptoOtpOutput')">Copiar</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Hash SHA Panel ── -->
+          <div class="crypto-panel hidden" id="cryptoPanel-hash">
+            <div class="crypto-info-badge">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+              Hash criptografico — gera impressao digital unica. Use para verificar integridade de mensagens.
+            </div>
+            <div class="crypto-field-group">
+              <label class="crypto-label">Algoritmo</label>
+              <div class="crypto-hash-algos">
+                <button class="crypto-tab active" data-algo="SHA-256" onclick="cryptoHashAlgo(this,'SHA-256')">SHA-256</button>
+                <button class="crypto-tab" data-algo="SHA-384" onclick="cryptoHashAlgo(this,'SHA-384')">SHA-384</button>
+                <button class="crypto-tab" data-algo="SHA-512" onclick="cryptoHashAlgo(this,'SHA-512')">SHA-512</button>
+              </div>
+            </div>
+            <div class="crypto-field-group">
+              <label class="crypto-label">Texto para gerar hash</label>
+              <textarea id="cryptoHashInput" class="crypto-textarea" rows="4" placeholder="Texto para calcular hash..."></textarea>
+            </div>
+            <div class="crypto-actions">
+              <button class="crypto-btn crypto-btn-encrypt" onclick="cryptoHashRun()">Calcular Hash</button>
+            </div>
+            <div class="crypto-field-group">
+              <label class="crypto-label">Hash</label>
+              <textarea id="cryptoHashOutput" class="crypto-textarea crypto-output crypto-hash-result" rows="2" readonly></textarea>
+              <div class="crypto-output-actions">
+                <button class="crypto-btn-sm" onclick="cryptoCopy('cryptoHashOutput')">Copiar</button>
+              </div>
+            </div>
+            <div class="crypto-field-group">
+              <label class="crypto-label">Verificar — cole o hash esperado</label>
+              <div class="crypto-input-row">
+                <input type="text" id="cryptoHashCompare" class="crypto-input" placeholder="Hash para comparar..." oninput="cryptoHashVerify()"/>
+                <span class="crypto-hash-match" id="cryptoHashMatch"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Base64 Panel ── -->
+          <div class="crypto-panel hidden" id="cryptoPanel-base64">
+            <div class="crypto-info-badge">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+              Codificacao Base64 — nao e criptografia, mas util para transportar dados binarios em texto.
+            </div>
+            <div class="crypto-field-group">
+              <label class="crypto-label">Texto</label>
+              <textarea id="cryptoB64Input" class="crypto-textarea" rows="4" placeholder="Texto para codificar/decodificar..."></textarea>
+            </div>
+            <div class="crypto-actions">
+              <button class="crypto-btn crypto-btn-encrypt" onclick="cryptoB64Run('encode')">Codificar</button>
+              <button class="crypto-btn crypto-btn-decrypt" onclick="cryptoB64Run('decode')">Decodificar</button>
+            </div>
+            <div class="crypto-field-group">
+              <label class="crypto-label">Resultado</label>
+              <textarea id="cryptoB64Output" class="crypto-textarea crypto-output" rows="4" readonly></textarea>
+              <div class="crypto-output-actions">
+                <button class="crypto-btn-sm" onclick="cryptoCopy('cryptoB64Output')">Copiar</button>
+                <button class="crypto-btn-sm" onclick="cryptoSwap('cryptoB64Input','cryptoB64Output')">Usar como entrada</button>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /crypto-body -->
+
+        <!-- Status bar -->
+        <div class="crypto-statusbar" id="cryptoStatusbar">
+          <span id="cryptoStatus">Pronto</span>
+        </div>
+      </div>
+    </div>
+
   </main>
 
   </div><!-- /desktop -->

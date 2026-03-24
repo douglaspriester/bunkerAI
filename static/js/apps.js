@@ -8236,3 +8236,388 @@ window.firstaidCprShow = firstaidCprShow;
 window.firstaidCprClose = firstaidCprClose;
 window.firstaidCprToggle = firstaidCprToggle;
 window.firstaidCprReset = firstaidCprReset;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ██████  Crypto App — Criptografia Offline  ██████
+// ═══════════════════════════════════════════════════════════════════════════════
+
+let _cryptoHashAlgo = 'SHA-256';
+
+function cryptoInit() {
+  // Attach password strength listener
+  const keyInput = document.getElementById('cryptoAesKey');
+  if (keyInput) keyInput.addEventListener('input', () => cryptoUpdateStrength(keyInput.value));
+  cryptoSetStatus('Pronto — todos os metodos funcionam 100% offline');
+}
+
+// ── Tab switching ──
+function cryptoSwitchTab(method) {
+  document.querySelectorAll('#cryptoTabs .crypto-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.method === method);
+  });
+  document.querySelectorAll('.crypto-panel').forEach(p => p.classList.add('hidden'));
+  const panel = document.getElementById('cryptoPanel-' + method);
+  if (panel) panel.classList.remove('hidden');
+}
+
+// ── Status bar ──
+function cryptoSetStatus(msg) {
+  const el = document.getElementById('cryptoStatus');
+  if (el) el.textContent = msg;
+}
+
+// ── Utility: copy to clipboard ──
+function cryptoCopy(elId) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  const text = el.value !== undefined ? el.value : el.textContent;
+  if (!text) { cryptoSetStatus('Nada para copiar'); return; }
+  navigator.clipboard.writeText(text).then(
+    () => cryptoSetStatus('Copiado para area de transferencia'),
+    () => {
+      // Fallback for insecure context
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); cryptoSetStatus('Copiado!'); }
+      catch { cryptoSetStatus('Erro ao copiar'); }
+      document.body.removeChild(ta);
+    }
+  );
+}
+
+// ── Swap output -> input ──
+function cryptoSwap(inputId, outputId) {
+  const inp = document.getElementById(inputId);
+  const out = document.getElementById(outputId);
+  if (inp && out) {
+    inp.value = out.value || out.textContent || '';
+    out.value = '';
+    cryptoSetStatus('Resultado movido para entrada');
+  }
+}
+
+// ── Toggle password visibility ──
+function cryptoTogglePassword(elId) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.type = el.type === 'password' ? 'text' : 'password';
+}
+
+// ── Password strength indicator ──
+function cryptoUpdateStrength(pwd) {
+  const fill = document.getElementById('cryptoStrengthFill');
+  const label = document.getElementById('cryptoStrengthLabel');
+  if (!fill || !label) return;
+  let score = 0;
+  if (pwd.length >= 8) score++;
+  if (pwd.length >= 12) score++;
+  if (pwd.length >= 16) score++;
+  if (/[a-z]/.test(pwd) && /[A-Z]/.test(pwd)) score++;
+  if (/\d/.test(pwd)) score++;
+  if (/[^a-zA-Z0-9]/.test(pwd)) score++;
+  const pct = Math.min(100, (score / 6) * 100);
+  const colors = ['#ff1a47', '#ff1a47', '#ff8c00', '#ff8c00', '#ffc800', '#39ff14', '#39ff14'];
+  const labels = ['', 'Muito fraca', 'Fraca', 'Razoavel', 'Boa', 'Forte', 'Excelente'];
+  fill.style.width = pct + '%';
+  fill.style.background = colors[score] || '#ff1a47';
+  label.textContent = pwd ? labels[score] || '' : '';
+  label.style.color = colors[score] || '';
+}
+
+// ── Generate strong password ──
+function cryptoGenPassword() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-_=+[]{}|;:,.<>?';
+  const arr = new Uint32Array(24);
+  crypto.getRandomValues(arr);
+  const pwd = Array.from(arr).map(v => chars[v % chars.length]).join('');
+  const el = document.getElementById('cryptoAesKey');
+  if (el) { el.value = pwd; el.type = 'text'; cryptoUpdateStrength(pwd); }
+  cryptoSetStatus('Senha de 24 caracteres gerada aleatoriamente');
+}
+
+// ═══════════════════════════════════════════════════
+// AES-256-GCM  (Web Crypto API)
+// ═══════════════════════════════════════════════════
+
+async function _cryptoDeriveKey(password, salt) {
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+function _bufToHex(buf) {
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function _hexToBuf(hex) {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < hex.length; i += 2) bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
+  return bytes;
+}
+
+async function cryptoAesEncrypt() {
+  const key = document.getElementById('cryptoAesKey')?.value;
+  const msg = document.getElementById('cryptoAesInput')?.value;
+  const out = document.getElementById('cryptoAesOutput');
+  if (!key) { cryptoSetStatus('Erro: insira uma senha'); return; }
+  if (!msg) { cryptoSetStatus('Erro: insira uma mensagem'); return; }
+  try {
+    cryptoSetStatus('Cifrando com AES-256-GCM...');
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const aesKey = await _cryptoDeriveKey(key, salt);
+    const enc = new TextEncoder();
+    const cipherBuf = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, aesKey, enc.encode(msg));
+    // Format: salt(32hex) + iv(24hex) + ciphertext(hex)
+    const result = _bufToHex(salt) + _bufToHex(iv) + _bufToHex(cipherBuf);
+    if (out) out.value = result;
+    cryptoSetStatus('Cifrado com sucesso — ' + result.length + ' caracteres hex');
+  } catch (e) {
+    cryptoSetStatus('Erro na cifragem: ' + e.message);
+  }
+}
+
+async function cryptoAesDecrypt() {
+  const key = document.getElementById('cryptoAesKey')?.value;
+  const msg = document.getElementById('cryptoAesInput')?.value?.trim();
+  const out = document.getElementById('cryptoAesOutput');
+  if (!key) { cryptoSetStatus('Erro: insira a senha'); return; }
+  if (!msg) { cryptoSetStatus('Erro: insira o texto cifrado'); return; }
+  try {
+    cryptoSetStatus('Decifrando...');
+    if (msg.length < 72 || !/^[0-9a-fA-F]+$/.test(msg)) {
+      cryptoSetStatus('Erro: texto cifrado invalido (deve ser hex)');
+      return;
+    }
+    const salt = _hexToBuf(msg.slice(0, 32));
+    const iv = _hexToBuf(msg.slice(32, 56));
+    const cipherBytes = _hexToBuf(msg.slice(56));
+    const aesKey = await _cryptoDeriveKey(key, salt);
+    const plainBuf = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, aesKey, cipherBytes);
+    const dec = new TextDecoder();
+    if (out) out.value = dec.decode(plainBuf);
+    cryptoSetStatus('Decifrado com sucesso');
+  } catch (e) {
+    cryptoSetStatus('Erro na decifragem — senha incorreta ou dados corrompidos');
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// Caesar Cipher
+// ═══════════════════════════════════════════════════
+
+function _caesarShift(text, shift) {
+  return text.split('').map(ch => {
+    const code = ch.charCodeAt(0);
+    if (code >= 65 && code <= 90) return String.fromCharCode(((code - 65 + shift + 26) % 26) + 65);
+    if (code >= 97 && code <= 122) return String.fromCharCode(((code - 97 + shift + 26) % 26) + 97);
+    return ch;
+  }).join('');
+}
+
+function cryptoCaesarRun(direction) {
+  const shift = parseInt(document.getElementById('cryptoCaesarShift')?.value) || 13;
+  const msg = document.getElementById('cryptoCaesarInput')?.value;
+  const out = document.getElementById('cryptoCaesarOutput');
+  if (!msg) { cryptoSetStatus('Erro: insira uma mensagem'); return; }
+  const result = _caesarShift(msg, shift * direction);
+  if (out) { out.textContent = result; }
+  cryptoSetStatus('Caesar ' + (direction > 0 ? 'cifrado' : 'decifrado') + ' com deslocamento ' + shift);
+}
+
+function cryptoCaesarBrute() {
+  const msg = document.getElementById('cryptoCaesarInput')?.value;
+  const out = document.getElementById('cryptoCaesarOutput');
+  if (!msg) { cryptoSetStatus('Erro: insira o texto cifrado'); return; }
+  let lines = [];
+  for (let s = 1; s <= 25; s++) {
+    lines.push('ROT-' + String(s).padStart(2, '0') + ': ' + _caesarShift(msg, -s));
+  }
+  if (out) out.textContent = lines.join('\n');
+  cryptoSetStatus('Forca bruta: 25 variantes geradas');
+}
+
+// ═══════════════════════════════════════════════════
+// Vigenere Cipher
+// ═══════════════════════════════════════════════════
+
+function cryptoVigenereRun(mode) {
+  const key = document.getElementById('cryptoVigKey')?.value?.toUpperCase().replace(/[^A-Z]/g, '');
+  const msg = document.getElementById('cryptoVigInput')?.value;
+  const out = document.getElementById('cryptoVigOutput');
+  if (!key) { cryptoSetStatus('Erro: insira uma palavra-chave (somente letras)'); return; }
+  if (!msg) { cryptoSetStatus('Erro: insira uma mensagem'); return; }
+
+  let result = '';
+  let ki = 0;
+  for (const ch of msg) {
+    const code = ch.charCodeAt(0);
+    const shift = key.charCodeAt(ki % key.length) - 65;
+    if (code >= 65 && code <= 90) {
+      result += String.fromCharCode(((code - 65 + (mode === 'encrypt' ? shift : 26 - shift)) % 26) + 65);
+      ki++;
+    } else if (code >= 97 && code <= 122) {
+      result += String.fromCharCode(((code - 97 + (mode === 'encrypt' ? shift : 26 - shift)) % 26) + 97);
+      ki++;
+    } else {
+      result += ch;
+    }
+  }
+  if (out) out.value = result;
+  cryptoSetStatus('Vigenere ' + (mode === 'encrypt' ? 'cifrado' : 'decifrado') + ' com chave "' + key + '"');
+}
+
+// ═══════════════════════════════════════════════════
+// One-Time Pad (XOR)
+// ═══════════════════════════════════════════════════
+
+function cryptoOtpGenKey() {
+  const msg = document.getElementById('cryptoOtpInput')?.value || '';
+  const len = Math.max(msg.length, 16);
+  const arr = new Uint8Array(len);
+  crypto.getRandomValues(arr);
+  const key = Array.from(arr).map(b => b.toString(16).padStart(2, '')).join('').slice(0, len * 2);
+  // Generate readable random chars
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const readable = Array.from(crypto.getRandomValues(new Uint8Array(len))).map(b => chars[b % chars.length]).join('');
+  const keyEl = document.getElementById('cryptoOtpKey');
+  if (keyEl) keyEl.value = readable;
+  cryptoSetStatus('Chave OTP gerada: ' + len + ' caracteres');
+}
+
+function cryptoOtpAutoKey() {
+  // No auto-gen, just update status
+}
+
+function cryptoOtpRun(mode) {
+  const msg = document.getElementById('cryptoOtpInput')?.value;
+  const key = document.getElementById('cryptoOtpKey')?.value;
+  const out = document.getElementById('cryptoOtpOutput');
+  if (!msg) { cryptoSetStatus('Erro: insira a mensagem'); return; }
+  if (!key) { cryptoSetStatus('Erro: insira ou gere uma chave'); return; }
+
+  if (mode === 'encrypt') {
+    // XOR each char with key char, output hex
+    let hex = '';
+    for (let i = 0; i < msg.length; i++) {
+      const mc = msg.charCodeAt(i);
+      const kc = key.charCodeAt(i % key.length);
+      hex += (mc ^ kc).toString(16).padStart(2, '0');
+    }
+    if (out) out.value = hex;
+    if (key.length < msg.length) {
+      cryptoSetStatus('AVISO: chave menor que mensagem — seguranca reduzida! Cifrado em hex.');
+    } else {
+      cryptoSetStatus('OTP cifrado — ' + hex.length / 2 + ' bytes. Guarde a chave com seguranca!');
+    }
+  } else {
+    // Decrypt: input is hex
+    const cleanMsg = msg.replace(/\s/g, '');
+    if (!/^[0-9a-fA-F]+$/.test(cleanMsg)) {
+      cryptoSetStatus('Erro: para decifrar, a entrada deve ser hex');
+      return;
+    }
+    let text = '';
+    for (let i = 0; i < cleanMsg.length; i += 2) {
+      const byte = parseInt(cleanMsg.substr(i, 2), 16);
+      const kc = key.charCodeAt((i / 2) % key.length);
+      text += String.fromCharCode(byte ^ kc);
+    }
+    if (out) out.value = text;
+    cryptoSetStatus('OTP decifrado — ' + text.length + ' caracteres');
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// SHA Hash (Web Crypto API)
+// ═══════════════════════════════════════════════════
+
+function cryptoHashAlgo(btn, algo) {
+  _cryptoHashAlgo = algo;
+  document.querySelectorAll('.crypto-hash-algos .crypto-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.algo === algo);
+  });
+}
+
+async function cryptoHashRun() {
+  const msg = document.getElementById('cryptoHashInput')?.value;
+  const out = document.getElementById('cryptoHashOutput');
+  if (!msg) { cryptoSetStatus('Erro: insira um texto'); return; }
+  try {
+    const enc = new TextEncoder();
+    const hashBuf = await crypto.subtle.digest(_cryptoHashAlgo, enc.encode(msg));
+    const hex = _bufToHex(hashBuf);
+    if (out) out.value = hex;
+    cryptoSetStatus(_cryptoHashAlgo + ': ' + hex.length + ' caracteres hex (' + (hex.length * 4) + ' bits)');
+    cryptoHashVerify();
+  } catch (e) {
+    cryptoSetStatus('Erro ao calcular hash: ' + e.message);
+  }
+}
+
+function cryptoHashVerify() {
+  const hash = document.getElementById('cryptoHashOutput')?.value?.trim().toLowerCase();
+  const compare = document.getElementById('cryptoHashCompare')?.value?.trim().toLowerCase();
+  const match = document.getElementById('cryptoHashMatch');
+  if (!match) return;
+  if (!hash || !compare) { match.textContent = ''; match.className = 'crypto-hash-match'; return; }
+  if (hash === compare) {
+    match.textContent = 'IDENTICO';
+    match.className = 'crypto-hash-match match';
+  } else {
+    match.textContent = 'DIFERENTE';
+    match.className = 'crypto-hash-match no-match';
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// Base64
+// ═══════════════════════════════════════════════════
+
+function cryptoB64Run(mode) {
+  const msg = document.getElementById('cryptoB64Input')?.value;
+  const out = document.getElementById('cryptoB64Output');
+  if (!msg) { cryptoSetStatus('Erro: insira um texto'); return; }
+  try {
+    if (mode === 'encode') {
+      // Handle Unicode properly
+      const encoded = btoa(unescape(encodeURIComponent(msg)));
+      if (out) out.value = encoded;
+      cryptoSetStatus('Base64 codificado — ' + encoded.length + ' caracteres');
+    } else {
+      const decoded = decodeURIComponent(escape(atob(msg.trim())));
+      if (out) out.value = decoded;
+      cryptoSetStatus('Base64 decodificado — ' + decoded.length + ' caracteres');
+    }
+  } catch (e) {
+    cryptoSetStatus('Erro: ' + (mode === 'decode' ? 'texto Base64 invalido' : e.message));
+  }
+}
+
+// ── Exports ──
+window.cryptoInit = cryptoInit;
+window.cryptoSwitchTab = cryptoSwitchTab;
+window.cryptoAesEncrypt = cryptoAesEncrypt;
+window.cryptoAesDecrypt = cryptoAesDecrypt;
+window.cryptoCaesarRun = cryptoCaesarRun;
+window.cryptoCaesarBrute = cryptoCaesarBrute;
+window.cryptoVigenereRun = cryptoVigenereRun;
+window.cryptoOtpGenKey = cryptoOtpGenKey;
+window.cryptoOtpAutoKey = cryptoOtpAutoKey;
+window.cryptoOtpRun = cryptoOtpRun;
+window.cryptoHashAlgo = cryptoHashAlgo;
+window.cryptoHashRun = cryptoHashRun;
+window.cryptoHashVerify = cryptoHashVerify;
+window.cryptoB64Run = cryptoB64Run;
+window.cryptoCopy = cryptoCopy;
+window.cryptoSwap = cryptoSwap;
+window.cryptoTogglePassword = cryptoTogglePassword;
+window.cryptoGenPassword = cryptoGenPassword;
+window.cryptoSetStatus = cryptoSetStatus;
