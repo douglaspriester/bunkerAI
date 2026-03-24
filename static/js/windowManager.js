@@ -390,6 +390,26 @@ function saveIconOrder() {
   try { localStorage.setItem('bunker_icon_order', JSON.stringify(order)); } catch {}
 }
 
+// Desktop-pinned apps (essentials only — rest accessible via Start Menu)
+const DESKTOP_APPS = [
+  'chat', 'map', 'wiki', 'guides', 'firstaid', 'supplies',
+  'weather', 'rations', 'plants', 'crypto', 'pendrive',
+  'notepad', 'calc', 'settings'
+];
+
+// Short names for desktop icons to avoid truncation
+const DESKTOP_SHORT_NAMES = {
+  'firstaid': 'Socorros',
+  'rations': 'Rações',
+  'plants': 'Plantas',
+  'weather': 'Clima',
+  'pendrive': 'Pendrive',
+  'supplies': 'Suprimentos',
+  'settings': 'Config',
+  'notepad': 'Notas',
+  'crypto': 'Cripto',
+};
+
 export function renderDesktopIcons() {
   const container = document.getElementById('desktopIcons');
   if (!container) return;
@@ -397,7 +417,7 @@ export function renderDesktopIcons() {
 
   // Get apps in saved order, with new apps appended at end
   const savedOrder = getIconOrder();
-  let visibleApps = OS_APPS.filter(a => !a.hidden);
+  let visibleApps = OS_APPS.filter(a => !a.hidden && DESKTOP_APPS.includes(a.id));
   if (savedOrder) {
     const ordered = [];
     const remaining = [...visibleApps];
@@ -409,13 +429,15 @@ export function renderDesktopIcons() {
   }
 
   for (const app of visibleApps) {
+    const shortName = DESKTOP_SHORT_NAMES[app.id] || app.name;
     const icon = document.createElement('div');
     icon.className = 'desktop-icon';
     icon.dataset.appId = app.id;
     icon.draggable = true;
+    icon.title = app.name; // Full name as tooltip
     icon.innerHTML = `
       <div class="desktop-icon-img">${app.icon}</div>
-      <div class="desktop-icon-label">${app.name}</div>
+      <div class="desktop-icon-label">${shortName}</div>
     `;
     icon.ondblclick = () => {
       icon.classList.add('opening');
