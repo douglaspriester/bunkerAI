@@ -1818,19 +1818,64 @@ Responda no idioma do usuario. Use markdown.</textarea>
     <!-- ═══ Unit Converter ═══ -->
     <div class="panel-view hidden" id="converterView">
       <div class="conv-body">
-        <div class="conv-category">
-          <select id="convCategory" class="conv-select" onchange="converterUpdateUnits()"></select>
+        <!-- Tab bar -->
+        <div class="conv-tab-bar">
+          <button class="conv-tab-btn active" data-tab="convert" onclick="converterSetTab('convert')">Conversor</button>
+          <button class="conv-tab-btn" data-tab="favorites" onclick="converterSetTab('favorites')">Favoritos</button>
+          <button class="conv-tab-btn" data-tab="reference" onclick="converterSetTab('reference')">Referencia</button>
         </div>
-        <div class="conv-row">
-          <input type="number" id="convInput" class="conv-input" value="1" oninput="converterCalc()">
-          <select id="convFrom" class="conv-select" onchange="converterCalc()"></select>
+
+        <!-- Panel: Convert -->
+        <div id="convPanelConvert">
+          <!-- Category pills -->
+          <div class="conv-cat-bar" id="convCatBar"></div>
+
+          <!-- FROM input -->
+          <div class="conv-field-group">
+            <label class="conv-field-label">De:</label>
+            <div class="conv-field-row">
+              <input type="number" id="convInputFrom" class="conv-input" value="1" oninput="converterCalc('from')" step="any">
+              <select id="convFrom" class="conv-select" onchange="converterCalc();converterUpdateFavStar()"></select>
+            </div>
+          </div>
+
+          <!-- Swap + Favorite -->
+          <div class="conv-actions">
+            <button class="conv-swap-btn" onclick="converterSwap()" title="Trocar unidades">&#8693;</button>
+            <button class="conv-fav-btn" id="convFavBtn" onclick="converterToggleFav()" title="Favoritar">&#9734;</button>
+          </div>
+
+          <!-- TO input -->
+          <div class="conv-field-group">
+            <label class="conv-field-label">Para:</label>
+            <div class="conv-field-row">
+              <input type="number" id="convInputTo" class="conv-input" oninput="converterCalc('to')" step="any">
+              <select id="convTo" class="conv-select" onchange="converterCalc();converterUpdateFavStar()"></select>
+            </div>
+          </div>
         </div>
-        <div class="conv-swap">
-          <button class="calc-btn calc-fn" onclick="converterSwap()" title="Trocar">⇅</button>
+
+        <!-- Panel: Favorites -->
+        <div id="convPanelFavorites" class="hidden">
+          <div class="conv-fav-list" id="convFavList"></div>
         </div>
-        <div class="conv-row">
-          <div class="conv-result" id="convResult">—</div>
-          <select id="convTo" class="conv-select" onchange="converterCalc()"></select>
+
+        <!-- Panel: Quick Reference -->
+        <div id="convPanelReference" class="hidden">
+          <div class="conv-ref-header">
+            <select class="conv-select conv-ref-filter" id="convRefFilter" onchange="converterRenderReference()">
+              <option value="">Todas categorias</option>
+              <option value="Temperatura">Temperatura</option>
+              <option value="Distancia">Distancia</option>
+              <option value="Peso">Peso</option>
+              <option value="Volume">Volume</option>
+              <option value="Velocidade">Velocidade</option>
+              <option value="Pressao">Pressao</option>
+              <option value="Area">Area</option>
+              <option value="Energia">Energia</option>
+            </select>
+          </div>
+          <div id="convRefTable"></div>
         </div>
       </div>
     </div>

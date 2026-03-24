@@ -4407,101 +4407,290 @@ function timerSwitchMode() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// UNIT CONVERTER APP
+// UNIT CONVERTER APP — Universal Survival Converter
 // ═══════════════════════════════════════════════════════════════════════════
 
 const CONV_CATEGORIES = {
   'Temperatura': {
-    units: ['°C', '°F', 'K'],
+    icon: '\u{1F321}',
+    units: ['\u00B0C', '\u00B0F', 'K'],
+    labels: { '\u00B0C': 'Celsius', '\u00B0F': 'Fahrenheit', 'K': 'Kelvin' },
     convert: (val, from, to) => {
-      // Convert to Celsius first
       let c;
-      if (from === '°C') c = val;
-      else if (from === '°F') c = (val - 32) * 5/9;
-      else c = val - 273.15; // K
-      // Convert from Celsius
-      if (to === '°C') return c;
-      if (to === '°F') return c * 9/5 + 32;
-      return c + 273.15; // K
+      if (from === '\u00B0C') c = val;
+      else if (from === '\u00B0F') c = (val - 32) * 5/9;
+      else c = val - 273.15;
+      if (to === '\u00B0C') return c;
+      if (to === '\u00B0F') return c * 9/5 + 32;
+      return c + 273.15;
     }
   },
   'Distancia': {
-    units: ['m', 'km', 'cm', 'mm', 'mi', 'yd', 'ft', 'in'],
-    // All relative to meters
-    factors: { m:1, km:1000, cm:0.01, mm:0.001, mi:1609.344, yd:0.9144, ft:0.3048, in:0.0254 }
+    icon: '\u{1F4CF}',
+    units: ['m', 'km', 'cm', 'mm', 'mi', 'yd', 'ft', 'in', 'nmi'],
+    labels: { m:'Metro', km:'Quilometro', cm:'Centimetro', mm:'Milimetro', mi:'Milha', yd:'Jarda', ft:'Pe', 'in':'Polegada', nmi:'Milha Nautica' },
+    factors: { m:1, km:1000, cm:0.01, mm:0.001, mi:1609.344, yd:0.9144, ft:0.3048, 'in':0.0254, nmi:1852 }
   },
   'Peso': {
-    units: ['kg', 'g', 'mg', 'lb', 'oz', 'ton'],
-    factors: { kg:1, g:0.001, mg:0.000001, lb:0.453592, oz:0.0283495, ton:1000 }
+    icon: '\u2696',
+    units: ['kg', 'g', 'mg', 'lb', 'oz', 'ton', 'st'],
+    labels: { kg:'Quilograma', g:'Grama', mg:'Miligrama', lb:'Libra', oz:'Onca', ton:'Tonelada', st:'Stone' },
+    factors: { kg:1, g:0.001, mg:0.000001, lb:0.453592, oz:0.0283495, ton:1000, st:6.35029 }
   },
   'Volume': {
-    units: ['L', 'mL', 'gal', 'qt', 'cup', 'm³'],
-    factors: { L:1, mL:0.001, gal:3.78541, qt:0.946353, cup:0.236588, 'm³':1000 }
+    icon: '\u{1F4A7}',
+    units: ['L', 'mL', 'gal', 'qt', 'pt', 'cup', 'fl oz', 'm\u00B3'],
+    labels: { L:'Litro', mL:'Mililitro', gal:'Galao (US)', qt:'Quarto', pt:'Pint', cup:'Xicara', 'fl oz':'Onca Fluida', 'm\u00B3':'Metro Cubico' },
+    factors: { L:1, mL:0.001, gal:3.78541, qt:0.946353, pt:0.473176, cup:0.236588, 'fl oz':0.0295735, 'm\u00B3':1000 }
   },
   'Velocidade': {
-    units: ['km/h', 'm/s', 'mph', 'knots'],
-    factors: { 'km/h':1, 'm/s':3.6, 'mph':1.60934, 'knots':1.852 }
+    icon: '\u{1F3CE}',
+    units: ['km/h', 'm/s', 'mph', 'knots', 'ft/s'],
+    labels: { 'km/h':'km por hora', 'm/s':'metros por seg', 'mph':'milhas por hora', 'knots':'Nos', 'ft/s':'pes por seg' },
+    factors: { 'km/h':1, 'm/s':3.6, 'mph':1.60934, 'knots':1.852, 'ft/s':1.09728 }
+  },
+  'Pressao': {
+    icon: '\u{1F4A8}',
+    units: ['atm', 'Pa', 'kPa', 'bar', 'psi', 'mmHg', 'inHg'],
+    labels: { atm:'Atmosfera', Pa:'Pascal', kPa:'Kilopascal', bar:'Bar', psi:'PSI', mmHg:'mmHg', inHg:'inHg' },
+    factors: { atm:1, Pa:0.00000986923, kPa:0.00986923, bar:0.986923, psi:0.068046, mmHg:0.00131579, inHg:0.0334211 }
+  },
+  'Area': {
+    icon: '\u2B1B',
+    units: ['m\u00B2', 'km\u00B2', 'ha', 'acre', 'ft\u00B2', 'yd\u00B2', 'mi\u00B2'],
+    labels: { 'm\u00B2':'Metro Quad.', 'km\u00B2':'Quilom. Quad.', ha:'Hectare', acre:'Acre', 'ft\u00B2':'Pe Quad.', 'yd\u00B2':'Jarda Quad.', 'mi\u00B2':'Milha Quad.' },
+    factors: { 'm\u00B2':1, 'km\u00B2':1000000, ha:10000, acre:4046.86, 'ft\u00B2':0.092903, 'yd\u00B2':0.836127, 'mi\u00B2':2589988.11 }
+  },
+  'Energia': {
+    icon: '\u26A1',
+    units: ['J', 'kJ', 'cal', 'kcal', 'Wh', 'kWh', 'BTU'],
+    labels: { J:'Joule', kJ:'Kilojoule', cal:'Caloria', kcal:'Kilocaloria', Wh:'Watt-hora', kWh:'Kilowatt-hora', BTU:'BTU' },
+    factors: { J:1, kJ:1000, cal:4.184, kcal:4184, Wh:3600, kWh:3600000, BTU:1055.06 }
   }
 };
 
+// Quick reference table for survival conversions
+const CONV_QUICK_REF = [
+  { from: '1 mi',    to: '1.609 km',    cat: 'Distancia' },
+  { from: '1 ft',    to: '0.305 m',     cat: 'Distancia' },
+  { from: '1 in',    to: '2.54 cm',     cat: 'Distancia' },
+  { from: '1 yd',    to: '0.914 m',     cat: 'Distancia' },
+  { from: '32\u00B0F',  to: '0\u00B0C',       cat: 'Temperatura' },
+  { from: '212\u00B0F', to: '100\u00B0C',     cat: 'Temperatura' },
+  { from: '98.6\u00B0F',to: '37\u00B0C',      cat: 'Temperatura' },
+  { from: '1 gal',   to: '3.785 L',     cat: 'Volume' },
+  { from: '1 qt',    to: '0.946 L',     cat: 'Volume' },
+  { from: '1 cup',   to: '236.6 mL',    cat: 'Volume' },
+  { from: '1 lb',    to: '0.454 kg',    cat: 'Peso' },
+  { from: '1 oz',    to: '28.35 g',     cat: 'Peso' },
+  { from: '1 acre',  to: '0.405 ha',    cat: 'Area' },
+  { from: '1 psi',   to: '6.895 kPa',   cat: 'Pressao' },
+  { from: '1 mph',   to: '1.609 km/h',  cat: 'Velocidade' },
+  { from: '1 knot',  to: '1.852 km/h',  cat: 'Velocidade' },
+  { from: '1 kcal',  to: '4.184 kJ',    cat: 'Energia' },
+  { from: '1 kWh',   to: '3600 kJ',     cat: 'Energia' },
+];
+
 let _convCategory = 'Temperatura';
+let _convTab = 'convert'; // 'convert' | 'favorites' | 'reference'
+let _convFavorites = JSON.parse(localStorage.getItem('bunker_conv_favorites') || '[]');
+let _convLastInput = 'from'; // track which input was last typed into
 
 function converterInit() {
-  const catSel = document.getElementById('convCategory');
-  if (catSel && catSel.options.length === 0) {
-    Object.keys(CONV_CATEGORIES).forEach(cat => {
-      const opt = document.createElement('option');
-      opt.value = cat; opt.textContent = cat;
-      catSel.appendChild(opt);
+  // Build category pills
+  const catBar = document.getElementById('convCatBar');
+  if (!catBar) return;
+  if (catBar.children.length === 0) {
+    Object.entries(CONV_CATEGORIES).forEach(([key, cfg]) => {
+      const btn = document.createElement('button');
+      btn.className = 'conv-cat-pill' + (key === _convCategory ? ' active' : '');
+      btn.dataset.cat = key;
+      btn.innerHTML = `<span class="conv-cat-icon">${cfg.icon}</span><span>${key}</span>`;
+      btn.onclick = () => converterSelectCategory(key);
+      catBar.appendChild(btn);
     });
   }
+  converterUpdateUnits();
+  converterSetTab(_convTab);
+}
+
+function converterSelectCategory(cat) {
+  _convCategory = cat;
+  document.querySelectorAll('.conv-cat-pill').forEach(b => {
+    b.classList.toggle('active', b.dataset.cat === cat);
+  });
   converterUpdateUnits();
 }
 
 function converterUpdateUnits() {
-  const cat = document.getElementById('convCategory')?.value || _convCategory;
-  _convCategory = cat;
-  const cfg = CONV_CATEGORIES[cat];
+  const cfg = CONV_CATEGORIES[_convCategory];
   if (!cfg) return;
   const fromSel = document.getElementById('convFrom');
   const toSel = document.getElementById('convTo');
   if (!fromSel || !toSel) return;
+  const prevFrom = fromSel.value;
+  const prevTo = toSel.value;
   fromSel.innerHTML = '';
   toSel.innerHTML = '';
   cfg.units.forEach((u, i) => {
-    fromSel.innerHTML += `<option value="${u}">${u}</option>`;
-    toSel.innerHTML += `<option value="${u}" ${i===1?'selected':''}>${u}</option>`;
+    const lbl = cfg.labels ? cfg.labels[u] : u;
+    fromSel.innerHTML += `<option value="${u}">${u} - ${lbl}</option>`;
+    toSel.innerHTML += `<option value="${u}">${u} - ${lbl}</option>`;
   });
-  converterCalc();
+  // Restore previous selection if still valid
+  if (cfg.units.includes(prevFrom)) fromSel.value = prevFrom;
+  else fromSel.selectedIndex = 0;
+  if (cfg.units.includes(prevTo)) toSel.value = prevTo;
+  else toSel.selectedIndex = Math.min(1, cfg.units.length - 1);
+  converterCalc('from');
+  converterUpdateFavStar();
 }
 
-function converterCalc() {
-  const cat = _convCategory;
-  const cfg = CONV_CATEGORIES[cat];
+function converterCalc(source) {
+  if (source) _convLastInput = source;
+  const cfg = CONV_CATEGORIES[_convCategory];
   if (!cfg) return;
-  const val = parseFloat(document.getElementById('convInput')?.value || '0');
-  const from = document.getElementById('convFrom')?.value;
-  const to = document.getElementById('convTo')?.value;
-  let result;
-  if (cfg.convert) {
-    result = cfg.convert(val, from, to);
+  const fromEl = document.getElementById('convInputFrom');
+  const toEl = document.getElementById('convInputTo');
+  const fromUnit = document.getElementById('convFrom')?.value;
+  const toUnit = document.getElementById('convTo')?.value;
+  if (!fromEl || !toEl || !fromUnit || !toUnit) return;
+
+  if (_convLastInput === 'from') {
+    const val = parseFloat(fromEl.value);
+    if (isNaN(val)) { toEl.value = ''; return; }
+    const result = _convConvert(cfg, val, fromUnit, toUnit);
+    toEl.value = isNaN(result) ? '' : _convFormatNum(result);
   } else {
-    // Factor-based conversion
-    const baseVal = val * cfg.factors[from];
-    result = baseVal / cfg.factors[to];
+    const val = parseFloat(toEl.value);
+    if (isNaN(val)) { fromEl.value = ''; return; }
+    const result = _convConvert(cfg, val, toUnit, fromUnit);
+    fromEl.value = isNaN(result) ? '' : _convFormatNum(result);
   }
-  const resultEl = document.getElementById('convResult');
-  if (resultEl) resultEl.textContent = isNaN(result) ? '—' : parseFloat(result.toFixed(8));
+}
+
+function _convConvert(cfg, val, from, to) {
+  if (from === to) return val;
+  if (cfg.convert) return cfg.convert(val, from, to);
+  const baseVal = val * cfg.factors[from];
+  return baseVal / cfg.factors[to];
+}
+
+function _convFormatNum(n) {
+  if (Number.isInteger(n) && Math.abs(n) < 1e12) return n.toString();
+  const s = n.toPrecision(10);
+  return parseFloat(s).toString();
 }
 
 function converterSwap() {
   const fromSel = document.getElementById('convFrom');
   const toSel = document.getElementById('convTo');
+  const fromEl = document.getElementById('convInputFrom');
+  const toEl = document.getElementById('convInputTo');
   if (!fromSel || !toSel) return;
-  const tmp = fromSel.value;
+  const tmpU = fromSel.value;
   fromSel.value = toSel.value;
-  toSel.value = tmp;
-  converterCalc();
+  toSel.value = tmpU;
+  if (fromEl && toEl) {
+    const tmpV = fromEl.value;
+    fromEl.value = toEl.value;
+    toEl.value = tmpV;
+  }
+  converterUpdateFavStar();
+}
+
+// ── Tab navigation ──
+function converterSetTab(tab) {
+  _convTab = tab;
+  document.querySelectorAll('.conv-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.getElementById('convPanelConvert').classList.toggle('hidden', tab !== 'convert');
+  document.getElementById('convPanelFavorites').classList.toggle('hidden', tab !== 'favorites');
+  document.getElementById('convPanelReference').classList.toggle('hidden', tab !== 'reference');
+  if (tab === 'favorites') converterRenderFavorites();
+  if (tab === 'reference') converterRenderReference();
+}
+
+// ── Favorites system ──
+function converterToggleFav() {
+  const from = document.getElementById('convFrom')?.value;
+  const to = document.getElementById('convTo')?.value;
+  if (!from || !to) return;
+  const key = `${_convCategory}|${from}|${to}`;
+  const idx = _convFavorites.indexOf(key);
+  if (idx >= 0) _convFavorites.splice(idx, 1);
+  else _convFavorites.push(key);
+  localStorage.setItem('bunker_conv_favorites', JSON.stringify(_convFavorites));
+  converterUpdateFavStar();
+}
+
+function converterUpdateFavStar() {
+  const from = document.getElementById('convFrom')?.value;
+  const to = document.getElementById('convTo')?.value;
+  const btn = document.getElementById('convFavBtn');
+  if (!btn || !from || !to) return;
+  const key = `${_convCategory}|${from}|${to}`;
+  const isFav = _convFavorites.includes(key);
+  btn.innerHTML = isFav ? '\u2605' : '\u2606';
+  btn.title = isFav ? 'Remover dos favoritos' : 'Adicionar aos favoritos';
+  btn.classList.toggle('conv-fav-active', isFav);
+}
+
+function converterRenderFavorites() {
+  const container = document.getElementById('convFavList');
+  if (!container) return;
+  if (_convFavorites.length === 0) {
+    container.innerHTML = '<div class="conv-empty">Nenhum favorito salvo.<br>Use a \u2606 no conversor para adicionar.</div>';
+    return;
+  }
+  container.innerHTML = _convFavorites.map((key, i) => {
+    const [cat, from, to] = key.split('|');
+    const cfg = CONV_CATEGORIES[cat];
+    if (!cfg) return '';
+    const icon = cfg.icon || '';
+    return `<div class="conv-fav-item" onclick="converterLoadFav(${i})">
+      <span class="conv-fav-icon">${icon}</span>
+      <span class="conv-fav-label">${cat}: ${from} \u2194 ${to}</span>
+      <button class="conv-fav-del" onclick="event.stopPropagation();converterDelFav(${i})" title="Remover">\u2715</button>
+    </div>`;
+  }).join('');
+}
+
+function converterLoadFav(idx) {
+  const key = _convFavorites[idx];
+  if (!key) return;
+  const [cat, from, to] = key.split('|');
+  converterSelectCategory(cat);
+  setTimeout(() => {
+    const fromSel = document.getElementById('convFrom');
+    const toSel = document.getElementById('convTo');
+    if (fromSel) fromSel.value = from;
+    if (toSel) toSel.value = to;
+    converterCalc('from');
+    converterUpdateFavStar();
+    converterSetTab('convert');
+  }, 50);
+}
+
+function converterDelFav(idx) {
+  _convFavorites.splice(idx, 1);
+  localStorage.setItem('bunker_conv_favorites', JSON.stringify(_convFavorites));
+  converterRenderFavorites();
+  converterUpdateFavStar();
+}
+
+// ── Quick Reference table ──
+function converterRenderReference() {
+  const container = document.getElementById('convRefTable');
+  if (!container) return;
+  const filterCat = document.getElementById('convRefFilter')?.value || '';
+  const items = filterCat ? CONV_QUICK_REF.filter(r => r.cat === filterCat) : CONV_QUICK_REF;
+  container.innerHTML = `<table class="conv-ref-tbl">
+    <thead><tr><th>De</th><th>Para</th><th>Categoria</th></tr></thead>
+    <tbody>${items.map(r => {
+      const ico = CONV_CATEGORIES[r.cat]?.icon || '';
+      return `<tr><td>${r.from}</td><td>${r.to}</td><td>${ico} ${r.cat}</td></tr>`;
+    }).join('')}</tbody>
+  </table>`;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

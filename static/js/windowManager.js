@@ -24,7 +24,7 @@ export const OS_APPS = [
   { id: 'sysmon',     name: 'Monitor',       icon: '\u{1F4BB}', width: 400, height: 380, viewId: 'sysmonView' },
   { id: 'calc',       name: 'Calculadora',   icon: '\u{1F5A9}', width: 320, height: 440, viewId: 'calcView' },
   { id: 'timer',      name: 'Timer',         icon: '\u23F1\uFE0F', width: 360, height: 400, viewId: 'timerView' },
-  { id: 'converter',  name: 'Conversor',     icon: '\u{1F522}', width: 380, height: 460, viewId: 'converterView' },
+  { id: 'converter',  name: 'Conversor',     icon: '\u{1F522}', width: 460, height: 560, viewId: 'converterView' },
   { id: 'checklist',  name: 'Checklists',   icon: '\u2705', width: 500, height: 480, viewId: 'checklistView' },
   { id: 'morse',      name: 'Codigo Morse', icon: '\u{1F4E1}', width: 560, height: 560, viewId: 'morseView' },
   { id: 'radio',      name: 'Radio & Comunicacao', icon: '\u{1F4FB}', width: 620, height: 580, viewId: 'radioView' },
