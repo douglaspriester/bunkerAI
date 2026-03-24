@@ -68,6 +68,9 @@ export function openApp(appId) {
   const app = OS_APPS.find(a => a.id === appId);
   if (!app) return;
 
+  // Track recent app usage for Start Menu
+  _trackRecentApp(appId);
+
   const existing = Object.values(_windows).find(w => w.appId === appId);
   if (existing) {
     if (existing.minimized) unminimizeWindow(existing.winId);
@@ -459,11 +462,43 @@ export function renderDesktopIcons() {
 }
 
 // ─── Start Menu ─────────────────────────────────────────────────────────────
+
+// App categories for organized start menu
+const APP_CATEGORIES = [
+  { id: 'ai',       label: 'IA & Chat',        icon: '\u{1F9E0}', apps: ['chat', 'companion', 'characters', 'tts', 'imagine', 'modelMgr', 'builder'] },
+  { id: 'prod',     label: 'Produtividade',     icon: '\u{1F4BC}', apps: ['notepad', 'word', 'excel', 'tasks', 'checklist', 'journal', 'paint'] },
+  { id: 'info',     label: 'Conhecimento',      icon: '\u{1F4DA}', apps: ['guides', 'protocols', 'books', 'wiki', 'survRef'] },
+  { id: 'survival', label: 'Sobrevivencia',     icon: '\u26A1',    apps: ['supplies', 'map', 'radio', 'morse', 'phonetic', 'sun', 'waterCalc'] },
+  { id: 'tools',    label: 'Ferramentas',       icon: '\u{1F527}', apps: ['calc', 'timer', 'converter', 'fileManager', 'media', 'sysmon'] },
+  { id: 'fun',      label: 'Entretenimento',    icon: '\u{1F3AE}', apps: ['games'] },
+];
+
+let _startMenuIdx = -1;  // keyboard nav index
+
+function _getRecentApps() {
+  try {
+    return JSON.parse(localStorage.getItem('bunker_recent_apps') || '[]').slice(0, 6);
+  } catch { return []; }
+}
+
+function _trackRecentApp(appId) {
+  try {
+    let recents = JSON.parse(localStorage.getItem('bunker_recent_apps') || '[]');
+    recents = recents.filter(id => id !== appId);
+    recents.unshift(appId);
+    recents = recents.slice(0, 12);
+    localStorage.setItem('bunker_recent_apps', JSON.stringify(recents));
+  } catch { /* ignore */ }
+}
+
 export function toggleStartMenu() {
   const menu = document.getElementById('startMenu');
   if (!menu) return;
   menu.classList.toggle('hidden');
-  if (!menu.classList.contains('hidden')) renderStartMenu();
+  if (!menu.classList.contains('hidden')) {
+    _startMenuIdx = -1;
+    renderStartMenu();
+  }
 }
 
 export function closeStartMenu() {
@@ -471,26 +506,113 @@ export function closeStartMenu() {
   if (menu) menu.classList.add('hidden');
 }
 
+function _makeStartMenuItem(app) {
+  const running = Object.values(_windows).some(w => w.appId === app.id);
+  const item = document.createElement('div');
+  item.className = 'start-menu-item';
+  item.dataset.name = app.name.toLowerCase();
+  item.dataset.appId = app.id;
+  item.innerHTML = `
+    <span class="start-menu-item-icon">${app.icon}</span>
+    <span class="start-menu-item-label">${app.name}</span>
+    ${running ? '<span class="start-menu-running-dot"></span>' : ''}
+  `;
+  item.onclick = () => {
+    _trackRecentApp(app.id);
+    openApp(app.id);
+    closeStartMenu();
+  };
+  return item;
+}
+
 function renderStartMenu() {
   const container = document.getElementById('startMenuApps');
   if (!container) return;
   container.innerHTML = '';
+
+  // Search box
   const searchBox = document.createElement('div');
   searchBox.className = 'start-menu-search';
-  searchBox.innerHTML = '<input type="text" placeholder="Buscar app..." id="startMenuSearch" oninput="filterStartMenu(this.value)" onkeydown="if(event.key===\'Enter\'){openFirstVisibleApp();event.preventDefault()}">';
+  searchBox.innerHTML = `<input type="text" placeholder="Buscar app..." id="startMenuSearch"
+    oninput="filterStartMenu(this.value)"
+    onkeydown="window._startMenuKeyNav(event)" />`;
   container.appendChild(searchBox);
-  for (const app of OS_APPS) {
-    if (app.hidden) continue;
-    const item = document.createElement('div');
-    item.className = 'start-menu-item';
-    item.dataset.name = app.name.toLowerCase();
-    item.innerHTML = `<span class="start-menu-item-icon">${app.icon}</span><span>${app.name}</span>`;
-    item.onclick = () => openApp(app.id);
-    container.appendChild(item);
+
+  // Running apps section
+  const runningApps = OS_APPS.filter(a => !a.hidden && Object.values(_windows).some(w => w.appId === a.id));
+  if (runningApps.length > 0) {
+    const section = document.createElement('div');
+    section.className = 'start-menu-section start-menu-section-running';
+    section.dataset.category = '_running';
+    section.innerHTML = '<div class="start-menu-section-header"><span class="start-menu-section-icon">\u{1F7E2}</span><span>Em execucao</span></div>';
+    for (const app of runningApps) {
+      section.appendChild(_makeStartMenuItem(app));
+    }
+    container.appendChild(section);
   }
-  const sep = document.createElement('div');
-  sep.className = 'start-menu-sep';
-  container.appendChild(sep);
+
+  // Recent apps section
+  const recentIds = _getRecentApps();
+  const recentApps = recentIds
+    .map(id => OS_APPS.find(a => a.id === id && !a.hidden))
+    .filter(Boolean)
+    .filter(a => !runningApps.some(r => r.id === a.id))  // don't duplicate running
+    .slice(0, 4);
+  if (recentApps.length > 0) {
+    const section = document.createElement('div');
+    section.className = 'start-menu-section start-menu-section-recent';
+    section.dataset.category = '_recent';
+    section.innerHTML = '<div class="start-menu-section-header"><span class="start-menu-section-icon">\u{1F552}</span><span>Recentes</span></div>';
+    for (const app of recentApps) {
+      section.appendChild(_makeStartMenuItem(app));
+    }
+    container.appendChild(section);
+  }
+
+  // Categorized apps
+  const categorizedIds = new Set(APP_CATEGORIES.flatMap(c => c.apps));
+  for (const cat of APP_CATEGORIES) {
+    const apps = cat.apps.map(id => OS_APPS.find(a => a.id === id && !a.hidden)).filter(Boolean);
+    if (apps.length === 0) continue;
+    const section = document.createElement('div');
+    section.className = 'start-menu-section';
+    section.dataset.category = cat.id;
+    section.innerHTML = `<div class="start-menu-section-header" onclick="window._toggleStartCategory('${cat.id}')">
+      <span class="start-menu-section-icon">${cat.icon}</span>
+      <span>${cat.label}</span>
+      <span class="start-menu-section-count">${apps.length}</span>
+      <span class="start-menu-section-arrow">\u25BE</span>
+    </div>`;
+    const body = document.createElement('div');
+    body.className = 'start-menu-section-body';
+    body.id = `startCat_${cat.id}`;
+    for (const app of apps) {
+      body.appendChild(_makeStartMenuItem(app));
+    }
+    section.appendChild(body);
+    container.appendChild(section);
+  }
+
+  // Uncategorized apps (safety net)
+  const uncategorized = OS_APPS.filter(a => !a.hidden && !categorizedIds.has(a.id));
+  if (uncategorized.length > 0) {
+    const section = document.createElement('div');
+    section.className = 'start-menu-section';
+    section.dataset.category = '_other';
+    section.innerHTML = '<div class="start-menu-section-header"><span class="start-menu-section-icon">\u{1F4C2}</span><span>Outros</span></div>';
+    const body = document.createElement('div');
+    body.className = 'start-menu-section-body';
+    for (const app of uncategorized) {
+      body.appendChild(_makeStartMenuItem(app));
+    }
+    section.appendChild(body);
+    container.appendChild(section);
+  }
+
+  // Power section
+  const powerSep = document.createElement('div');
+  powerSep.className = 'start-menu-sep';
+  container.appendChild(powerSep);
   const restart = document.createElement('div');
   restart.className = 'start-menu-item start-menu-power';
   restart.innerHTML = '<span class="start-menu-item-icon">\u{1F504}</span><span>Reiniciar</span>';
@@ -501,20 +623,79 @@ function renderStartMenu() {
   shutdown.innerHTML = '<span class="start-menu-item-icon">\u23FB</span><span>Desligar</span>';
   shutdown.onclick = () => { closeStartMenu(); runShutdownSequence(); };
   container.appendChild(shutdown);
+
   setTimeout(() => { const sb = document.getElementById('startMenuSearch'); if (sb) sb.focus(); }, 50);
 }
 
+// Toggle category collapse
+window._toggleStartCategory = function(catId) {
+  const body = document.getElementById(`startCat_${catId}`);
+  if (!body) return;
+  body.classList.toggle('collapsed');
+  const arrow = body.parentElement.querySelector('.start-menu-section-arrow');
+  if (arrow) arrow.textContent = body.classList.contains('collapsed') ? '\u25B8' : '\u25BE';
+};
+
+// Keyboard navigation within start menu
+window._startMenuKeyNav = function(e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    openFirstVisibleApp();
+    return;
+  }
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    const items = [...document.querySelectorAll('#startMenuApps .start-menu-item:not([style*="display: none"])')];
+    if (!items.length) return;
+    items.forEach(el => el.classList.remove('start-menu-item-active'));
+    if (e.key === 'ArrowDown') {
+      _startMenuIdx = (_startMenuIdx + 1) % items.length;
+    } else {
+      _startMenuIdx = (_startMenuIdx - 1 + items.length) % items.length;
+    }
+    items[_startMenuIdx].classList.add('start-menu-item-active');
+    items[_startMenuIdx].scrollIntoView({ block: 'nearest' });
+  }
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    closeStartMenu();
+  }
+};
+
 export function filterStartMenu(query) {
-  const items = document.querySelectorAll('#startMenuApps .start-menu-item');
   const q = query.toLowerCase().trim();
+  // Filter individual items
+  const items = document.querySelectorAll('#startMenuApps .start-menu-item:not(.start-menu-power)');
   items.forEach(item => {
     const name = item.dataset.name || '';
     item.style.display = (!q || name.includes(q)) ? '' : 'none';
   });
+  // Hide section headers if all items hidden, show all if searching
+  const sections = document.querySelectorAll('#startMenuApps .start-menu-section');
+  sections.forEach(section => {
+    const visibleItems = section.querySelectorAll('.start-menu-item:not([style*="display: none"])');
+    section.style.display = visibleItems.length > 0 ? '' : 'none';
+    // Expand all when searching
+    const body = section.querySelector('.start-menu-section-body');
+    if (body && q) body.classList.remove('collapsed');
+  });
+  // Hide running/recent sections when searching (show only categorized results)
+  if (q) {
+    document.querySelectorAll('.start-menu-section-running, .start-menu-section-recent').forEach(s => {
+      s.style.display = 'none';
+    });
+  } else {
+    document.querySelectorAll('.start-menu-section-running, .start-menu-section-recent').forEach(s => {
+      s.style.display = '';
+    });
+  }
+  _startMenuIdx = -1;
 }
 
 export function openFirstVisibleApp() {
-  const items = document.querySelectorAll('#startMenuApps .start-menu-item');
+  const active = document.querySelector('#startMenuApps .start-menu-item.start-menu-item-active');
+  if (active) { active.click(); return; }
+  const items = document.querySelectorAll('#startMenuApps .start-menu-item:not(.start-menu-power)');
   for (const item of items) {
     if (item.style.display !== 'none' && item.dataset.name) { item.click(); return; }
   }
