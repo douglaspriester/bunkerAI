@@ -5459,9 +5459,32 @@ function sunCalcCompute() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// WATER PURIFICATION CALCULATOR
+// AGUA SEGURA — Complete Water Safety App
 // ═══════════════════════════════════════════════════════════════════════════
 
+/* ─── Tab Navigation ─── */
+function waterSwitchTab(tabId) {
+  document.querySelectorAll('.water-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.water-tab-panel').forEach(p => p.classList.remove('active'));
+  const tabMap = { purify: 'waterTabPurify', daily: 'waterTabDaily', sources: 'waterTabSources', contam: 'waterTabContam', tables: 'waterTabTables' };
+  const panel = document.getElementById(tabMap[tabId]);
+  if (panel) panel.classList.add('active');
+  // Activate button
+  document.querySelectorAll('.water-tab').forEach(t => {
+    if (t.textContent.toLowerCase().includes(
+      tabId === 'purify' ? 'purificar' : tabId === 'daily' ? 'necessidade' : tabId === 'sources' ? 'fontes' : tabId === 'contam' ? 'contaminacao' : 'tabelas'
+    )) t.classList.add('active');
+  });
+  // Lazy-load static content
+  if (tabId === 'sources') waterRenderSources();
+  if (tabId === 'contam') waterRenderContam();
+  if (tabId === 'tables') waterRenderTables();
+  if (tabId === 'daily') waterDailyCalc();
+  if (tabId === 'purify') waterCalcCompute();
+}
+window.waterSwitchTab = waterSwitchTab;
+
+/* ─── Purification Calculator (expanded) ─── */
 function waterCalcCompute() {
   const liters = parseFloat(document.getElementById('waterLiters')?.value || '1');
   const clarity = document.getElementById('waterClarity')?.value || 'clear';
@@ -5469,55 +5492,93 @@ function waterCalcCompute() {
   const el = document.getElementById('waterResult');
   if (!el) return;
 
-  // Multiplier for turbid water (double dose)
   const turbidMult = clarity === 'turbid' ? 2 : 1;
+  const isTurbid = clarity === 'turbid';
   let html = '';
 
   switch (method) {
     case 'bleach': {
-      // Household bleach (5-6% sodium hypochlorite)
-      // Standard: 2 drops per liter for clear, 4 drops for turbid
+      // Household bleach 2.5% sodium hypochlorite (Brazil standard)
       const drops = Math.ceil(2 * liters * turbidMult);
-      const ml = (drops * 0.05).toFixed(2); // ~0.05mL per drop
+      const ml = (drops * 0.05).toFixed(2);
+      const tsp = drops >= 40 ? ` (${(drops / 80).toFixed(1)} colher de cha)` : '';
       html = `
         <div class="water-result-card">
-          <h4>🧴 Agua Sanitaria (5-6% cloro)</h4>
+          <h4>\u{1F9F4} Agua Sanitaria (2,5% cloro)</h4>
           <div class="water-dose">${drops} gotas</div>
-          <div class="water-sub">(≈ ${ml} mL)</div>
+          <div class="water-sub">(\u2248 ${ml} mL)${tsp}</div>
           <div class="water-info">
-            <p>⏱️ Espere <strong>30 minutos</strong> antes de beber</p>
-            <p>👃 Deve ter leve cheiro de cloro</p>
-            <p>⚠️ Se nao sentir cheiro, repita a dose e espere +15 min</p>
+            <p>\u23F1\uFE0F Espere <strong>${isTurbid ? '45-60 minutos' : '30 minutos'}</strong> antes de beber</p>
+            <p>\u{1F443} Deve ter leve cheiro de cloro</p>
+            <p>\u26A0\uFE0F Se nao sentir cheiro, repita a dose e espere +15 min</p>
+            <p>\u{1F4E6} Use APENAS agua sanitaria SEM perfume/alvejante</p>
+            <p>\u{1F4C5} Dose dupla = armazenamento ate 6 meses</p>
+          </div>
+        </div>`;
+      break;
+    }
+    case 'bleach6': {
+      // Concentrated bleach 5-6% (US standard)
+      const drops = Math.ceil(1 * liters * turbidMult);
+      const ml = (drops * 0.05).toFixed(2);
+      html = `
+        <div class="water-result-card">
+          <h4>\u{1F9F4} Agua Sanitaria Concentrada (5-6%)</h4>
+          <div class="water-dose">${drops} gota${drops > 1 ? 's' : ''}</div>
+          <div class="water-sub">(\u2248 ${ml} mL)</div>
+          <div class="water-info">
+            <p>\u23F1\uFE0F Espere <strong>${isTurbid ? '45-60 min' : '30 minutos'}</strong></p>
+            <p>\u{1F443} Deve ter leve cheiro de cloro apos o tempo</p>
+            <p>\u26A0\uFE0F Metade da dose do cloro 2,5% — concentracao maior</p>
           </div>
         </div>`;
       break;
     }
     case 'iodine': {
-      // Tincture of iodine 2%: 5 drops per liter clear, 10 for turbid
       const drops = Math.ceil(5 * liters * turbidMult);
       html = `
         <div class="water-result-card">
-          <h4>💊 Tintura de Iodo (2%)</h4>
+          <h4>\u{1F48A} Tintura de Iodo (2%)</h4>
           <div class="water-dose">${drops} gotas</div>
           <div class="water-info">
-            <p>⏱️ Espere <strong>30 minutos</strong> (1h se agua fria)</p>
-            <p>⚠️ Nao usar em gravidas ou alergicos a iodo</p>
-            <p>💡 Vitamina C (tang) remove gosto apos purificar</p>
+            <p>\u23F1\uFE0F Espere <strong>${isTurbid ? '60 minutos' : '30 minutos'}</strong></p>
+            <p>\u26A0\uFE0F Nao usar em gravidas, lactantes ou alergicos a iodo</p>
+            <p>\u26A0\uFE0F Maximo 3 semanas de uso continuo (tireoide)</p>
+            <p>\u{1F4A1} Vitamina C (tang) remove gosto APOS purificar</p>
+            <p>\u{1F30A} Armazene em frasco escuro — luz degrada o iodo</p>
+          </div>
+        </div>`;
+      break;
+    }
+    case 'iodine_tab': {
+      const tabs = Math.ceil(liters * turbidMult);
+      html = `
+        <div class="water-result-card">
+          <h4>\u{1F48A} Comprimidos de Iodo (Globaline/Portable Aqua)</h4>
+          <div class="water-dose">${tabs} comprimido${tabs > 1 ? 's' : ''}</div>
+          <div class="water-sub">(${tabs} comp. para ${liters}L)</div>
+          <div class="water-info">
+            <p>\u23F1\uFE0F Espere <strong>${isTurbid ? '60 minutos' : '30 minutos'}</strong></p>
+            <p>\u{1F4A1} 1 comprimido por litro (clara), 2 por litro (turva/fria)</p>
+            <p>\u26A0\uFE0F Mesmas restricoes do iodo liquido</p>
           </div>
         </div>`;
       break;
     }
     case 'boil': {
+      const wood = (liters * 1).toFixed(1);
       html = `
         <div class="water-result-card">
-          <h4>🔥 Fervura</h4>
+          <h4>\u{1F525} Fervura</h4>
           <div class="water-dose">Fervura rolante por 1 minuto</div>
-          <div class="water-sub">(3 min se altitude > 2000m)</div>
+          <div class="water-sub">(veja tabela por altitude na aba Tabelas)</div>
           <div class="water-info">
-            <p>✅ Metodo mais seguro e confiavel</p>
-            <p>🫗 Deixe esfriar naturalmente</p>
-            <p>💡 Agite para reoxigenar e melhorar sabor</p>
-            <p>🪵 Combustivel: ~1kg de lenha para ${liters}L</p>
+            <p>\u2705 Metodo mais seguro: 99,99% eficacia</p>
+            <p>\u{1FAD7} Deixe esfriar naturalmente — nao sopre</p>
+            <p>\u{1F4A1} Agite suavemente para reoxigenar e melhorar sabor</p>
+            <p>\u{1FAB5} Combustivel: ~${wood}kg de lenha seca para ${liters}L</p>
+            <p>\u26A0\uFE0F Nao remove quimicos (metais, pesticidas)</p>
+            <p>\u{1F4A1} Sem panela? Aqueca pedras no fogo 30min e coloque na agua</p>
           </div>
         </div>`;
       break;
@@ -5526,33 +5587,353 @@ function waterCalcCompute() {
       const bottles = Math.ceil(liters / 1.5);
       html = `
         <div class="water-result-card">
-          <h4>☀️ SODIS (Desinfeccao Solar)</h4>
-          <div class="water-dose">${bottles} garrafa${bottles > 1 ? 's' : ''} PET transparente${bottles > 1 ? 's' : ''}</div>
+          <h4>\u2600\uFE0F SODIS (Desinfeccao Solar)</h4>
+          <div class="water-dose">${bottles} garrafa${bottles > 1 ? 's' : ''} PET</div>
           <div class="water-info">
-            <p>⏱️ <strong>6 horas</strong> em sol direto (ou 2 dias com nuvens)</p>
-            <p>📦 Use garrafas PET de ate 2L, transparentes</p>
-            <p>🔄 Agite antes para oxigenar</p>
-            <p>⚠️ Nao funciona com agua muito turva — filtre antes</p>
-            <p>🌡️ Coloque sobre superficie escura (metal) para aquecer</p>
+            <p>\u23F1\uFE0F <strong>6h</strong> sol forte | <strong>2 dias</strong> nublado parcial</p>
+            <p>\u{1F4E6} Garrafas PET transparentes ate 2L, sem arranhoes</p>
+            <p>\u{1F504} Agite 20s antes para oxigenar, complete, deite a garrafa</p>
+            <p>\u2600\uFE0F Superficie escura embaixo = aquece mais = mata mais rapido</p>
+            <p>\u26A0\uFE0F ${isTurbid ? 'AGUA TURVA: filtre primeiro ou SODIS nao funciona!' : 'Nao funciona com agua turva — filtre antes'}</p>
+            <p>\u{1F327}\uFE0F Chuva/nublado total: NAO funciona, use outro metodo</p>
+          </div>
+        </div>`;
+      break;
+    }
+    case 'ceramic': {
+      const hours = (liters / 2).toFixed(1);
+      html = `
+        <div class="water-result-card">
+          <h4>\u{1FAD9} Filtro Ceramico</h4>
+          <div class="water-dose">${liters}L \u2248 ${hours}h de filtragem</div>
+          <div class="water-sub">(~2L/hora em filtro novo)</div>
+          <div class="water-info">
+            <p>\u2705 Remove 99% bacterias e parasitas</p>
+            <p>\u26A0\uFE0F NAO remove virus — combine com cloro ou fervura</p>
+            <p>\u{1F527} Manutencao: lixe superficie com escova quando fluxo diminuir</p>
+            <p>\u{1F4C5} Vida util: ~10.000L ou 6-12 meses</p>
+            <p>\u{1F4A1} Ideal como primeiro estagio + fervura como segundo</p>
+          </div>
+        </div>`;
+      break;
+    }
+    case 'distill': {
+      html = `
+        <div class="water-result-card">
+          <h4>\u{1F32B}\uFE0F Destilacao</h4>
+          <div class="water-dose">~${(liters * 2).toFixed(0)}h para ${liters}L</div>
+          <div class="water-sub">(metodo mais lento, porem mais completo)</div>
+          <div class="water-info">
+            <p>\u2705 Remove TUDO: bacterias, virus, quimicos, sal</p>
+            <p>\u{1F372} Panela com tampa inclinada \u2192 vapor condensa e goteja</p>
+            <p>\u2600\uFE0F Ou destilador solar (buraco + plastico + recipiente)</p>
+            <p>\u{1FAB5} Alto consumo de combustivel</p>
+            <p>\u{1F4A1} Unico metodo seguro para agua salgada ou quimica</p>
+            <p>\u26A0\uFE0F Agua destilada nao tem minerais — adicione pitada de sal</p>
           </div>
         </div>`;
       break;
     }
   }
 
-  // Add general tips
+  // Efficacy comparison bar
+  const efficacy = {
+    bleach: { bact: 99, virus: 99, para: 30, chem: 0 },
+    bleach6: { bact: 99, virus: 99, para: 30, chem: 0 },
+    iodine: { bact: 99, virus: 99, para: 70, chem: 0 },
+    iodine_tab: { bact: 99, virus: 99, para: 70, chem: 0 },
+    boil: { bact: 99, virus: 99, para: 99, chem: 0 },
+    sodis: { bact: 90, virus: 85, para: 50, chem: 0 },
+    ceramic: { bact: 99, virus: 10, para: 99, chem: 10 },
+    distill: { bact: 99, virus: 99, para: 99, chem: 95 }
+  };
+  const eff = efficacy[method] || efficacy.boil;
+  html += `
+    <div class="water-efficacy">
+      <h4>\u{1F9EA} Eficacia do Metodo</h4>
+      <div class="water-eff-row"><span class="water-eff-label">Bacterias</span><div class="water-eff-bar"><div class="water-eff-fill" style="width:${eff.bact}%;background:${eff.bact > 80 ? '#00ff88' : eff.bact > 50 ? '#ffaa00' : '#ff4466'}"></div></div><span class="water-eff-pct">${eff.bact}%</span></div>
+      <div class="water-eff-row"><span class="water-eff-label">Virus</span><div class="water-eff-bar"><div class="water-eff-fill" style="width:${eff.virus}%;background:${eff.virus > 80 ? '#00ff88' : eff.virus > 50 ? '#ffaa00' : '#ff4466'}"></div></div><span class="water-eff-pct">${eff.virus}%</span></div>
+      <div class="water-eff-row"><span class="water-eff-label">Parasitas</span><div class="water-eff-bar"><div class="water-eff-fill" style="width:${eff.para}%;background:${eff.para > 80 ? '#00ff88' : eff.para > 50 ? '#ffaa00' : '#ff4466'}"></div></div><span class="water-eff-pct">${eff.para}%</span></div>
+      <div class="water-eff-row"><span class="water-eff-label">Quimicos</span><div class="water-eff-bar"><div class="water-eff-fill" style="width:${Math.max(eff.chem, 3)}%;background:${eff.chem > 80 ? '#00ff88' : eff.chem > 50 ? '#ffaa00' : '#ff4466'}"></div></div><span class="water-eff-pct">${eff.chem}%</span></div>
+    </div>`;
+
   html += `
     <div class="water-tips">
-      <h4>💡 Dicas Gerais</h4>
+      <h4>\u{1F4A1} Melhor Pratica</h4>
       <ul>
+        <li>Combine 2 metodos: Filtrar + Ferver = cobertura maxima</li>
         <li>Sempre filtre antes de purificar (tecido, areia, carvao)</li>
-        <li>Agua turva: deixe decantar antes de tratar</li>
-        <li>Necessidade diaria: 2-3 litros por pessoa</li>
-        <li>Sintomas de agua contaminada: diarreia, vomito, febre</li>
+        <li>Agua turva: deixe decantar 2-4h antes de tratar</li>
+        <li>Diarreia em sobrevivencia = emergencia — reidrate com SRO</li>
       </ul>
     </div>`;
   el.innerHTML = html;
 }
+window.waterCalcCompute = waterCalcCompute;
+
+/* ─── Daily Water Needs Calculator ─── */
+function waterDailyCalc() {
+  const people = parseInt(document.getElementById('waterPeople')?.value || '1');
+  const days = parseInt(document.getElementById('waterDays')?.value || '3');
+  const climate = document.getElementById('waterClimate')?.value || 'temperate';
+  const activity = document.getElementById('waterActivity')?.value || 'rest';
+  const altitude = parseInt(document.getElementById('waterAltitude')?.value || '0');
+  const el = document.getElementById('waterDailyResult');
+  if (!el) return;
+
+  // Base need per person per day (liters)
+  const climateBase = { temperate: 2.0, hot: 3.0, extreme: 4.5, cold: 2.5, desert: 4.0 };
+  const activityMult = { rest: 1.0, light: 1.25, moderate: 1.5, heavy: 2.0 };
+  const altitudeBonus = altitude > 2500 ? 0.5 + ((altitude - 2500) / 2500) * 0.5 : 0;
+
+  const base = climateBase[climate] || 2.0;
+  const mult = activityMult[activity] || 1.0;
+  const perPersonDay = (base * mult) + altitudeBonus;
+  const totalDaily = perPersonDay * people;
+  const totalAll = totalDaily * days;
+
+  // Containers estimate
+  const bottles2L = Math.ceil(totalAll / 2);
+  const gallons5L = Math.ceil(totalAll / 5);
+  const drums20L = Math.ceil(totalAll / 20);
+
+  el.innerHTML = `
+    <div class="water-daily-grid">
+      <div class="water-daily-stat">
+        <div class="water-daily-num">${perPersonDay.toFixed(1)}</div>
+        <div class="water-daily-label">L / pessoa / dia</div>
+      </div>
+      <div class="water-daily-stat">
+        <div class="water-daily-num">${totalDaily.toFixed(1)}</div>
+        <div class="water-daily-label">L / dia total</div>
+      </div>
+      <div class="water-daily-stat water-daily-total">
+        <div class="water-daily-num">${totalAll.toFixed(0)}</div>
+        <div class="water-daily-label">L total (${days} dias)</div>
+      </div>
+    </div>
+    <div class="water-result-card" style="margin-top:12px">
+      <h4>\u{1F4E6} Recipientes Necessarios</h4>
+      <div class="water-info">
+        <p>\u{1F4A7} ${bottles2L} garrafas de 2L</p>
+        <p>\u{1F4A7} ${gallons5L} galoes de 5L</p>
+        <p>\u{1F4A7} ${drums20L} tambor${drums20L > 1 ? 'es' : ''} de 20L</p>
+      </div>
+    </div>
+    <div class="water-result-card" style="margin-top:8px">
+      <h4>\u{1F3AF} Fatores Considerados</h4>
+      <div class="water-info" style="font-size:12px;color:var(--text-muted)">
+        <p>Clima: ${{'temperate':'Temperado (2L base)','hot':'Quente (3L base)','extreme':'Extremo (4.5L base)','cold':'Frio (2.5L base)','desert':'Deserto (4L base)'}[climate]}</p>
+        <p>Atividade: x${mult.toFixed(2)} multiplicador</p>
+        ${altitudeBonus > 0 ? `<p>Altitude ${altitude}m: +${altitudeBonus.toFixed(1)}L/dia</p>` : ''}
+        <p>\u26A0\uFE0F Doentes (febre/diarreia): adicione +2-4L/pessoa/dia</p>
+        <p>\u{1F476} Criancas: ~50-75% da necessidade adulta</p>
+        <p>\u{1F930} Gravidas/Lactantes: +0.5-1L/dia adicional</p>
+      </div>
+    </div>
+    <div class="water-tips" style="margin-top:8px">
+      <h4>\u{1F48A} Solucao de Reidratacao Oral (SRO)</h4>
+      <ul>
+        <li><strong>1L agua</strong> + 6 colheres de cha de acucar + 1/2 colher de cha de sal</li>
+        <li>Beba em pequenos goles ao longo de 4-6h</li>
+        <li>Salva vidas em casos de diarreia e vomito</li>
+      </ul>
+    </div>`;
+}
+window.waterDailyCalc = waterDailyCalc;
+
+/* ─── Water Sources Reference ─── */
+function waterRenderSources() {
+  const el = document.getElementById('waterSourcesContent');
+  if (!el || el.dataset.loaded) return;
+  el.dataset.loaded = '1';
+
+  const sources = [
+    { name: 'Agua da Chuva', icon: '\u{1F327}\uFE0F', risk: 'BAIXO', color: '#00ff88',
+      desc: 'Melhor fonte natural. Colete com lonas/telhados limpos. Descarte primeiros 5-10 min.',
+      tips: ['Recipientes fechados e escuros para armazenar', 'Evite em zonas industriais (chuva acida)'] },
+    { name: 'Rios e Riachos', icon: '\u{1F30A}', risk: 'MEDIO', color: '#ffaa00',
+      desc: 'Prefira agua corrente. Colete a montante de povoados. SEMPRE purifique.',
+      tips: ['Pedras com musgo verde = bom sinal', 'Parasitas microscopicos mesmo em agua cristalina'] },
+    { name: 'Lagos e Represas', icon: '\u{1F4A7}', risk: 'ALTO', color: '#ff4466',
+      desc: 'Agua parada acumula patogenos. Colete longe das margens.',
+      tips: ['Espuma verde = cianobacterias TOXICAS (nao ferve)', 'Use metodo duplo: filtrar + ferver'] },
+    { name: 'Orvalho e Condensacao', icon: '\u{1F343}', risk: 'BAIXO', color: '#00ff88',
+      desc: 'Panos nos tornozelos ao amanhecer, caminhe pela vegetacao, torga.',
+      tips: ['Rendimento: 200-500mL por sessao', 'Melhor com vegetacao densa + noites frias'] },
+    { name: 'Neve e Gelo', icon: '\u2744\uFE0F', risk: 'BAIXO-MEDIO', color: '#66ccff',
+      desc: 'NUNCA coma neve direto (hipotermia). Derreta primeiro.',
+      tips: ['Gelo azulado = mais puro que neve fresca', '10L neve fofa = ~1L agua', 'Neve rosa/amarela = contaminada'] },
+    { name: 'Destilador Solar', icon: '\u2600\uFE0F', risk: 'BAIXO', color: '#00ff88',
+      desc: 'Buraco 60cm + recipiente + plastico. Evapora e condensa.',
+      tips: ['500mL-1L por dia', 'Adicione folhas/urina para mais producao', 'Funciona para dessalinizar'] },
+    { name: 'Vegetacao', icon: '\u{1F33F}', risk: 'MEDIO', color: '#ffaa00',
+      desc: 'Cipos, bananeiras, bambu verde, transpiracao vegetal.',
+      tips: ['Liquido leitoso/amargo = TOXICO', 'Saco plastico em galho ao sol = 50-100mL/dia', 'Corte cipo no alto primeiro, depois embaixo'] },
+    { name: 'Ruinas Urbanas', icon: '\u{1F3DA}\uFE0F', risk: 'VARIAVEL', color: '#cc88ff',
+      desc: 'Caixas d\'agua, boilers, caixa de descarga, piscinas, maq. lavar.',
+      tips: ['EVITE radiadores (anticongelante = veneno)', 'Purificacao OBRIGATORIA', 'Caixa de descarga OK, bacia NAO'] }
+  ];
+
+  let html = '';
+  for (const s of sources) {
+    html += `
+      <div class="water-source-card">
+        <div class="water-source-header">
+          <span class="water-source-icon">${s.icon}</span>
+          <span class="water-source-name">${s.name}</span>
+          <span class="water-source-risk" style="background:${s.color}22;color:${s.color};border:1px solid ${s.color}44">Risco: ${s.risk}</span>
+        </div>
+        <p class="water-source-desc">${s.desc}</p>
+        <ul class="water-source-tips">${s.tips.map(t => `<li>${t}</li>`).join('')}</ul>
+      </div>`;
+  }
+  el.innerHTML = html;
+}
+window.waterRenderSources = waterRenderSources;
+
+/* ─── Contamination Signs ─── */
+function waterRenderContam() {
+  const el = document.getElementById('waterContamContent');
+  if (!el || el.dataset.loaded) return;
+  el.dataset.loaded = '1';
+
+  el.innerHTML = `
+    <div class="water-result-card">
+      <h4>\u{1F440} Indicadores Visuais</h4>
+      <table class="water-ref-table">
+        <tr><th>Sinal</th><th>Possivel Causa</th><th>Risco</th></tr>
+        <tr><td>Amarela/marrom</td><td>Ferrugem, sedimentos</td><td class="water-risk-med">Medio</td></tr>
+        <tr><td>Esverdeada</td><td>Algas, cianobacterias</td><td class="water-risk-high">ALTO</td></tr>
+        <tr><td>Azulada</td><td>Cobre de tubulacoes</td><td class="water-risk-med">Medio-Alto</td></tr>
+        <tr><td>Leitosa/branca</td><td>Gas dissolvido, calcario</td><td class="water-risk-low">Baixo</td></tr>
+        <tr><td>Brilho oleoso</td><td>Hidrocarbonetos</td><td class="water-risk-high">ALTO</td></tr>
+      </table>
+    </div>
+    <div class="water-result-card">
+      <h4>\u{1F443} Indicadores por Cheiro</h4>
+      <table class="water-ref-table">
+        <tr><th>Cheiro</th><th>Possivel Causa</th><th>Risco</th></tr>
+        <tr><td>Ovo podre (enxofre)</td><td>Bacterias anaerobias</td><td class="water-risk-high">Alto</td></tr>
+        <tr><td>Esgoto</td><td>Contaminacao fecal</td><td class="water-risk-crit">CRITICO</td></tr>
+        <tr><td>Quimico/solvente</td><td>Industrial</td><td class="water-risk-crit">CRITICO</td></tr>
+        <tr><td>Terra/mofo</td><td>Bacterias do solo</td><td class="water-risk-low">Baixo-Med</td></tr>
+        <tr><td>Peixe morto</td><td>Decomposicao</td><td class="water-risk-high">Alto</td></tr>
+        <tr><td>Cloro forte</td><td>Excesso tratamento</td><td class="water-risk-low">Baixo</td></tr>
+      </table>
+    </div>
+    <div class="water-result-card">
+      <h4>\u{1F41B} Indicadores Biologicos</h4>
+      <table class="water-ref-table">
+        <tr><th>Sinal</th><th>Significado</th></tr>
+        <tr><td>Nenhuma vida aquatica</td><td class="water-risk-high">Contaminacao severa provavel</td></tr>
+        <tr><td>Peixes mortos</td><td class="water-risk-high">Poluicao aguda</td></tr>
+        <tr><td>Espuma persistente</td><td class="water-risk-med">Detergentes/organicos</td></tr>
+        <tr><td>Algas espessas verdes</td><td class="water-risk-high">Eutrofizacao, toxinas</td></tr>
+        <tr><td>Larvas de libelula</td><td class="water-risk-ok">\u2705 Sinal POSITIVO</td></tr>
+        <tr><td>Girinos/sapos</td><td class="water-risk-ok">\u2705 Sinal POSITIVO</td></tr>
+      </table>
+    </div>
+    <div class="water-result-card">
+      <h4>\u{1F9EA} Teste Rapido de Espuma</h4>
+      <div class="water-info">
+        <p>1. Encha garrafa pela metade com agua suspeita</p>
+        <p>2. Agite vigorosamente por 30 segundos</p>
+        <p>3. Observe:</p>
+        <p>\u2705 Espuma some em segundos = <strong>Normal</strong></p>
+        <p>\u26A0\uFE0F Espuma persiste minutos = <strong>Contaminada</strong> (detergentes)</p>
+      </div>
+    </div>
+    <div class="water-tips">
+      <h4>\u{1F6D1} Regra Absoluta</h4>
+      <ul>
+        <li>Cheiro quimico + brilho oleoso + cor intensa = <strong>NENHUM metodo caseiro torna segura</strong></li>
+        <li>Busque OUTRA fonte de agua</li>
+      </ul>
+    </div>`;
+}
+window.waterRenderContam = waterRenderContam;
+
+/* ─── Reference Tables ─── */
+function waterRenderTables() {
+  const el = document.getElementById('waterTablesContent');
+  if (!el || el.dataset.loaded) return;
+  el.dataset.loaded = '1';
+
+  el.innerHTML = `
+    <div class="water-result-card">
+      <h4>\u{1F3D4}\uFE0F Fervura por Altitude</h4>
+      <table class="water-ref-table">
+        <tr><th>Altitude</th><th>Ponto Ebulicao</th><th>Tempo Minimo</th></tr>
+        <tr><td>0 - 1000m</td><td>100-97\u00B0C</td><td>1 minuto</td></tr>
+        <tr><td>1000 - 2000m</td><td>97-93\u00B0C</td><td>2 minutos</td></tr>
+        <tr><td>2000 - 3000m</td><td>93-90\u00B0C</td><td>3 minutos</td></tr>
+        <tr><td>3000 - 4000m</td><td>90-87\u00B0C</td><td>5 minutos</td></tr>
+        <tr><td>4000 - 5000m</td><td>87-83\u00B0C</td><td>7 minutos</td></tr>
+        <tr><td>>5000m</td><td><83\u00B0C</td><td>10 minutos</td></tr>
+      </table>
+      <p class="water-table-note">Regra: +1 min a cada 300m de altitude</p>
+    </div>
+    <div class="water-result-card">
+      <h4>\u2600\uFE0F SODIS por Condicao</h4>
+      <table class="water-ref-table">
+        <tr><th>Ceu</th><th>Turbidez</th><th>Tempo</th></tr>
+        <tr><td>Sol forte</td><td>Clara</td><td>6 horas</td></tr>
+        <tr><td>Sol forte</td><td>Levemente turva</td><td>8 horas</td></tr>
+        <tr><td>Nublado parcial</td><td>Clara</td><td>2 dias</td></tr>
+        <tr><td>Nublado parcial</td><td>Levemente turva</td><td>3 dias</td></tr>
+        <tr><td>Chuva/nublado total</td><td>Qualquer</td><td class="water-risk-high">NAO FUNCIONA</td></tr>
+      </table>
+    </div>
+    <div class="water-result-card">
+      <h4>\u{1F9F4} Dosagem de Cloro (2,5%)</h4>
+      <table class="water-ref-table">
+        <tr><th>Volume</th><th>Agua Clara</th><th>Agua Turva</th><th>Tempo</th></tr>
+        <tr><td>1L</td><td>2 gotas</td><td>4 gotas</td><td>30 min</td></tr>
+        <tr><td>2L</td><td>4 gotas</td><td>8 gotas</td><td>30 min</td></tr>
+        <tr><td>5L</td><td>10 gotas</td><td>20 gotas</td><td>30 min</td></tr>
+        <tr><td>10L</td><td>20 gotas</td><td>40 gotas</td><td>30 min</td></tr>
+        <tr><td>20L</td><td>40 gotas (\u00BD col. cha)</td><td>80 gotas (1 col. cha)</td><td>30 min</td></tr>
+      </table>
+    </div>
+    <div class="water-result-card">
+      <h4>\u{1F48A} Dosagem de Iodo (2%)</h4>
+      <table class="water-ref-table">
+        <tr><th>Volume</th><th>Agua Clara</th><th>Agua Turva/Fria</th><th>Tempo</th></tr>
+        <tr><td>1L</td><td>5 gotas</td><td>10 gotas</td><td>30-60 min</td></tr>
+        <tr><td>2L</td><td>10 gotas</td><td>20 gotas</td><td>30-60 min</td></tr>
+        <tr><td>5L</td><td>25 gotas</td><td>50 gotas</td><td>30-60 min</td></tr>
+      </table>
+    </div>
+    <div class="water-result-card">
+      <h4>\u{1F4CA} Necessidade Diaria Base</h4>
+      <table class="water-ref-table">
+        <tr><th>Perfil</th><th>Litros/dia</th></tr>
+        <tr><td>Repouso, clima ameno</td><td>2.0 L</td></tr>
+        <tr><td>Atividade moderada</td><td>3.0 L</td></tr>
+        <tr><td>Atividade intensa / calor</td><td>4.0 - 5.0 L</td></tr>
+        <tr><td>Criancas (5-12)</td><td>1.0 - 1.5 L</td></tr>
+        <tr><td>Bebes (0-1)</td><td>0.7 - 0.8 L</td></tr>
+        <tr><td>Idosos (+65)</td><td>2.5 L</td></tr>
+        <tr><td>Gravidas / Lactantes</td><td>3.0 - 3.5 L</td></tr>
+        <tr><td>Doentes (febre/diarreia)</td><td>4.0 - 6.0 L</td></tr>
+      </table>
+    </div>
+    <div class="water-result-card">
+      <h4>\u{1F50D} Comparativo de Metodos</h4>
+      <table class="water-ref-table water-ref-compare">
+        <tr><th>Metodo</th><th>Bact.</th><th>Virus</th><th>Paras.</th><th>Quim.</th><th>Veloc.</th></tr>
+        <tr><td>Fervura</td><td class="water-risk-ok">+++</td><td class="water-risk-ok">+++</td><td class="water-risk-ok">+++</td><td class="water-risk-high">-</td><td>5-15min</td></tr>
+        <tr><td>Cloro</td><td class="water-risk-ok">+++</td><td class="water-risk-ok">+++</td><td class="water-risk-med">+</td><td class="water-risk-high">-</td><td>30-60min</td></tr>
+        <tr><td>Iodo</td><td class="water-risk-ok">+++</td><td class="water-risk-ok">+++</td><td class="water-risk-ok">++</td><td class="water-risk-high">-</td><td>30-60min</td></tr>
+        <tr><td>SODIS</td><td class="water-risk-ok">++</td><td class="water-risk-ok">++</td><td class="water-risk-med">+</td><td class="water-risk-high">-</td><td>6h-2d</td></tr>
+        <tr><td>Ceramico</td><td class="water-risk-ok">+++</td><td class="water-risk-high">-</td><td class="water-risk-ok">+++</td><td class="water-risk-high">-</td><td>continuo</td></tr>
+        <tr><td>Destilacao</td><td class="water-risk-ok">+++</td><td class="water-risk-ok">+++</td><td class="water-risk-ok">+++</td><td class="water-risk-ok">+++</td><td>lento</td></tr>
+      </table>
+      <p class="water-table-note">+++ Excelente | ++ Bom | + Parcial | - Ineficaz</p>
+    </div>`;
+}
+window.waterRenderTables = waterRenderTables;
 
 
 // ─── Agenda / Tasks ──────────────────────────────────────────────────────────

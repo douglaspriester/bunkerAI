@@ -30,7 +30,7 @@ export const OS_APPS = [
   { id: 'radio',      name: 'Radio & Comunicacao', icon: '\u{1F4FB}', width: 620, height: 580, viewId: 'radioView' },
   { id: 'phonetic',   name: 'Fonetico NATO', icon: '\u{1F399}\uFE0F', width: 460, height: 540, viewId: 'phoneticView' },
   { id: 'sun',        name: 'Sol / Lua',     icon: '\u2600\uFE0F', width: 400, height: 460, viewId: 'sunView' },
-  { id: 'waterCalc',  name: 'Agua Segura',   icon: '\u{1F4A7}', width: 420, height: 500, viewId: 'waterCalcView' },
+  { id: 'waterCalc',  name: 'Agua Segura',   icon: '\u{1F4A7}', width: 640, height: 600, viewId: 'waterCalcView' },
   { id: 'media',      name: 'Media Player', icon: '\u{1F3B5}', width: 640, height: 480, viewId: 'mediaView' },
   { id: 'tasks',      name: 'Tarefas',       icon: '\u{1F4CC}', width: 600, height: 520, viewId: 'tasksView' },
   { id: 'fileManager', name: 'Arquivos',    icon: '\u{1F4C1}', width: 720, height: 500, viewId: 'fileManagerView' },

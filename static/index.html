@@ -1714,30 +1714,102 @@ Responda no idioma do usuario. Use markdown.</textarea>
 
     <!-- ═══ Water Purification Calculator ═══ -->
     <div class="panel-view hidden" id="waterCalcView">
-      <div style="padding:14px;height:100%;overflow-y:auto">
-        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:center">
-          <div>
-            <label class="morse-label">Volume (L)</label>
-            <input type="number" id="waterLiters" value="1" min="0.1" step="0.5" class="countdown-input" style="width:70px" oninput="waterCalcCompute()">
+      <div style="padding:14px;height:100%;display:flex;flex-direction:column;overflow:hidden">
+        <!-- Tab bar -->
+        <div class="water-tabs">
+          <button class="water-tab active" onclick="waterSwitchTab('purify')">&#x1F9EA; Purificar</button>
+          <button class="water-tab" onclick="waterSwitchTab('daily')">&#x1F4CA; Necessidade</button>
+          <button class="water-tab" onclick="waterSwitchTab('sources')">&#x1F30A; Fontes</button>
+          <button class="water-tab" onclick="waterSwitchTab('contam')">&#x26A0;&#xFE0F; Contaminacao</button>
+          <button class="water-tab" onclick="waterSwitchTab('tables')">&#x1F4CB; Tabelas</button>
+        </div>
+
+        <!-- Tab: Purification Calculator -->
+        <div class="water-tab-panel active" id="waterTabPurify" style="overflow-y:auto;flex:1">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:center">
+            <div>
+              <label class="morse-label">Volume (L)</label>
+              <input type="number" id="waterLiters" value="1" min="0.1" step="0.5" class="countdown-input" style="width:70px" oninput="waterCalcCompute()">
+            </div>
+            <div>
+              <label class="morse-label">Claridade</label>
+              <select id="waterClarity" class="conv-select" onchange="waterCalcCompute()">
+                <option value="clear">Clara</option>
+                <option value="turbid">Turva</option>
+              </select>
+            </div>
+            <div>
+              <label class="morse-label">Metodo</label>
+              <select id="waterMethod" class="conv-select" onchange="waterCalcCompute()">
+                <option value="bleach">Agua Sanitaria (2,5%)</option>
+                <option value="bleach6">Agua Sanitaria (5-6%)</option>
+                <option value="iodine">Tintura de Iodo (2%)</option>
+                <option value="iodine_tab">Comprimido de Iodo</option>
+                <option value="boil">Fervura</option>
+                <option value="sodis">SODIS (Solar)</option>
+                <option value="ceramic">Filtro Ceramico</option>
+                <option value="distill">Destilacao</option>
+              </select>
+            </div>
           </div>
-          <div>
-            <label class="morse-label">Claridade</label>
-            <select id="waterClarity" class="conv-select" onchange="waterCalcCompute()">
-              <option value="clear">Clara</option>
-              <option value="turbid">Turva</option>
-            </select>
-          </div>
-          <div>
-            <label class="morse-label">Metodo</label>
-            <select id="waterMethod" class="conv-select" onchange="waterCalcCompute()">
-              <option value="bleach">Agua Sanitaria</option>
-              <option value="iodine">Iodo</option>
-              <option value="boil">Fervura</option>
-              <option value="sodis">SODIS (Solar)</option>
-            </select>
+          <div id="waterResult"></div>
+        </div>
+
+        <!-- Tab: Daily Needs Calculator -->
+        <div class="water-tab-panel" id="waterTabDaily" style="overflow-y:auto;flex:1">
+          <div class="water-result-card">
+            <h4>&#x1F4CA; Calculadora de Necessidade Diaria</h4>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;align-items:end">
+              <div>
+                <label class="morse-label">Pessoas</label>
+                <input type="number" id="waterPeople" value="1" min="1" max="100" class="countdown-input" style="width:60px" oninput="waterDailyCalc()">
+              </div>
+              <div>
+                <label class="morse-label">Dias</label>
+                <input type="number" id="waterDays" value="3" min="1" max="365" class="countdown-input" style="width:60px" oninput="waterDailyCalc()">
+              </div>
+              <div>
+                <label class="morse-label">Clima</label>
+                <select id="waterClimate" class="conv-select" onchange="waterDailyCalc()">
+                  <option value="temperate">Temperado (15-30C)</option>
+                  <option value="hot">Quente (30-40C)</option>
+                  <option value="extreme">Extremo (>40C)</option>
+                  <option value="cold">Frio (<5C)</option>
+                  <option value="desert">Deserto (seco)</option>
+                </select>
+              </div>
+              <div>
+                <label class="morse-label">Atividade</label>
+                <select id="waterActivity" class="conv-select" onchange="waterDailyCalc()">
+                  <option value="rest">Repouso</option>
+                  <option value="light">Leve (caminhada)</option>
+                  <option value="moderate">Moderada</option>
+                  <option value="heavy">Intensa (carga)</option>
+                </select>
+              </div>
+              <div>
+                <label class="morse-label">Altitude (m)</label>
+                <input type="number" id="waterAltitude" value="0" min="0" max="8000" step="100" class="countdown-input" style="width:80px" oninput="waterDailyCalc()">
+              </div>
+            </div>
+            <div id="waterDailyResult"></div>
           </div>
         </div>
-        <div id="waterResult"></div>
+
+        <!-- Tab: Water Sources -->
+        <div class="water-tab-panel" id="waterTabSources" style="overflow-y:auto;flex:1">
+          <div id="waterSourcesContent"></div>
+        </div>
+
+        <!-- Tab: Contamination Signs -->
+        <div class="water-tab-panel" id="waterTabContam" style="overflow-y:auto;flex:1">
+          <div id="waterContamContent"></div>
+        </div>
+
+        <!-- Tab: Reference Tables -->
+        <div class="water-tab-panel" id="waterTabTables" style="overflow-y:auto;flex:1">
+          <div id="waterTablesContent"></div>
+        </div>
       </div>
     </div>
 

@@ -4949,6 +4949,121 @@ body {
 .water-tips h4 { color: var(--accent); font-size: 13px; margin-bottom: 6px; }
 .water-tips ul { padding-left: 18px; font-size: 12px; color: var(--text); line-height: 1.7; }
 
+/* ─── Water Tabs ─── */
+.water-tabs {
+  display: flex; gap: 2px; margin-bottom: 12px; flex-wrap: wrap;
+  background: var(--surface-1); border-radius: var(--radius); padding: 3px;
+  border: 1px solid var(--border);
+}
+.water-tab {
+  flex: 1; min-width: 80px; padding: 7px 6px; font-size: 11px; font-weight: 600;
+  background: transparent; color: var(--text-muted); border: none; border-radius: 4px;
+  cursor: pointer; transition: all .2s; text-align: center; white-space: nowrap;
+  font-family: var(--font-mono);
+}
+.water-tab:hover { color: var(--text-bright); background: var(--surface-2); }
+.water-tab.active {
+  color: var(--bg); background: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+.water-tab-panel { display: none; }
+.water-tab-panel.active { display: block; }
+
+/* ─── Efficacy bars ─── */
+.water-efficacy {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 12px; margin-bottom: 10px;
+}
+.water-efficacy h4 { color: var(--accent); font-size: 13px; margin-bottom: 8px; }
+.water-eff-row {
+  display: flex; align-items: center; gap: 8px; margin: 4px 0;
+}
+.water-eff-label {
+  width: 70px; font-size: 11px; color: var(--text-muted);
+  font-family: var(--font-mono); text-align: right;
+}
+.water-eff-bar {
+  flex: 1; height: 14px; background: var(--surface-3); border-radius: 7px; overflow: hidden;
+  border: 1px solid var(--border);
+}
+.water-eff-fill {
+  height: 100%; border-radius: 7px; transition: width .4s ease;
+  box-shadow: 0 0 6px currentColor;
+}
+.water-eff-pct {
+  width: 34px; font-size: 11px; color: var(--text-bright);
+  font-family: var(--font-mono); text-align: right;
+}
+
+/* ─── Daily needs stats ─── */
+.water-daily-grid {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 8px;
+}
+.water-daily-stat {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 12px; text-align: center;
+}
+.water-daily-stat.water-daily-total {
+  border-color: var(--accent); box-shadow: 0 0 10px var(--accent-glow);
+}
+.water-daily-num {
+  font-size: 28px; font-weight: 700; color: var(--accent);
+  font-family: var(--font-mono);
+}
+.water-daily-label {
+  font-size: 11px; color: var(--text-muted); margin-top: 2px;
+  font-family: var(--font-mono);
+}
+
+/* ─── Water Sources ─── */
+.water-source-card {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 12px; margin-bottom: 10px;
+}
+.water-source-header {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+}
+.water-source-icon { font-size: 20px; }
+.water-source-name {
+  font-size: 14px; font-weight: 700; color: var(--text-bright); flex: 1;
+}
+.water-source-risk {
+  font-size: 10px; font-weight: 700; padding: 2px 8px;
+  border-radius: 10px; font-family: var(--font-mono); white-space: nowrap;
+}
+.water-source-desc {
+  font-size: 12px; color: var(--text); line-height: 1.5; margin-bottom: 6px;
+}
+.water-source-tips {
+  padding-left: 16px; font-size: 11px; color: var(--text-muted); line-height: 1.6;
+}
+
+/* ─── Reference tables ─── */
+.water-ref-table {
+  width: 100%; border-collapse: collapse; font-size: 12px;
+  font-family: var(--font-mono);
+}
+.water-ref-table th {
+  background: var(--surface-3); color: var(--accent); padding: 6px 8px;
+  text-align: left; font-size: 11px; border-bottom: 1px solid var(--border);
+}
+.water-ref-table td {
+  padding: 5px 8px; border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+.water-ref-table tr:hover td { background: var(--surface-3); }
+.water-ref-compare td { text-align: center; font-weight: 600; }
+.water-ref-compare td:first-child { text-align: left; }
+.water-risk-low { color: #66ccff; }
+.water-risk-med { color: #ffaa00; }
+.water-risk-high { color: #ff4466; font-weight: 700; }
+.water-risk-crit { color: #ff0033; font-weight: 700; text-transform: uppercase; }
+.water-risk-ok { color: #00ff88; font-weight: 700; }
+.water-table-note {
+  font-size: 11px; color: var(--text-muted); margin-top: 6px;
+  font-style: italic; font-family: var(--font-mono);
+}
+
 /* ═══ Sun / Moon Calculator ═══ */
 .sun-grid {
   display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
