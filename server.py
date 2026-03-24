@@ -3568,6 +3568,23 @@ async def imagine_history():
     return {"images": images[:50]}
 
 
+@app.delete("/api/imagine/history/{filename}")
+async def imagine_delete_image(filename: str):
+    """Delete a generated image and its metadata."""
+    safe = Path(filename).name  # prevent traversal
+    fpath = GENERATED_IMAGES_DIR / safe
+    meta_path = GENERATED_IMAGES_DIR / f"{safe}.json"
+    if not fpath.exists():
+        return JSONResponse({"error": "not found"}, status_code=404)
+    try:
+        fpath.unlink()
+        if meta_path.exists():
+            meta_path.unlink()
+        return {"status": "deleted", "filename": safe}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
 # ─── Static (with no-cache for JS/CSS to avoid stale code) ──────────────────
 
 from starlette.middleware.base import BaseHTTPMiddleware
