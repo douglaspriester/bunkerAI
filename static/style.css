@@ -9287,3 +9287,153 @@ body.is-mobile .os-window-titlebar { cursor: default !important; }
     }
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   ACCESSIBILITY — Cycle 14
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── 1. Contrast fixes ──
+   --text (#7a9bb0) on --bg (#020609) ≈ 5.2:1 — OK for body
+   --text-muted (#445566) on --bg ≈ 2.8:1 — bump to pass AA 4.5:1
+   --accent (#00d4ff) on dark surface — good (8.5:1)
+   #00e5ff used in crypto tabs — OK on dark bg
+   Main issue: .text-muted and .text-faint used for labels
+*/
+:root {
+  --text-muted-a11y: #6a8599;  /* boosted from #445566 → 4.5:1 on #020609 */
+}
+
+/* Boost muted text contrast where it serves as primary readable text */
+.config-toggle-desc,
+.config-val,
+.desktop-widget .dw-stat,
+.sos-phone-tip,
+.start-menu-footer,
+.start-menu-ver,
+.tray-ai-label,
+.config-about span,
+.onboarding-subdesc {
+  color: var(--text-muted-a11y) !important;
+}
+
+/* ── 2. Font size adjustable — classes applied to <body> ── */
+body.font-sm  { font-size: 12px; }
+body.font-md  { font-size: 14px; }  /* default */
+body.font-lg  { font-size: 16px; }
+
+/* Scale relative items proportionally */
+body.font-sm .desktop-icon-label { font-size: 10px; }
+body.font-lg .desktop-icon-label { font-size: 13px; }
+body.font-sm .start-menu-item-label { font-size: 12px; }
+body.font-lg .start-menu-item-label { font-size: 15px; }
+body.font-sm .taskbar-clock { font-size: 10px; }
+body.font-lg .taskbar-clock { font-size: 14px; }
+body.font-sm .sos-card-steps li { font-size: 12px; }
+body.font-lg .sos-card-steps li { font-size: 15px; }
+
+/* ── 3. Focus visible — clear keyboard focus ring ── */
+*:focus-visible {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 4px rgba(0, 212, 255, 0.18) !important;
+}
+
+/* Specific focus styles for desktop icons */
+.desktop-icon:focus-visible {
+  background: rgba(0,212,255,0.1);
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 2px !important;
+}
+
+/* Start menu items */
+.start-menu-item:focus-visible {
+  background: rgba(0,212,255,0.1);
+}
+
+/* Taskbar buttons */
+.taskbar-start:focus-visible,
+.taskbar-app-btn:focus-visible {
+  background: rgba(0,212,255,0.12);
+}
+
+/* SOS toggle */
+.sos-toggle:focus-visible {
+  outline: 2px solid var(--danger) !important;
+  box-shadow: 0 0 0 4px rgba(255, 26, 71, 0.25) !important;
+}
+
+/* Config drawer buttons & selects */
+.config-select:focus-visible,
+.config-input:focus-visible,
+.config-textarea:focus-visible {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 0 !important;
+}
+
+/* Remove default ugly outlines only when NOT keyboard navigating */
+*:focus:not(:focus-visible) {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* ── 4. Skip to content link ── */
+.skip-to-content {
+  position: fixed;
+  top: -100px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 99999;
+  background: var(--accent);
+  color: var(--bg);
+  padding: 8px 24px;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  font-family: var(--font-hud);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: top 0.2s ease;
+  letter-spacing: 0.5px;
+}
+.skip-to-content:focus {
+  top: 0;
+  outline: none;
+}
+
+/* ── 5. Font size selector in config ── */
+.config-fontsize-group {
+  display: flex;
+  gap: 6px;
+}
+.config-fontsize-btn {
+  flex: 1;
+  padding: 6px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 12px;
+  transition: all var(--t);
+  text-align: center;
+}
+.config-fontsize-btn:hover {
+  background: var(--surface-3);
+  border-color: var(--border-bright);
+}
+.config-fontsize-btn.active {
+  background: rgba(0, 212, 255, 0.12);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ── 6. Reduced motion preference ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .sweep-line { display: none; }
+}

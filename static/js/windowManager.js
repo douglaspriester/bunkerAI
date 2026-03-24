@@ -394,7 +394,8 @@ export function renderTaskbar() {
     btn.className = 'taskbar-app-btn' +
       (win.winId === _activeWindowId && !win.minimized ? ' taskbar-app-active' : '') +
       (win.minimized ? ' taskbar-app-minimized' : '');
-    btn.innerHTML = `<span class="taskbar-app-icon">${appInfo.icon}</span><span class="taskbar-app-name">${appInfo.name}</span>`;
+    btn.setAttribute('aria-label', `${appInfo.name}${win.minimized ? ' (minimizado)' : ''}`);
+    btn.innerHTML = `<span class="taskbar-app-icon" aria-hidden="true">${appInfo.icon}</span><span class="taskbar-app-name">${appInfo.name}</span>`;
     btn.onclick = () => {
       if (win.minimized) unminimizeWindow(win.winId);
       else if (win.winId === _activeWindowId) minimizeWindow(win.winId);
@@ -465,9 +466,12 @@ export function renderDesktopIcons() {
     icon.className = 'desktop-icon';
     icon.dataset.appId = app.id;
     icon.draggable = true;
+    icon.tabIndex = 0;
+    icon.setAttribute('role', 'button');
+    icon.setAttribute('aria-label', `Abrir ${app.name}`);
     icon.title = app.name; // Full name as tooltip
     icon.innerHTML = `
-      <div class="desktop-icon-img">${app.icon}</div>
+      <div class="desktop-icon-img" aria-hidden="true">${app.icon}</div>
       <div class="desktop-icon-label">${shortName}</div>
     `;
     icon.ondblclick = () => {
@@ -479,6 +483,15 @@ export function renderDesktopIcons() {
       document.querySelectorAll('.desktop-icon.selected').forEach(el => el.classList.remove('selected'));
       icon.classList.add('selected');
     };
+    // Keyboard: Enter/Space opens the app
+    icon.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        icon.classList.add('opening');
+        setTimeout(() => icon.classList.remove('opening'), 600);
+        openApp(app.id);
+      }
+    });
 
     // Drag-and-drop reordering
     icon.addEventListener('dragstart', (e) => {
@@ -571,16 +584,27 @@ function _makeStartMenuItem(app) {
   item.className = 'start-menu-item';
   item.dataset.name = app.name.toLowerCase();
   item.dataset.appId = app.id;
+  item.tabIndex = 0;
+  item.setAttribute('role', 'menuitem');
+  item.setAttribute('aria-label', app.name);
   item.innerHTML = `
-    <span class="start-menu-item-icon">${app.icon}</span>
+    <span class="start-menu-item-icon" aria-hidden="true">${app.icon}</span>
     <span class="start-menu-item-label">${app.name}</span>
-    ${running ? '<span class="start-menu-running-dot"></span>' : ''}
+    ${running ? '<span class="start-menu-running-dot" aria-label="Em execucao"></span>' : ''}
   `;
   item.onclick = () => {
     _trackRecentApp(app.id);
     openApp(app.id);
     closeStartMenu();
   };
+  item.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      _trackRecentApp(app.id);
+      openApp(app.id);
+      closeStartMenu();
+    }
+  });
   return item;
 }
 

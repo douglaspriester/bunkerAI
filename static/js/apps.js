@@ -17,6 +17,25 @@ const { state, storage, escapeHtml, markdownToHtml, guidesCache, LOADING_PHRASES
 // Always access via window.guidesIndex etc. (not as destructured const).
 
 
+// ─── Accessibility: Font Size ────────────────────────────────────────────────
+function setFontSize(size) {
+  document.body.classList.remove('font-sm', 'font-md', 'font-lg');
+  if (size && size !== 'md') document.body.classList.add('font-' + size);
+  // Persist
+  try { localStorage.setItem('bunker_font_size', size); } catch {}
+  // Update selector buttons
+  document.querySelectorAll('.config-fontsize-btn').forEach(btn => {
+    const active = btn.dataset.size === size;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-checked', active ? 'true' : 'false');
+  });
+}
+
+function initFontSize() {
+  const saved = localStorage.getItem('bunker_font_size') || 'md';
+  setFontSize(saved);
+}
+
 
 // ─── Boot Sequence ───────────────────────────────────────────────────────────
 function runBootSequence() {
@@ -24,6 +43,9 @@ function runBootSequence() {
   const bootFill = document.getElementById('bootBarFill');
   const bootScreen = document.getElementById('bootScreen');
   const desktop = document.getElementById('desktop');
+
+  // Init accessibility font size early
+  initFontSize();
 
   if (!bootScreen || !desktop) {
     // No boot screen, go straight to desktop
