@@ -142,6 +142,7 @@ async function boot() {
   // 5. Init remaining systems
   window.loadCharacters?.();
   window.checkHealth?.();
+  window.trayInit?.();
   autoResize();
   window.setupDragDrop?.();
   renderChatList();

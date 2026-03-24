@@ -3511,16 +3511,70 @@ body::after {
 
 /* ── Taskbar System Tray ── */
 .taskbar-tray {
-  display: flex; align-items: center; gap: 12px;
-  padding: 0 8px 0 12px;
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 8px 0 10px;
   border-left: 1px solid var(--border);
   margin-left: auto;
   flex-shrink: 0;
   height: 100%;
 }
-.taskbar-status {
-  display: flex; align-items: center;
+.tray-item {
+  display: flex; align-items: center; gap: 4px;
+  cursor: pointer;
+  padding: 3px 5px;
+  border-radius: var(--radius);
+  transition: background var(--t);
 }
+.tray-item:hover { background: var(--surface-2); }
+.tray-ai {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+.tray-ai-label {
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  max-width: 60px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Mini vertical bars for CPU/RAM/Disk */
+.tray-minibar-group {
+  display: flex; gap: 3px; align-items: flex-end;
+}
+.tray-minibar {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+}
+.tray-minibar-label {
+  font-size: 7px;
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  line-height: 1;
+}
+.tray-minibar-track {
+  width: 6px; height: 18px;
+  background: var(--surface-2);
+  border-radius: 2px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+}
+.tray-minibar-fill {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: var(--green);
+  border-radius: 1px;
+  transition: height 1s ease, background 0.5s;
+}
+.tray-minibar-fill.warn { background: var(--amber); }
+.tray-minibar-fill.danger { background: var(--danger); }
+.tray-net {
+  color: var(--text-faint);
+  transition: color var(--t);
+}
+.tray-net.online { color: var(--green); }
+.tray-net.offline { color: var(--text-faint); }
 .taskbar-clock {
   font-family: var(--font-hud);
   font-size: 13px;
@@ -3529,6 +3583,100 @@ body::after {
   letter-spacing: 0.1em;
   min-width: 48px;
   text-align: center;
+}
+
+/* ── System Tray Popup ── */
+.tray-popup {
+  position: fixed;
+  bottom: 52px;
+  right: 8px;
+  width: 260px;
+  background: rgba(4,10,16,0.96);
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    0 12px 40px rgba(0,0,0,0.7),
+    0 0 20px rgba(0,212,255,0.06);
+  backdrop-filter: blur(16px);
+  z-index: 310;
+  padding: 12px;
+  animation: tray-popup-in 0.15s var(--ease);
+}
+@keyframes tray-popup-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.tray-popup.hidden { display: none; }
+.tray-popup-header {
+  display: flex; justify-content: space-between; align-items: center;
+  font-family: var(--font-hud);
+  font-size: 11px;
+  color: var(--accent);
+  letter-spacing: 0.1em;
+  font-weight: 600;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.tray-popup-uptime {
+  font-size: 9px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  letter-spacing: 0;
+}
+.tray-popup-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.tray-popup-card {
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  padding: 8px;
+}
+.tray-popup-label {
+  font-size: 9px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 5px;
+}
+.tray-popup-bar {
+  height: 4px;
+  background: var(--surface-2);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+.tray-popup-bar-fill {
+  height: 100%;
+  background: var(--green);
+  border-radius: 2px;
+  transition: width 1s ease, background 0.5s;
+  width: 0%;
+}
+.tray-popup-bar-fill.warn { background: var(--amber); }
+.tray-popup-bar-fill.danger { background: var(--danger); }
+.tray-popup-val {
+  font-size: 10px;
+  color: var(--text-bright);
+  font-family: var(--font-mono);
+}
+.tray-popup-row {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  padding: 3px 0;
+}
+.tray-popup-footer {
+  display: flex; gap: 6px; justify-content: flex-end;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
 }
 
 /* ═══ START MENU ═══ */

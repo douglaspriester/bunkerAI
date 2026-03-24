@@ -516,6 +516,176 @@ function updateSysStatusBar(d) {
   }
 }
 
+// ─── Taskbar System Tray (live resource monitor) ─────────────────────────────
+let _trayInterval = null;
+let _trayPopupOpen = false;
+let _trayData = null;
+
+function trayInit() {
+  trayRefresh();
+  if (_trayInterval) clearInterval(_trayInterval);
+  _trayInterval = setInterval(trayRefresh, 10000); // every 10s
+
+  // Close popup on outside click
+  document.addEventListener('click', (e) => {
+    if (_trayPopupOpen && !e.target.closest('.tray-popup') && !e.target.closest('.tray-resources')) {
+      closeTrayPopup();
+    }
+  });
+}
+
+async function trayRefresh() {
+  try {
+    const r = await fetch('/api/status');
+    const d = await r.json();
+    _trayData = d;
+    trayUpdateMinibars(d);
+    trayUpdateAI(d);
+    trayUpdateNet(d);
+    if (_trayPopupOpen) trayUpdatePopup(d);
+  } catch {
+    // server unreachable — show warning state
+    trayUpdateMiniBarsFallback();
+  }
+}
+
+function trayUpdateMiniBarsFallback() {
+  ['trayCpuFill', 'trayRamFill', 'trayDiskFill'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.style.height = '0%'; el.className = 'tray-minibar-fill'; }
+  });
+}
+
+function _barColor(pct, warnAt, dangerAt) {
+  if (pct > dangerAt) return 'danger';
+  if (pct > warnAt) return 'warn';
+  return '';
+}
+
+function trayUpdateMiniBarsFill(id, pct, warnAt, dangerAt) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const p = Math.max(0, Math.min(100, pct || 0));
+  el.style.height = p + '%';
+  el.className = 'tray-minibar-fill ' + _barColor(p, warnAt, dangerAt);
+}
+
+function trayUpdateMiniBarPopupFill(id, pct, warnAt, dangerAt) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const p = Math.max(0, Math.min(100, pct || 0));
+  el.style.width = p + '%';
+  el.className = 'tray-popup-bar-fill ' + _barColor(p, warnAt, dangerAt);
+}
+
+function trayUpdateMiniBarTitle(barEl, label) {
+  if (barEl) barEl.title = label;
+}
+
+function trayUpdateMiniBarGroup(d) {
+  const cpuBar = document.querySelector('.tray-minibar[title="CPU"]');
+  const ramBar = document.querySelector('.tray-minibar[title="RAM"]');
+  const diskBar = document.querySelector('.tray-minibar[title="Disco"]');
+  if (cpuBar) cpuBar.title = `CPU: ${d.cpu_pct != null ? d.cpu_pct + '%' : '?'}${d.cpu_count ? ' (' + d.cpu_count + ' cores)' : ''}`;
+  if (ramBar) ramBar.title = `RAM: ${d.ram_pct != null ? d.ram_pct + '%' : '?'} (${d.ram_used_mb || '?'}/${d.ram_total_mb || '?'} MB)`;
+  if (diskBar) diskBar.title = `Disco: ${d.disk_pct != null ? d.disk_pct + '%' : '?'} (${d.disk_free_gb || '?'} GB livre)`;
+}
+
+function trayUpdateMinibars(d) {
+  trayUpdateMiniBarsFill('trayCpuFill', d.cpu_pct, 50, 80);
+  trayUpdateMiniBarsFill('trayRamFill', d.ram_pct, 60, 85);
+  trayUpdateMiniBarsFill('trayDiskFill', d.disk_pct, 70, 90);
+  trayUpdateMiniBarGroup(d);
+}
+
+function trayUpdateAI(d) {
+  // Use health data for AI status (stored in state._lastHealth from checkHealth)
+  const h = state._lastHealth || {};
+  const label = document.getElementById('trayAILabel');
+  if (!label) return;
+  if (h.status === 'online') {
+    const backend = h.backend === 'ollama' ? 'Ollama' : h.backend === 'llama.cpp' ? 'llama' : 'IA';
+    const modelCount = (h.models || []).length;
+    label.textContent = `${backend} · ${modelCount}`;
+    label.title = `${backend} online · ${modelCount} modelo${modelCount !== 1 ? 's' : ''}`;
+  } else {
+    label.textContent = 'Offline';
+    label.title = 'IA backend offline';
+  }
+}
+
+function trayUpdateNet(d) {
+  const el = document.getElementById('trayNet');
+  if (!el) return;
+  if (d.internet) {
+    el.className = 'tray-item tray-net online';
+    el.title = `Rede: conectado · ${d.ip || '?'}`;
+  } else {
+    el.className = 'tray-item tray-net offline';
+    el.title = d.offline_mode ? 'Modo offline ativo' : 'Sem internet';
+  }
+}
+
+function toggleTrayPopup() {
+  const el = document.getElementById('trayPopup');
+  if (!el) return;
+  if (_trayPopupOpen) {
+    closeTrayPopup();
+  } else {
+    el.classList.remove('hidden');
+    _trayPopupOpen = true;
+    if (_trayData) trayUpdatePopup(_trayData);
+    // Immediate refresh for fresh data
+    trayRefresh();
+  }
+}
+
+function closeTrayPopup() {
+  const el = document.getElementById('trayPopup');
+  if (el) el.classList.add('hidden');
+  _trayPopupOpen = false;
+}
+
+function trayUpdatePopup(d) {
+  // Resource bars
+  trayUpdateMiniBarPopupFill('trayPopCpuFill', d.cpu_pct, 50, 80);
+  trayUpdateMiniBarPopupFill('trayPopRamFill', d.ram_pct, 60, 85);
+  trayUpdateMiniBarPopupFill('trayPopDiskFill', d.disk_pct, 70, 90);
+
+  // Values
+  const cpuVal = document.getElementById('trayPopCpuVal');
+  if (cpuVal) cpuVal.textContent = `${d.cpu_pct != null ? d.cpu_pct + '%' : '--'}${d.cpu_count ? ' · ' + d.cpu_count + ' cores' : ''}`;
+
+  const ramVal = document.getElementById('trayPopRamVal');
+  if (ramVal) ramVal.textContent = `${d.ram_used_mb || '?'} / ${d.ram_total_mb || '?'} MB`;
+
+  const diskVal = document.getElementById('trayPopDiskVal');
+  if (diskVal) diskVal.textContent = `${d.disk_free_gb || '?'} GB livre`;
+
+  const gpuVal = document.getElementById('trayPopGpu');
+  if (gpuVal) gpuVal.textContent = d.gpu || 'Nenhuma detectada';
+
+  // Host info
+  const host = document.getElementById('trayPopHost');
+  if (host) host.textContent = `${d.hostname || '?'} · ${d.os || '?'} · ${d.arch || ''}`;
+
+  // Network
+  const net = document.getElementById('trayPopNet');
+  if (net) {
+    const icon = d.internet ? '\u{1F7E2}' : '\u{1F534}';
+    const label = d.internet ? 'Conectado' : (d.offline_mode ? 'Modo offline' : 'Sem internet');
+    net.textContent = `${icon} ${label} · ${d.ip || '?'}:${d.port || '?'}`;
+  }
+
+  // Uptime
+  const up = document.getElementById('trayUptime');
+  if (up && d.uptime_sec != null) {
+    const h = Math.floor(d.uptime_sec / 3600);
+    const m = Math.floor((d.uptime_sec % 3600) / 60);
+    up.textContent = `${h}h${String(m).padStart(2, '0')}m up`;
+  }
+}
+
 function maybeShowSetupModal(d, force = false) {
   if (!force && localStorage.getItem("bunker_setup_dismissed") === "1") return;
 
@@ -6768,3 +6938,9 @@ window.modelMgrInit = modelMgrInit;
 window.modelMgrRefresh = modelMgrRefresh;
 window.modelMgrDownload = modelMgrDownload;
 window.modelMgrDelete = modelMgrDelete;
+
+// ── Tray system exports ──
+window.trayInit = trayInit;
+window.trayRefresh = trayRefresh;
+window.toggleTrayPopup = toggleTrayPopup;
+window.closeTrayPopup = closeTrayPopup;

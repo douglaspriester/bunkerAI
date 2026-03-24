@@ -88,11 +88,72 @@
       <span>Bunker</span>
     </button>
     <div id="taskbarApps" class="taskbar-apps"></div>
-    <div class="taskbar-tray">
-      <span class="taskbar-status" id="taskbarStatus" title="Status do sistema — duplo clique para config" ondblclick="openApp('settings')">
+    <div class="taskbar-tray" id="taskbarTray">
+      <!-- AI Backend status -->
+      <span class="tray-item tray-ai" id="trayAI" title="IA Backend" onclick="openApp('sysmon')">
         <span class="sys-dot sys-warn" id="taskbarStatusDot"></span>
+        <span class="tray-ai-label" id="trayAILabel">IA</span>
       </span>
+      <!-- Mini resource bars -->
+      <span class="tray-item tray-resources" id="trayResources" onclick="toggleTrayPopup()" title="Recursos do sistema">
+        <span class="tray-minibar-group">
+          <span class="tray-minibar" title="CPU">
+            <span class="tray-minibar-label">C</span>
+            <span class="tray-minibar-track"><span class="tray-minibar-fill" id="trayCpuFill" style="height:0%"></span></span>
+          </span>
+          <span class="tray-minibar" title="RAM">
+            <span class="tray-minibar-label">R</span>
+            <span class="tray-minibar-track"><span class="tray-minibar-fill" id="trayRamFill" style="height:0%"></span></span>
+          </span>
+          <span class="tray-minibar" title="Disco">
+            <span class="tray-minibar-label">D</span>
+            <span class="tray-minibar-track"><span class="tray-minibar-fill" id="trayDiskFill" style="height:0%"></span></span>
+          </span>
+        </span>
+      </span>
+      <!-- Network status -->
+      <span class="tray-item tray-net" id="trayNet" title="Rede">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="trayNetIcon">
+          <path d="M1 9l11 11L23 9" opacity="0.2"/><path d="M5 13l7 7 7-7" opacity="0.4"/><path d="M9 17l3 3 3-3"/>
+        </svg>
+      </span>
+      <!-- Clock -->
       <span class="taskbar-clock" id="taskbarClock" ondblclick="openApp('journal')">00:00</span>
+    </div>
+
+    <!-- System Tray Popup -->
+    <div id="trayPopup" class="tray-popup hidden">
+      <div class="tray-popup-header">
+        <span>Sistema</span>
+        <span class="tray-popup-uptime" id="trayUptime">--</span>
+      </div>
+      <div class="tray-popup-grid" id="trayPopupGrid">
+        <div class="tray-popup-card">
+          <div class="tray-popup-label">CPU</div>
+          <div class="tray-popup-bar"><div class="tray-popup-bar-fill" id="trayPopCpuFill"></div></div>
+          <div class="tray-popup-val" id="trayPopCpuVal">--</div>
+        </div>
+        <div class="tray-popup-card">
+          <div class="tray-popup-label">RAM</div>
+          <div class="tray-popup-bar"><div class="tray-popup-bar-fill" id="trayPopRamFill"></div></div>
+          <div class="tray-popup-val" id="trayPopRamVal">--</div>
+        </div>
+        <div class="tray-popup-card">
+          <div class="tray-popup-label">Disco</div>
+          <div class="tray-popup-bar"><div class="tray-popup-bar-fill" id="trayPopDiskFill"></div></div>
+          <div class="tray-popup-val" id="trayPopDiskVal">--</div>
+        </div>
+        <div class="tray-popup-card">
+          <div class="tray-popup-label">GPU</div>
+          <div class="tray-popup-val" id="trayPopGpu" style="font-size:11px;">--</div>
+        </div>
+      </div>
+      <div class="tray-popup-row" id="trayPopHost">--</div>
+      <div class="tray-popup-row" id="trayPopNet">--</div>
+      <div class="tray-popup-footer">
+        <button class="btn-sm" onclick="openApp('sysmon');closeTrayPopup();" style="font-size:10px;">Abrir Monitor</button>
+        <button class="btn-sm" onclick="toggleConfig();closeTrayPopup();" style="font-size:10px;">Configuracoes</button>
+      </div>
     </div>
   </div>
 
