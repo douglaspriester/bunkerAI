@@ -9028,3 +9028,665 @@ window.rationsCalc = rationsCalc;
 window.rationsQuickAdd = rationsQuickAdd;
 window.rationsAddItem = rationsAddItem;
 window.rationsDeleteItem = rationsDeleteItem;
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ═══ PLANTS GUIDE — Edible, Medicinal & Toxic Plant Identification ══════════
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const PLANTS_DB = [
+  // ── EDIBLE ──
+  {
+    id: 'dandel', name: 'Dente-de-leão', latin: 'Taraxacum officinale', type: 'dual',
+    icon: '🌼', biome: ['temperado', 'subtropical', 'urbano'],
+    edibleParts: ['Folhas', 'Flores', 'Raízes'],
+    description: 'Planta extremamente comum em todo o mundo, encontrada em gramados, terrenos baldios e beiras de estrada. Todas as partes são comestíveis.',
+    identification: [
+      'Folhas dentadas em roseta basal (10-25 cm)',
+      'Flor amarela solitária em haste oca',
+      'Ao cortar, exsuda látex branco leitoso',
+      'Fruto: "paraquedas" brancos (aquênios)',
+      'Raiz pivotante profunda, marrom por fora, branca por dentro'
+    ],
+    preparation: 'Folhas jovens em salada (menos amargas). Flores podem ser fritas em massa. Raízes secas e torradas fazem substituto de café. Ferver folhas maduras 5min reduz amargor.',
+    medicinal: 'Diurético natural (chá da raiz). Rico em potássio, vitaminas A, C e K. Auxilia digestão e função hepática.',
+    warnings: 'Evitar colher perto de estradas (metais pesados) ou áreas com agrotóxicos. Pode causar reação alérgica em pessoas sensíveis a Asteraceae.',
+    nutrition: { kcal: 45, protein: 2.7, vitC: 35, fiber: 3.5 },
+    season: 'Primavera a outono (folhas). Flores na primavera.',
+    confusion: 'Pode ser confundida com chicória (Cichorium) — ambas comestíveis. Cuidado com Hypochaeris radicata (também comestível, mas menos nutritiva).'
+  },
+  {
+    id: 'nettle', name: 'Urtiga', latin: 'Urtica dioica', type: 'dual',
+    icon: '🌿', biome: ['temperado', 'subtropical', 'floresta'],
+    edibleParts: ['Folhas jovens', 'Brotos'],
+    description: 'Planta com pelos urticantes que causam ardência ao toque. Após cozimento, perde completamente o efeito urticante e se torna altamente nutritiva.',
+    identification: [
+      'Folhas opostas, serrilhadas, cobertas de pelos finos',
+      'Caule quadrangular com pelos urticantes',
+      'Altura: 30-150 cm',
+      'Flores pequenas esverdeadas em cachos pendentes',
+      'Cresce em solos ricos e úmidos'
+    ],
+    preparation: 'SEMPRE cozinhar ou secar antes de consumir — elimina os tricomas urticantes. Ferver 3-5 min para sopa ou chá. Pode ser usada como espinafre. Secar para chá.',
+    medicinal: 'Anti-inflamatório. Chá usado para alergias, artrite e anemia. Rica em ferro e cálcio. Historicamente usada para estimular circulação.',
+    warnings: 'NUNCA comer crua — os pelos urticantes causam dor intensa. Usar luvas para colher. Após cozimento é 100% segura.',
+    nutrition: { kcal: 42, protein: 2.4, vitC: 33, fiber: 6.9 },
+    season: 'Primavera (brotos jovens são os melhores). Evitar após floração.',
+    confusion: 'Urtiga-branca (Lamium album) não tem pelos urticantes e também é comestível.'
+  },
+  {
+    id: 'plantago', name: 'Tanchagem', latin: 'Plantago major', type: 'dual',
+    icon: '🍃', biome: ['temperado', 'tropical', 'urbano', 'subtropical'],
+    edibleParts: ['Folhas jovens', 'Sementes'],
+    description: 'Uma das plantas medicinais mais úteis em sobrevivência. Encontrada em quase todos os lugares do mundo, especialmente em áreas pisoteadas.',
+    identification: [
+      'Roseta basal de folhas ovais largas (5-15 cm)',
+      'Nervuras paralelas proeminentes (3-7)',
+      'Espiga floral longa e fina (10-30 cm)',
+      'Folhas resistentes, difíceis de rasgar',
+      'Cresce em solos compactados, trilhas, calçadas'
+    ],
+    preparation: 'Folhas jovens em salada ou cozidas como espinafre. Sementes moídas como farinha. Folhas maduras são fibrosas — picar fino e cozinhar.',
+    medicinal: 'ANTÍDOTO DE CAMPO: esmagar folha fresca e aplicar sobre picadas de inseto, urticária, pequenos cortes — reduz inflamação e dor rapidamente. Chá para tosse e bronquite. Antibacteriano natural.',
+    warnings: 'Sem toxicidade conhecida. Evitar áreas contaminadas.',
+    nutrition: { kcal: 33, protein: 2.5, vitC: 8, fiber: 3.3 },
+    season: 'Ano todo em climas amenos. Melhor na primavera.',
+    confusion: 'Plantago lanceolata (tanchagem-menor) tem folhas estreitas e lanceoladas — também comestível e medicinal.'
+  },
+  {
+    id: 'cattail', name: 'Taboa', latin: 'Typha latifolia', type: 'edible',
+    icon: '🌾', biome: ['pantanal', 'beira de rio', 'tropical', 'temperado'],
+    edibleParts: ['Rizomas', 'Brotos', 'Pólen', 'Inflorescência jovem'],
+    description: 'Chamada de "supermercado do pântano" — quase todas as partes são comestíveis em diferentes épocas do ano. Essencial para sobrevivência perto de água.',
+    identification: [
+      'Planta alta (1.5-3 m) em áreas alagadas',
+      'Folhas longas, estreitas e rígidas como espada',
+      'Inflorescência cilíndrica marrom tipo "salsicha"',
+      'Cresce em grupos densos em margem de rios e lagos',
+      'Rizoma grosso e branco por dentro'
+    ],
+    preparation: 'Rizomas: descascar e cozinhar como batata, ou secar e moer em farinha. Brotos jovens (primavera): comer crus ou cozidos como aspargos. Pólen amarelo: coletar e usar como farinha nutritiva. Inflorescência verde: grelhar como milho.',
+    medicinal: 'Gel do caule aplicado em queimaduras leves. Penugem da inflorescência madura serve como curativo absorvente e material de isolamento.',
+    warnings: 'Certificar que a água não está contaminada. Não confundir com Iris (lirio-do-brejo) que é TÓXICA — Iris tem folha achatada em leque, Taboa tem folha em "D".',
+    nutrition: { kcal: 266, protein: 4.5, vitC: 0, fiber: 7.2 },
+    season: 'Rizomas: outono/inverno. Brotos: primavera. Pólen: início verão.',
+    confusion: 'PERIGO: Iris pseudacorus (lírio-do-brejo amarelo) cresce no mesmo habitat e é TÓXICA. Verificar: Taboa tem folhas com seção em "D", Iris tem folhas achatadas em leque.'
+  },
+  {
+    id: 'clover', name: 'Trevo', latin: 'Trifolium spp.', type: 'edible',
+    icon: '☘️', biome: ['temperado', 'subtropical', 'urbano', 'campo'],
+    edibleParts: ['Folhas', 'Flores', 'Sementes'],
+    description: 'Planta extremamente comum em gramados e pastagens em todo o mundo. Fácil de identificar pela folha trifoliada característica.',
+    identification: [
+      'Folhas com 3 folíolos (trifoliadas) — raramente 4',
+      'Marca clara em "V" em cada folíolo',
+      'Flores globulares brancas ou rosas',
+      'Planta rasteira, 10-30 cm',
+      'Gramados, parques, pastagens'
+    ],
+    preparation: 'Flores e folhas jovens em salada. Flores secas para chá. Ferver folhas 10 min melhora digestibilidade. Sementes podem ser moídas em farinha. Brotar sementes para salada.',
+    medicinal: 'Chá das flores vermelhas: expectorante, auxilia menopausa (fitoestrogênios). Flores brancas em infusão para resfriados.',
+    warnings: 'Comer em moderação — pode causar inchaço se consumido em grande quantidade cru. Pessoas com distúrbios de coagulação devem evitar.',
+    nutrition: { kcal: 38, protein: 3.5, vitC: 15, fiber: 2.8 },
+    season: 'Primavera e verão.',
+    confusion: 'Oxalis (trevo-azedo) tem folhas similares mas sabor ácido — também comestível em pequenas quantidades. Verificar: Trifolium tem marca em "V" no folíolo.'
+  },
+  {
+    id: 'amaranth', name: 'Amaranto / Caruru', latin: 'Amaranthus spp.', type: 'edible',
+    icon: '🌱', biome: ['tropical', 'subtropical', 'urbano', 'temperado'],
+    edibleParts: ['Folhas', 'Sementes', 'Caule jovem'],
+    description: 'Planta considerada "erva daninha" mas extremamente nutritiva. Cultivada há milênios pelos Astecas. Comum em terrenos baldios e hortas.',
+    identification: [
+      'Folhas ovais alternadas, inteiras ou levemente onduladas',
+      'Caule ereto avermelhado ou verde, 30-200 cm',
+      'Inflorescência densa em espiga terminal',
+      'Sementes muito pequenas, escuras e brilhantes',
+      'Raiz pivotante avermelhada'
+    ],
+    preparation: 'Folhas cozidas como espinafre (5-10 min). Sementes: secar, debulhar e tostar — usar como cereal ou moer em farinha. Brotos jovens crus em salada.',
+    medicinal: 'Rico em ferro — combate anemia. Anti-inflamatório. Folhas em cataplasma para picadas de inseto.',
+    warnings: 'Como espinafre, contém oxalatos — não consumir em grandes quantidades cru. Cozinhar reduz oxalatos. Pessoas com pedras nos rins devem moderar.',
+    nutrition: { kcal: 23, protein: 2.5, vitC: 43, fiber: 2.1 },
+    season: 'Verão e outono.',
+    confusion: 'Várias espécies de Amaranthus — todas comestíveis. Não confundir com Phytolacca (fitolaca/erva-de-rato) que tem bagas e é TÓXICA.'
+  },
+  {
+    id: 'purslane', name: 'Beldroega', latin: 'Portulaca oleracea', type: 'edible',
+    icon: '🥬', biome: ['tropical', 'subtropical', 'urbano', 'temperado'],
+    edibleParts: ['Folhas', 'Caules', 'Sementes'],
+    description: 'Uma das plantas mais nutritivas do planeta — é a fonte vegetal mais rica em ômega-3 (ácido alfa-linolênico). Cresce em rachaduras de calçada.',
+    identification: [
+      'Folhas suculentas, ovais, carnudas, verde-brilhantes',
+      'Caule avermelhado, prostrado, suculento',
+      'Flores pequenas amarelas (5 pétalas)',
+      'Planta rasteira formando tapete, 5-30 cm',
+      'Textura mucilaginosa ao cortar'
+    ],
+    preparation: 'Comer crua em salada (sabor levemente ácido/azedo). Cozinhar em refogados e sopas. Sementes tostadas como cereal. Pode ser conservada em vinagre.',
+    medicinal: 'Fonte de ômega-3 (raro em plantas). Antioxidante. Folhas amassadas em pequenas queimaduras e picadas. Auxilia diabetes (reduz glicemia).',
+    warnings: 'Contém oxalatos moderados — comer com moderação se tiver pedras nos rins. NÃO confundir com Euphorbia (erva-de-cobra) que exsuda LÁTEX BRANCO TÓXICO.',
+    nutrition: { kcal: 20, protein: 2.0, vitC: 21, fiber: 1.5 },
+    season: 'Verão (calor pleno).',
+    confusion: 'PERIGO: Euphorbia maculata (erva-de-cobra) parece similar mas exsuda LÁTEX BRANCO ao cortar. Beldroega exsuda líquido TRANSPARENTE mucilaginoso. Sempre testar antes!'
+  },
+  {
+    id: 'chicory', name: 'Chicória-silvestre', latin: 'Cichorium intybus', type: 'dual',
+    icon: '🌸', biome: ['temperado', 'subtropical', 'campo', 'urbano'],
+    edibleParts: ['Folhas', 'Raízes', 'Flores'],
+    description: 'Planta perene com flores azuis marcantes. Raiz torrada serve como substituto de café — usada historicamente em tempos de escassez.',
+    identification: [
+      'Flores azul-celeste brilhantes (raramente brancas/rosas)',
+      'Flores abrem pela manhã e fecham ao meio-dia',
+      'Folhas basais dentadas similares ao dente-de-leão',
+      'Caule rígido, ramificado, com látex amargo',
+      'Altura: 30-120 cm, em beiras de estrada'
+    ],
+    preparation: 'Folhas jovens em salada (amargas — branquear 2 min reduz). Raiz seca e torrada como café: cortar, secar ao sol, tostar até escurecer, moer. Flores como decoração comestível.',
+    medicinal: 'Raiz: prebiótico (inulina) — fortalece flora intestinal. Digestivo e tônico hepático. Levemente laxante. Chá da raiz para inchaço.',
+    warnings: 'Amarga — o sabor é uma defesa mas não é tóxica. Consumo excessivo de raiz pode causar gases (inulina). Alérgicos a Asteraceae devem evitar.',
+    nutrition: { kcal: 23, protein: 1.7, vitC: 24, fiber: 4.0 },
+    season: 'Folhas: primavera. Flores: verão. Raízes: outono.',
+    confusion: 'Similiar ao dente-de-leão na fase de roseta — ambos comestíveis. Quando florida, inconfundível pelo azul.'
+  },
+  // ── MEDICINAL ──
+  {
+    id: 'chamomile', name: 'Camomila', latin: 'Matricaria chamomilla', type: 'medicinal',
+    icon: '🌼', biome: ['temperado', 'subtropical', 'campo'],
+    edibleParts: ['Flores'],
+    description: 'Uma das plantas medicinais mais conhecidas e seguras. Chá calmante essencial em situação de estresse pós-catástrofe.',
+    identification: [
+      'Flores tipo margarida: pétalas brancas, centro amarelo convexo',
+      'Centro da flor é OCO quando cortado ao meio',
+      'Folhas muito finamente divididas (como cabelo)',
+      'Aroma doce de maçã ao esmagar flores',
+      'Planta delicada, 20-50 cm'
+    ],
+    preparation: 'Chá: secar flores e infundir 5-10 min em água quente. Também pode usar flores frescas (usar o dobro). Nunca ferver — apenas infundir.',
+    medicinal: 'Calmante e ansiolítico natural. Auxilia sono. Anti-inflamatório para estômago. Compressa de chá forte para irritações de pele, olhos inflamados e gengivite.',
+    warnings: 'Evitar durante gravidez em doses altas. Alérgicos a Asteraceae podem reagir. Não confundir com margarida-do-campo (sem aroma de maçã).',
+    nutrition: { kcal: 1, protein: 0, vitC: 0, fiber: 0 },
+    season: 'Primavera e verão.',
+    confusion: 'Anthemis cotula (camomila-fétida): cheiro desagradável, pode causar dermatite. Teste: camomila VERDADEIRA tem centro OCO e cheiro de MAÇÃ.'
+  },
+  {
+    id: 'aloe', name: 'Babosa / Aloe', latin: 'Aloe vera', type: 'medicinal',
+    icon: '🌵', biome: ['tropical', 'subtropical', 'semiárido', 'urbano'],
+    edibleParts: ['Gel interno'],
+    description: 'Planta suculenta medicinal de uso milenar. O gel transparente interno é um dos melhores curativos naturais para queimaduras.',
+    identification: [
+      'Folhas grossas, carnudas, em roseta (30-60 cm)',
+      'Bordas com dentes/espinhos curtos',
+      'Corte revela gel transparente abundante',
+      'Abaixo do gel, camada amarela amarga (aloína)',
+      'Flor tubular amarela/laranja em haste longa'
+    ],
+    preparation: 'USO TÓPICO: cortar folha, remover casca, aplicar gel diretamente em queimaduras, cortes, irritações. USO INTERNO: apenas gel transparente (remover completamente a camada amarela). Gel em sucos ou smoothies.',
+    medicinal: 'QUEIMADURAS: aplicar gel fresco — alivia dor e acelera cicatrização. Hidrata pele. Gel interno: auxilia digestão. Antibacteriano e antifúngico natural.',
+    warnings: 'A camada amarela (aloína/látex) é LAXANTE FORTE — remover completamente para uso interno. Não usar gel interno na gravidez. Uso tópico é seguro para todos.',
+    nutrition: { kcal: 4, protein: 0.1, vitC: 3, fiber: 0.3 },
+    season: 'Perene — disponível o ano todo.',
+    confusion: 'Agave parece similar mas folhas são mais duras e fibrosas. Aloe tem gel abundante; Agave não.'
+  },
+  {
+    id: 'yarrow', name: 'Mil-folhas', latin: 'Achillea millefolium', type: 'medicinal',
+    icon: '🌿', biome: ['temperado', 'campo', 'subtropical'],
+    edibleParts: ['Folhas', 'Flores'],
+    description: 'Nomeada em homenagem a Aquiles, que supostamente a usou para tratar feridas de soldados. Uma das melhores plantas HEMOSTÁTICAS de campo.',
+    identification: [
+      'Folhas muito finamente divididas — parecem plumas (mil-folhas)',
+      'Flores pequenas brancas (ou rosas) em corimbos achatados',
+      'Aroma forte e aromático ao esmagar',
+      'Caule ereto, peludo, 30-100 cm',
+      'Folhas alternadas, distribuídas ao longo do caule'
+    ],
+    preparation: 'Chá das flores e folhas secas. Folhas jovens (poucas) em salada — sabor amargo/pungente. Uso principal é medicinal.',
+    medicinal: 'HEMOSTÁTICO: folhas amassadas aplicadas diretamente PARAM SANGRAMENTO de cortes. Anti-inflamatório. Chá para febre (diaforético), resfriados e cólicas menstruais. Antisséptico de campo.',
+    warnings: 'Evitar na gravidez (pode estimular útero). Pode causar sensibilidade à luz solar. Usar com moderação — doses altas podem causar dor de cabeça.',
+    nutrition: { kcal: 15, protein: 0.8, vitC: 58, fiber: 2.0 },
+    season: 'Verão para flores. Folhas da primavera ao outono.',
+    confusion: 'PERIGO: Pode ser confundida com cicuta (Conium maculatum) quando jovem — cicuta tem caule LISO com MANCHAS ROXAS e cheiro DESAGRADÁVEL. Mil-folhas tem caule PELUDO e cheiro AROMÁTICO.'
+  },
+  {
+    id: 'lavender', name: 'Lavanda / Alfazema', latin: 'Lavandula spp.', type: 'medicinal',
+    icon: '💜', biome: ['temperado', 'subtropical', 'semiárido'],
+    edibleParts: ['Flores', 'Folhas'],
+    description: 'Planta aromática reconhecida mundialmente pelo efeito calmante. Essencial para controle de ansiedade em cenários de crise.',
+    identification: [
+      'Flores roxas/lilás em espigas terminais',
+      'Folhas estreitas, acinzentadas, aromáticas',
+      'Arbusto lenhoso na base, 30-80 cm',
+      'Aroma forte e inconfundível',
+      'Toda a planta é aromática ao toque'
+    ],
+    preparation: 'Chá: 1-2 colheres de flores secas em água quente, 5 min. Flores frescas em saladas ou sobremesas. Sachê de flores secas como repelente de insetos.',
+    medicinal: 'ANSIOLÍTICO: cheiro reduz ansiedade e melhora sono. Antisséptico leve — chá para lavar feridas. Anti-inflamatório. Repelente natural de insetos.',
+    warnings: 'Consumir com moderação. Óleo essencial concentrado pode ser tóxico — usar apenas planta seca/fresca. Evitar doses medicinais na gravidez.',
+    nutrition: { kcal: 2, protein: 0.1, vitC: 0, fiber: 0.2 },
+    season: 'Verão (flores). Folhas disponíveis mais tempo.',
+    confusion: 'Lavanda é bastante distinta pelo aroma. Não confundir com Salvia leucantha (rabo-de-gato) que tem flores similares mas não é aromática.'
+  },
+  // ── TOXIC / DANGEROUS ──
+  {
+    id: 'hemlock', name: 'Cicuta', latin: 'Conium maculatum', type: 'toxic',
+    icon: '💀', biome: ['temperado', 'subtropical', 'urbano', 'beira de rio'],
+    edibleParts: [],
+    description: 'UMA DAS PLANTAS MAIS MORTAIS DO MUNDO. Foi usada para executar Sócrates. Todas as partes são extremamente tóxicas. Comum em beiras de estrada e terrenos úmidos.',
+    identification: [
+      'Caule LISO com MANCHAS ROXAS/VERMELHAS distintas',
+      'Folhas finamente divididas (parecem salsa gigante)',
+      'Flores brancas pequenas em umbelas (guarda-chuva)',
+      'Cheiro DESAGRADÁVEL, descrito como "urina de rato"',
+      'Altura: 1-3 metros. Raiz branca tipo cenoura'
+    ],
+    preparation: 'NÃO HÁ PREPARO SEGURO — TODA A PLANTA É MORTAL',
+    medicinal: 'NENHUM USO SEGURO. Veneno paralisante neuromuscular.',
+    warnings: 'MORTAL: paralisia progressiva começando nas pernas, subindo até os músculos respiratórios. Morte por asfixia. NÃO EXISTE ANTÍDOTO DE CAMPO. Não tocar e lavar mãos se houver contato. Manter crianças e animais afastados.',
+    nutrition: { kcal: 0, protein: 0, vitC: 0, fiber: 0 },
+    season: 'Primavera a verão (mais perigosa quando florida/com frutos).',
+    confusion: 'Confundida com cenoura selvagem (Daucus carota), salsa, mil-folhas jovem. DIFERENCIAL: caule LISO + MANCHAS ROXAS + cheiro FÉTIDO = CICUTA. Cenoura selvagem tem caule PELUDO.'
+  },
+  {
+    id: 'ricin', name: 'Mamona', latin: 'Ricinus communis', type: 'toxic',
+    icon: '☠️', biome: ['tropical', 'subtropical', 'urbano'],
+    edibleParts: [],
+    description: 'Planta ornamental extremamente comum em áreas urbanas tropicais. As sementes contêm ricina, uma das toxinas mais potentes conhecidas.',
+    identification: [
+      'Folhas grandes palmadas (5-11 lobos), 15-45 cm',
+      'Caule grosso avermelhado ou verde',
+      'Frutos espinhosos em cachos, contendo sementes',
+      'Sementes com padrão marmoreado (marrom/preto)',
+      'Planta arbustiva ou arbórea, 2-5 m'
+    ],
+    preparation: 'NÃO HÁ PREPARO SEGURO PARA AS SEMENTES',
+    medicinal: 'Óleo de rícino (processado industrialmente) é laxante — mas NUNCA tentar extrair artesanalmente.',
+    warnings: 'MORTAL: mastigar 2-4 sementes pode matar um adulto. Ricina causa destruição celular, hemorragia interna, falência de órgãos. Sintomas aparecem 12-72h após ingestão. SEM ANTÍDOTO. As folhas são menos tóxicas mas também perigosas.',
+    nutrition: { kcal: 0, protein: 0, vitC: 0, fiber: 0 },
+    season: 'Perene em climas tropicais.',
+    confusion: 'Folhas podem lembrar mandioca (Manihot) — mamona tem folhas com lobos pontiagudos e frutos espinhosos. Mandioca tem folhas com lobos mais estreitos e raiz tuberosa.'
+  },
+  {
+    id: 'nightshade', name: 'Erva-moura', latin: 'Solanum nigrum', type: 'toxic',
+    icon: '🫐', biome: ['tropical', 'subtropical', 'urbano', 'temperado'],
+    edibleParts: [],
+    description: 'Parente do tomate, com bagas pretas que parecem mirtilo. As bagas VERDES são tóxicas. As maduras PRETAS são comestíveis em algumas tradições, mas o risco de erro é alto demais.',
+    identification: [
+      'Bagas pequenas (6-8 mm) pretas quando maduras, verdes quando jovens',
+      'Folhas ovais, inteiras ou levemente lobadas',
+      'Flores pequenas brancas com centro amarelo (tipo tomate)',
+      'Planta herbácea, 20-60 cm',
+      'Frutos em cachos pendentes'
+    ],
+    preparation: 'NÃO RECOMENDADO — risco de confusão com espécies mais tóxicas é muito alto.',
+    medicinal: 'Uso tradicional em algumas culturas para inflamação — NÃO RECOMENDADO sem experiência botânica.',
+    warnings: 'PERIGO: Bagas verdes contêm solanina (glicoalcaloide tóxico). Sintomas: vômito, diarreia, dor abdominal, confusão mental. Crianças são especialmente vulneráveis. Há espécies similares MAIS tóxicas (Atropa belladonna).',
+    nutrition: { kcal: 0, protein: 0, vitC: 0, fiber: 0 },
+    season: 'Verão e outono (frutificação).',
+    confusion: 'PERIGO EXTREMO: Atropa belladonna (beladona) tem bagas pretas similares mas MAIORES e é MORTAL. Mirtilo silvestre tem folhas completamente diferentes. Na dúvida, NUNCA comer bagas pretas silvestres.'
+  },
+  {
+    id: 'oleander', name: 'Espirradeira / Oleandro', latin: 'Nerium oleander', type: 'toxic',
+    icon: '🌺', biome: ['subtropical', 'tropical', 'urbano', 'temperado'],
+    edibleParts: [],
+    description: 'Arbusto ornamental extremamente popular em jardins e avenidas. TODA a planta é altamente tóxica — inclusive a fumaça da queima e a água onde flores caíram.',
+    identification: [
+      'Folhas lanceoladas, coriáceas, verde-escuras, 10-20 cm',
+      'Flores grandes vistosas: rosa, branca, vermelha ou amarela',
+      'Arbusto sempre-verde, 2-6 m',
+      'Látex leitoso ao cortar',
+      'Muito comum em canteiros de avenidas e jardins'
+    ],
+    preparation: 'NÃO HÁ PREPARO SEGURO',
+    medicinal: 'Glicosídeos cardíacos usados em farmacologia — NUNCA usar artesanalmente.',
+    warnings: 'MORTAL: contém oleandrina (glicosídeo cardíaco). Afeta o coração causando arritmias fatais. TODAS as partes tóxicas. NÃO usar galhos como espeto para churrasco. NÃO queimar (fumaça tóxica). NÃO beber água com flores. Uma única folha pode matar uma criança.',
+    nutrition: { kcal: 0, protein: 0, vitC: 0, fiber: 0 },
+    season: 'Perene — perigosa o ano todo.',
+    confusion: 'Folhas podem lembrar louro (Laurus nobilis) — louro tem aroma forte ao esmagar, oleandro não. Flores inconfundíveis.'
+  },
+  {
+    id: 'castor-bean-tree', name: 'Comigo-ninguém-pode', latin: 'Dieffenbachia spp.', type: 'toxic',
+    icon: '🪴', biome: ['tropical', 'subtropical', 'urbano'],
+    edibleParts: [],
+    description: 'Planta ornamental de interior extremamente comum. O nome popular já diz tudo — contém cristais de oxalato de cálcio que causam dor intensa.',
+    identification: [
+      'Folhas grandes ovais com manchas brancas/amarelas',
+      'Caule carnudo e ereto',
+      'Planta de interior muito comum, 50-150 cm',
+      'Seiva transparente que causa irritação',
+      'Folhas alternadas, grandes (20-40 cm)'
+    ],
+    preparation: 'NÃO HÁ PREPARO SEGURO',
+    medicinal: 'NENHUM USO SEGURO.',
+    warnings: 'PERIGO: cristais de oxalato causam queimação e inchaço imediato na boca, língua e garganta. Pode causar asfixia por edema. Se ingerido: lavar boca com água/leite e buscar socorro. Seiva nos olhos causa dor intensa e possível dano temporário à visão.',
+    nutrition: { kcal: 0, protein: 0, vitC: 0, fiber: 0 },
+    season: 'Perene.',
+    confusion: 'Taioba (Xanthosoma sagittifolium) é comestível após cozimento mas folhas são parecidas quando jovens — taioba NÃO tem manchas brancas.'
+  },
+  // ── MORE EDIBLE ──
+  {
+    id: 'bamboo', name: 'Bambu', latin: 'Bambusa / Phyllostachys spp.', type: 'edible',
+    icon: '🎋', biome: ['tropical', 'subtropical', 'temperado'],
+    edibleParts: ['Brotos jovens'],
+    description: 'Os brotos de bambu são consumidos em toda a Ásia. Material estrutural e alimentício vital em situação de sobrevivência.',
+    identification: [
+      'Colmos (caules) ocos segmentados em nós',
+      'Brotos emergem do solo cobertos por bainhas',
+      'Folhas lineares pequenas nos ramos superiores',
+      'Cresce em touceiras densas',
+      'Brotos parecem cones pontiagudos saindo do chão'
+    ],
+    preparation: 'OBRIGATÓRIO COZINHAR: brotos crus contêm glicosídeos cianogênicos. Descascar, fatiar fino, FERVER 20-30 min (trocar água uma vez). Após cozimento, sabor suave e textura crocante. Pode ser conservado em salmoura.',
+    medicinal: 'Rico em fibras e potássio. Folhas de bambu em chá tradicional para febre.',
+    warnings: 'NUNCA comer brotos CRUS — contêm compostos cianogênicos que liberam ácido cianídrico. Cozimento prolongado elimina completamente o risco. Escolher brotos jovens e tenros.',
+    nutrition: { kcal: 27, protein: 2.6, vitC: 4, fiber: 2.2 },
+    season: 'Primavera (principal). Algumas espécies brotam no outono.',
+    confusion: 'Sem confusões perigosas — bambu é bastante distinto. Diferentes espécies variam em tamanho mas todas têm brotos comestíveis após cozimento.'
+  },
+  {
+    id: 'pine', name: 'Pinheiro', latin: 'Pinus spp.', type: 'dual',
+    icon: '🌲', biome: ['temperado', 'subtropical', 'montanha'],
+    edibleParts: ['Agulhas', 'Casca interna', 'Pinhas', 'Pólen'],
+    description: 'Fonte de vitamina C de emergência disponível O ANO TODO, mesmo no inverno. Chá de agulhas de pinheiro tem 5x mais vitamina C que suco de laranja.',
+    identification: [
+      'Árvore conífera com agulhas (folhas em forma de agulha)',
+      'Agulhas em feixes de 2, 3 ou 5 conforme espécie',
+      'Cones (pinhas) lenhosos',
+      'Casca grossa e sulcada em árvores maduras',
+      'Resina pegajosa aromática'
+    ],
+    preparation: 'CHÁ DE AGULHAS: agulhas frescas picadas em água quente 10-15 min (não ferver forte). CASCA INTERNA (cambium): raspar a camada branca sob a casca — comer crua, frita ou seca como farinha. PINHÕES: excelente alimento calórico.',
+    medicinal: 'Vitamina C previne escorbuto. Chá expectorante para resfriados. Resina como antisséptico de campo (aplicar em cortes). Chá de agulhas para dor de garganta.',
+    warnings: 'EVITAR: Teixo (Taxus) parece similar mas é MORTAL — Teixo tem agulhas ACHATADAS e bagas vermelhas. Pinheiro tem agulhas CILÍNDRICAS e pinhas. Gestantes devem evitar chá de agulhas em doses altas.',
+    nutrition: { kcal: 673, protein: 14, vitC: 250, fiber: 3.7 },
+    season: 'ANO TODO — essencial para inverno quando nada mais cresce.',
+    confusion: 'PERIGO MORTAL: Teixo (Taxus baccata) é FATAL. Diferencial: Teixo = agulhas PLANAS + bagas vermelhas. Pinheiro = agulhas CILÍNDRICAS em feixes + pinhas.'
+  },
+  {
+    id: 'rosehip', name: 'Rosa-silvestre / Roseira', latin: 'Rosa canina', type: 'dual',
+    icon: '🌹', biome: ['temperado', 'subtropical', 'campo'],
+    edibleParts: ['Frutos (quadris)', 'Pétalas', 'Folhas jovens'],
+    description: 'Os frutos da roseira (rosa mosqueta) contêm 20x mais vitamina C que a laranja. Essencial para prevenir escorbuto em situações prolongadas.',
+    identification: [
+      'Arbusto espinhoso com flores de 5 pétalas',
+      'Frutos vermelhos/alaranjados ovais (quadris/cynorrhodon)',
+      'Espinhos curvos no caule',
+      'Folhas compostas dentadas com 5-7 folíolos',
+      'Frutos maduros no outono/inverno'
+    ],
+    preparation: 'FRUTOS: cortar ao meio, remover TODAS as sementes e pelos irritantes, comer cru ou fazer geleia/chá. CHÁS: frutos secos triturados em água quente 15 min. PÉTALAS: salada, chá ou cristalizadas. IMPORTANTE: remover pelos/sementes — causam irritação interna.',
+    medicinal: 'CAMPEÃ de vitamina C natural. Anti-inflamatório. Chá para resfriados e imunidade. Óleo de rosa mosqueta cicatrizante para pele.',
+    warnings: 'Os pelos dentro do fruto (ao redor das sementes) causam irritação e coceira — remover completamente. Fora isso, muito segura.',
+    nutrition: { kcal: 162, protein: 1.6, vitC: 426, fiber: 24 },
+    season: 'Frutos: outono e inverno (após primeiras geadas ficam mais doces). Flores: primavera/verão.',
+    confusion: 'Várias espécies de Rosa são comestíveis. Não confundir com piracanta (Pyracantha) — frutos em cachos, sem espinhos curvos.'
+  },
+  {
+    id: 'elderberry', name: 'Sabugueiro', latin: 'Sambucus nigra', type: 'dual',
+    icon: '🫐', biome: ['temperado', 'subtropical'],
+    edibleParts: ['Flores', 'Frutos maduros (cozidos)'],
+    description: 'Flores e frutos maduros são comestíveis e medicinais. Usado há séculos contra gripes e resfriados. MAS: frutos CRUS e partes verdes são TÓXICOS.',
+    identification: [
+      'Arbusto/árvore pequena, 3-10 m',
+      'Folhas compostas com 5-7 folíolos dentados',
+      'Flores brancas pequenas em corimbos grandes achatados',
+      'Frutos pequenos pretos em cachos pendentes',
+      'Casca com medula esponjosa branca ao cortar'
+    ],
+    preparation: 'FLORES: fritas em massa (bolinhos de sabugueiro) ou secas para chá. FRUTOS: OBRIGATÓRIO COZINHAR — ferver 15-20 min para geleia, xarope ou vinho. NUNCA comer frutos crus em quantidade.',
+    medicinal: 'ANTIGRIPAL potente: xarope dos frutos cozidos é um dos remédios naturais mais eficazes para gripe e resfriado. Chá das flores é diaforético (induz suor) — bom para febre. Anti-inflamatório e antiviral.',
+    warnings: 'FRUTOS CRUS são tóxicos (cianeto) — SEMPRE cozinhar. Folhas, casca e frutos verdes são TÓXICOS. NÃO confundir com Sabugueiro-vermelho (Sambucus racemosa) que é MAIS TÓXICO.',
+    nutrition: { kcal: 73, protein: 0.7, vitC: 36, fiber: 7.0 },
+    season: 'Flores: final da primavera. Frutos: final do verão/outono.',
+    confusion: 'PERIGO: Partes verdes e frutos crus são TÓXICOS. Cuidado com Sambucus racemosa (frutos vermelhos — mais tóxica). Confusão possível com Sureau-hièble (Sambucus ebulus) que é completamente TÓXICO.'
+  },
+  {
+    id: 'watercress', name: 'Agrião-d\'água', latin: 'Nasturtium officinale', type: 'edible',
+    icon: '💧', biome: ['temperado', 'subtropical', 'beira de rio'],
+    edibleParts: ['Folhas', 'Caules'],
+    description: 'Planta aquática comestível rica em nutrientes, encontrada em riachos e nascentes de água limpa. Sabor picante/pimenta.',
+    identification: [
+      'Cresce na água corrente limpa (riachos, fontes)',
+      'Folhas compostas arredondadas, verde-escuras',
+      'Caule oco flutuante ou semi-submerso',
+      'Sabor picante/apimentado ao mastigar',
+      'Flores brancas pequenas com 4 pétalas'
+    ],
+    preparation: 'Comer cru em saladas (melhor sabor). Pode ser cozido em sopas. Lavar muito bem se colhido na natureza. Suco fresco é altamente nutritivo.',
+    medicinal: 'Rico em vitaminas A, C, K e minerais. Expectorante para tosse. Estimula digestão e apetite. Tradicionalmente usado contra escorbuto.',
+    warnings: 'RISCO: se coletado na natureza, pode conter Fasciola hepatica (parasita do fígado) — LAVAR MUITO BEM e preferencialmente cozinhar se a água não for comprovadamente limpa. Verificar que não há gado a montante.',
+    nutrition: { kcal: 11, protein: 2.3, vitC: 43, fiber: 0.5 },
+    season: 'Ano todo (menos abundante no inverno).',
+    confusion: 'Berula erecta (aipo-dos-rios) é similar e comestível. PERIGO: pode crescer perto de Cicuta virosa (cicuta-aquática) que é MORTAL. Verificar: agrião tem sabor PICANTE, cicuta-aquática tem cheiro DESAGRADÁVEL.'
+  },
+];
+
+let _plantsFilter = 'all';
+
+function plantsInit() {
+  _plantsFilter = 'all';
+  const search = document.getElementById('plantsSearch');
+  if (search) search.value = '';
+  // Reset filter buttons
+  document.querySelectorAll('.plants-filter-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.filter === 'all');
+  });
+  plantsRenderGrid();
+  plantsHideDetail();
+}
+
+function plantsSetFilter(filter) {
+  _plantsFilter = filter;
+  document.querySelectorAll('.plants-filter-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.filter === filter);
+  });
+  plantsRenderGrid();
+  plantsHideDetail();
+}
+
+function plantsFilter() {
+  plantsRenderGrid();
+}
+
+function plantsRenderGrid() {
+  const container = document.getElementById('plantsContent');
+  if (!container) return;
+
+  const query = (document.getElementById('plantsSearch')?.value || '').toLowerCase().trim();
+  const filter = _plantsFilter;
+
+  let plants = PLANTS_DB;
+
+  // Type filter
+  if (filter !== 'all') {
+    plants = plants.filter(p => p.type === filter);
+  }
+
+  // Search filter
+  if (query) {
+    plants = plants.filter(p =>
+      p.name.toLowerCase().includes(query) ||
+      p.latin.toLowerCase().includes(query) ||
+      p.description.toLowerCase().includes(query) ||
+      p.biome.some(b => b.toLowerCase().includes(query)) ||
+      p.edibleParts.some(ep => ep.toLowerCase().includes(query))
+    );
+  }
+
+  // Update count
+  const countEl = document.getElementById('plantsCount');
+  if (countEl) countEl.textContent = `${plants.length} de ${PLANTS_DB.length} plantas`;
+
+  if (plants.length === 0) {
+    container.innerHTML = `
+      <div class="plants-empty">
+        <div class="plants-empty-icon">&#128270;</div>
+        <div>Nenhuma planta encontrada</div>
+        <div class="plants-empty-hint">Tente outro filtro ou termo de busca</div>
+      </div>`;
+    return;
+  }
+
+  const typeLabels = {
+    edible: { label: 'Comestível', cls: 'plants-badge-edible' },
+    medicinal: { label: 'Medicinal', cls: 'plants-badge-medicinal' },
+    toxic: { label: 'TÓXICA', cls: 'plants-badge-toxic' },
+    dual: { label: 'Comestível & Medicinal', cls: 'plants-badge-dual' },
+  };
+
+  container.innerHTML = plants.map(p => {
+    const badge = typeLabels[p.type] || typeLabels.edible;
+    const biomeStr = p.biome.slice(0, 3).join(', ');
+    return `
+      <div class="plants-card plants-card-${p.type}" onclick="plantsShowDetail('${p.id}')">
+        <div class="plants-card-header">
+          <span class="plants-card-icon">${p.icon}</span>
+          <div class="plants-card-titles">
+            <div class="plants-card-name">${p.name}</div>
+            <div class="plants-card-latin">${p.latin}</div>
+          </div>
+          <span class="plants-badge ${badge.cls}">${badge.label}</span>
+        </div>
+        <div class="plants-card-desc">${p.description.slice(0, 120)}${p.description.length > 120 ? '...' : ''}</div>
+        <div class="plants-card-footer">
+          <span class="plants-card-biome">&#127758; ${biomeStr}</span>
+          ${p.edibleParts.length ? `<span class="plants-card-parts">&#127860; ${p.edibleParts.slice(0, 2).join(', ')}${p.edibleParts.length > 2 ? '...' : ''}</span>` : '<span class="plants-card-parts plants-card-parts-none">&#9760;&#65039; Não consumir</span>'}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function plantsShowDetail(id) {
+  const p = PLANTS_DB.find(pl => pl.id === id);
+  if (!p) return;
+
+  const detail = document.getElementById('plantsDetail');
+  const inner = document.getElementById('plantsDetailInner');
+  if (!detail || !inner) return;
+
+  const typeLabels = {
+    edible: { label: 'Comestível', cls: 'plants-badge-edible', color: '#39ff14' },
+    medicinal: { label: 'Medicinal', cls: 'plants-badge-medicinal', color: '#bf5fff' },
+    toxic: { label: 'TÓXICA — NÃO CONSUMIR', cls: 'plants-badge-toxic', color: '#ff1a47' },
+    dual: { label: 'Comestível & Medicinal', cls: 'plants-badge-dual', color: '#00d4ff' },
+  };
+  const badge = typeLabels[p.type] || typeLabels.edible;
+
+  const nutritionHtml = p.type !== 'toxic' && p.nutrition.kcal > 0 ? `
+    <div class="plants-detail-section">
+      <h4>&#128202; Nutrição (por 100g)</h4>
+      <div class="plants-nutrition-grid">
+        <div class="plants-nutri-item">
+          <div class="plants-nutri-val">${p.nutrition.kcal}</div>
+          <div class="plants-nutri-label">kcal</div>
+        </div>
+        <div class="plants-nutri-item">
+          <div class="plants-nutri-val">${p.nutrition.protein}g</div>
+          <div class="plants-nutri-label">Proteína</div>
+        </div>
+        <div class="plants-nutri-item">
+          <div class="plants-nutri-val">${p.nutrition.vitC}mg</div>
+          <div class="plants-nutri-label">Vit. C</div>
+        </div>
+        <div class="plants-nutri-item">
+          <div class="plants-nutri-val">${p.nutrition.fiber}g</div>
+          <div class="plants-nutri-label">Fibra</div>
+        </div>
+      </div>
+    </div>` : '';
+
+  inner.innerHTML = `
+    <button class="plants-detail-back" onclick="plantsHideDetail()">&#8592; Voltar</button>
+
+    <div class="plants-detail-hero plants-detail-hero-${p.type}">
+      <span class="plants-detail-icon">${p.icon}</span>
+      <div>
+        <h2>${p.name}</h2>
+        <div class="plants-detail-latin">${p.latin}</div>
+        <span class="plants-badge ${badge.cls}">${badge.label}</span>
+      </div>
+    </div>
+
+    <div class="plants-detail-meta">
+      <div class="plants-detail-meta-item">
+        <span class="plants-meta-label">&#127758; Biomas</span>
+        <span>${p.biome.map(b => `<span class="plants-tag">${b}</span>`).join(' ')}</span>
+      </div>
+      <div class="plants-detail-meta-item">
+        <span class="plants-meta-label">&#128197; Época</span>
+        <span>${p.season}</span>
+      </div>
+      ${p.edibleParts.length ? `<div class="plants-detail-meta-item">
+        <span class="plants-meta-label">&#127860; Partes comestíveis</span>
+        <span>${p.edibleParts.map(ep => `<span class="plants-tag plants-tag-edible">${ep}</span>`).join(' ')}</span>
+      </div>` : ''}
+    </div>
+
+    <div class="plants-detail-section">
+      <h4>&#128269; Descrição</h4>
+      <p>${p.description}</p>
+    </div>
+
+    <div class="plants-detail-section">
+      <h4>&#127793; Como identificar</h4>
+      <ul class="plants-id-list">
+        ${p.identification.map(i => `<li>${i}</li>`).join('')}
+      </ul>
+    </div>
+
+    ${p.type !== 'toxic' ? `<div class="plants-detail-section">
+      <h4>&#127859; Preparo</h4>
+      <p>${p.preparation}</p>
+    </div>` : `<div class="plants-detail-section plants-detail-danger">
+      <h4>&#9760;&#65039; PLANTA TÓXICA</h4>
+      <p>${p.preparation}</p>
+    </div>`}
+
+    <div class="plants-detail-section">
+      <h4>&#128138; Uso medicinal</h4>
+      <p>${p.medicinal}</p>
+    </div>
+
+    ${nutritionHtml}
+
+    <div class="plants-detail-section plants-detail-warnings">
+      <h4>&#9888;&#65039; Avisos e precauções</h4>
+      <p>${p.warnings}</p>
+    </div>
+
+    <div class="plants-detail-section">
+      <h4>&#128064; Confusões comuns</h4>
+      <p>${p.confusion}</p>
+    </div>
+
+    <!-- Universal Edibility Test reminder -->
+    ${p.type !== 'toxic' ? `<div class="plants-detail-section plants-detail-test">
+      <h4>&#129514; Teste Universal de Comestibilidade</h4>
+      <p>Se não tiver 100% certeza da identificação, siga o protocolo militar:</p>
+      <ol class="plants-test-steps">
+        <li><strong>Separar</strong> — divida a planta em partes (folha, caule, raiz)</li>
+        <li><strong>Cheirar</strong> — se cheiro forte/desagradável, rejeitar</li>
+        <li><strong>Contato na pele</strong> — esfregar no pulso, esperar 15 min. Irritou? Rejeitar</li>
+        <li><strong>Lábios</strong> — tocar nos lábios, esperar 5 min</li>
+        <li><strong>Língua</strong> — colocar na ponta da língua, esperar 15 min</li>
+        <li><strong>Mastigar</strong> — mastigar e cuspir, esperar 15 min</li>
+        <li><strong>Engolir</strong> — comer uma quantidade muito pequena, esperar 8 horas</li>
+        <li><strong>Aumentar</strong> — se não houve reação, comer porção maior</li>
+      </ol>
+      <p class="plants-test-note">⏱ Processo completo leva ~24h por parte da planta. Faça apenas se não houver alternativa.</p>
+    </div>` : ''}
+  `;
+
+  detail.classList.remove('hidden');
+  detail.scrollTop = 0;
+}
+
+function plantsHideDetail() {
+  const detail = document.getElementById('plantsDetail');
+  if (detail) detail.classList.add('hidden');
+}
+
+// ── Exports ──
+window.plantsInit = plantsInit;
+window.plantsSetFilter = plantsSetFilter;
+window.plantsFilter = plantsFilter;
+window.plantsShowDetail = plantsShowDetail;
+window.plantsHideDetail = plantsHideDetail;

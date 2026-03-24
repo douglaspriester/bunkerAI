@@ -203,6 +203,7 @@ function wireAppCallbacks() {
     firstaid:   () => window.firstaidInit?.(),
     crypto:     () => window.cryptoInit?.(),
     rations:    () => window.rationsInit?.(),
+    plants:     () => window.plantsInit?.(),
   };
   Object.entries(openMap).forEach(([appId, fn]) => registerAppOpen(appId, fn));
 

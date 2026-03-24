@@ -7947,3 +7947,484 @@ body {
   display: flex;
   justify-content: space-between;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PLANTS GUIDE
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.plants-app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+/* Header */
+.plants-header {
+  flex-shrink: 0;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elevated);
+}
+
+.plants-hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.plants-hero-icon {
+  font-size: 36px;
+  line-height: 1;
+  filter: drop-shadow(0 0 8px rgba(57,255,20,0.3));
+}
+
+.plants-hero-text h2 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-bright);
+  margin: 0;
+  letter-spacing: 0.5px;
+}
+
+.plants-hero-text p {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin: 2px 0 0;
+}
+
+/* Toolbar */
+.plants-toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.plants-search-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 5px 10px;
+  flex: 1;
+  min-width: 160px;
+}
+
+.plants-search-box svg { color: var(--text-muted); flex-shrink: 0; }
+
+.plants-search-box input {
+  background: transparent;
+  border: none;
+  color: var(--text-bright);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  width: 100%;
+  outline: none;
+}
+
+.plants-filter-group {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.plants-filter-btn {
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  padding: 4px 10px;
+  border-radius: var(--radius);
+  font-size: 11px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.plants-filter-btn:hover { border-color: var(--border-bright); color: var(--text); }
+.plants-filter-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+.plants-filter-edible.active { border-color: var(--green); color: var(--green); background: var(--green-dim); }
+.plants-filter-medicinal.active { border-color: var(--purple); color: var(--purple); background: rgba(191,95,255,0.07); }
+.plants-filter-toxic.active { border-color: var(--danger); color: var(--danger); background: var(--danger-dim); }
+.plants-filter-dual.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+/* Safety Warning */
+.plants-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--danger-dim);
+  border: 1px solid rgba(255,26,71,0.2);
+  border-radius: var(--radius);
+  font-size: 11px;
+  color: var(--danger);
+  font-family: var(--font-mono);
+}
+
+.plants-warning-icon { font-size: 16px; flex-shrink: 0; }
+.plants-warning strong { color: #ff6b85; }
+
+/* Content Grid */
+.plants-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 18px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 12px;
+  align-content: start;
+}
+
+/* Plant Cards */
+.plants-card {
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.plants-card:hover {
+  border-color: var(--border-bright);
+  background: var(--surface-2);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+
+.plants-card-edible { border-left: 3px solid var(--green); }
+.plants-card-medicinal { border-left: 3px solid var(--purple); }
+.plants-card-toxic { border-left: 3px solid var(--danger); }
+.plants-card-dual { border-left: 3px solid var(--accent); }
+
+.plants-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.plants-card-icon { font-size: 28px; line-height: 1; flex-shrink: 0; }
+
+.plants-card-titles { flex: 1; min-width: 0; }
+
+.plants-card-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-bright);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.plants-card-latin {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-style: italic;
+  font-family: var(--font-mono);
+}
+
+/* Badges */
+.plants-badge {
+  font-size: 9px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  padding: 2px 8px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.plants-badge-edible { background: var(--green-dim); color: var(--green); border: 1px solid rgba(57,255,20,0.2); }
+.plants-badge-medicinal { background: rgba(191,95,255,0.07); color: var(--purple); border: 1px solid rgba(191,95,255,0.2); }
+.plants-badge-toxic { background: var(--danger-dim); color: var(--danger); border: 1px solid rgba(255,26,71,0.25); animation: plants-pulse-danger 2s infinite; }
+.plants-badge-dual { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(0,212,255,0.2); }
+
+@keyframes plants-pulse-danger {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,26,71,0); }
+  50% { box-shadow: 0 0 8px 2px rgba(255,26,71,0.15); }
+}
+
+.plants-card-desc {
+  font-size: 11px;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.plants-card-footer {
+  display: flex;
+  gap: 12px;
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  margin-top: auto;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.plants-card-parts-none { color: var(--danger); }
+
+/* Empty state */
+.plants-empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+  grid-column: 1 / -1;
+}
+
+.plants-empty-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.5; }
+.plants-empty-hint { font-size: 11px; margin-top: 6px; color: var(--text-faint); }
+
+/* Detail Panel */
+.plants-detail {
+  position: absolute;
+  inset: 0;
+  background: var(--bg);
+  overflow-y: auto;
+  z-index: 10;
+  padding: 20px;
+}
+
+.plants-detail-inner {
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+.plants-detail-back {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--accent);
+  padding: 6px 14px;
+  border-radius: var(--radius);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  margin-bottom: 16px;
+  transition: all 0.2s;
+}
+
+.plants-detail-back:hover { background: var(--surface-2); border-color: var(--accent); }
+
+/* Detail Hero */
+.plants-detail-hero {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px;
+  border-radius: var(--radius-lg);
+  margin-bottom: 20px;
+  border: 1px solid var(--border);
+}
+
+.plants-detail-hero-edible { background: var(--green-dim); border-color: rgba(57,255,20,0.15); }
+.plants-detail-hero-medicinal { background: rgba(191,95,255,0.05); border-color: rgba(191,95,255,0.15); }
+.plants-detail-hero-toxic { background: var(--danger-dim); border-color: rgba(255,26,71,0.2); }
+.plants-detail-hero-dual { background: var(--accent-dim); border-color: rgba(0,212,255,0.15); }
+
+.plants-detail-icon { font-size: 52px; line-height: 1; }
+
+.plants-detail-hero h2 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-bright);
+  margin: 0;
+}
+
+.plants-detail-latin {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+  font-family: var(--font-mono);
+  margin: 2px 0 6px;
+}
+
+/* Detail Meta */
+.plants-detail-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+}
+
+.plants-detail-meta-item {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.plants-meta-label {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  min-width: 120px;
+  flex-shrink: 0;
+}
+
+.plants-tag {
+  display: inline-block;
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text);
+  margin: 1px 2px;
+}
+
+.plants-tag-edible { background: var(--green-dim); border-color: rgba(57,255,20,0.15); color: var(--green); }
+
+/* Detail Sections */
+.plants-detail-section {
+  margin-bottom: 18px;
+}
+
+.plants-detail-section h4 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  margin: 0 0 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.plants-detail-section p {
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.7;
+  margin: 0;
+}
+
+.plants-id-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.plants-id-list li {
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.6;
+  padding: 3px 0 3px 20px;
+  position: relative;
+}
+
+.plants-id-list li::before {
+  content: '\25B8';
+  position: absolute;
+  left: 4px;
+  color: var(--accent);
+}
+
+/* Danger section */
+.plants-detail-danger {
+  background: var(--danger-dim);
+  border: 1px solid rgba(255,26,71,0.2);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+}
+
+.plants-detail-danger h4 { color: var(--danger); border-bottom-color: rgba(255,26,71,0.2); }
+.plants-detail-danger p { color: #ff6b85; font-weight: 600; }
+
+/* Warnings section */
+.plants-detail-warnings {
+  background: var(--amber-dim);
+  border: 1px solid rgba(255,140,0,0.15);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+}
+
+.plants-detail-warnings h4 { color: var(--amber); border-bottom-color: rgba(255,140,0,0.15); }
+
+/* Nutrition Grid */
+.plants-nutrition-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.plants-nutri-item {
+  text-align: center;
+  padding: 10px 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+}
+
+.plants-nutri-val {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent);
+  font-family: var(--font-mono);
+}
+
+.plants-nutri-label {
+  font-size: 9px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+/* Edibility Test */
+.plants-detail-test {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+}
+
+.plants-detail-test h4 { color: var(--green); border-bottom-color: rgba(57,255,20,0.15); }
+
+.plants-test-steps {
+  padding-left: 20px;
+  margin: 8px 0;
+}
+
+.plants-test-steps li {
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.7;
+  padding: 2px 0;
+}
+
+.plants-test-steps li strong { color: var(--accent); }
+
+.plants-test-note {
+  font-size: 11px;
+  color: var(--amber);
+  font-family: var(--font-mono);
+  margin-top: 8px;
+}
+
+/* Statusbar */
+.plants-statusbar {
+  padding: 5px 18px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+}

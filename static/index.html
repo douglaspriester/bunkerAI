@@ -2385,6 +2385,57 @@ Responda no idioma do usuario. Use markdown.</textarea>
       </div>
     </div>
 
+    <!-- ═══ PLANTS GUIDE ═══ -->
+    <div class="panel-view hidden" id="plantsView">
+      <div class="plants-app" id="plantsApp">
+        <!-- Header -->
+        <div class="plants-header">
+          <div class="plants-hero">
+            <div class="plants-hero-icon">&#127807;</div>
+            <div class="plants-hero-text">
+              <h2>Guia de Plantas</h2>
+              <p>Identifica&#231;&#227;o de plantas comest&#237;veis, medicinais e t&#243;xicas</p>
+            </div>
+          </div>
+          <!-- Filters -->
+          <div class="plants-toolbar">
+            <div class="plants-search-box">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" id="plantsSearch" placeholder="Buscar planta..." oninput="plantsFilter()">
+            </div>
+            <div class="plants-filter-group">
+              <button class="plants-filter-btn active" data-filter="all" onclick="plantsSetFilter('all')">Todas</button>
+              <button class="plants-filter-btn plants-filter-edible" data-filter="edible" onclick="plantsSetFilter('edible')">&#127823; Comest&#237;veis</button>
+              <button class="plants-filter-btn plants-filter-medicinal" data-filter="medicinal" onclick="plantsSetFilter('medicinal')">&#128138; Medicinais</button>
+              <button class="plants-filter-btn plants-filter-toxic" data-filter="toxic" onclick="plantsSetFilter('toxic')">&#9760;&#65039; T&#243;xicas</button>
+              <button class="plants-filter-btn plants-filter-dual" data-filter="dual" onclick="plantsSetFilter('dual')">&#127793; Duplo Uso</button>
+            </div>
+          </div>
+          <!-- Safety Warning -->
+          <div class="plants-warning">
+            <span class="plants-warning-icon">&#9888;&#65039;</span>
+            <span>NUNCA consuma uma planta sem 100% de certeza na identifica&#231;&#227;o. Na d&#250;vida, <strong>n&#227;o coma</strong>.</span>
+          </div>
+        </div>
+
+        <!-- Content area -->
+        <div class="plants-content" id="plantsContent">
+          <!-- Cards rendered by JS -->
+        </div>
+
+        <!-- Detail panel (shown when a plant is selected) -->
+        <div class="plants-detail hidden" id="plantsDetail">
+          <div class="plants-detail-inner" id="plantsDetailInner"></div>
+        </div>
+
+        <!-- Status bar -->
+        <div class="plants-statusbar" id="plantsStatusbar">
+          <span id="plantsStatus">Pronto</span>
+          <span id="plantsCount"></span>
+        </div>
+      </div>
+    </div>
+
   </main>
 
   </div><!-- /desktop -->
