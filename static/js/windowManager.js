@@ -39,6 +39,7 @@ export const OS_APPS = [
   { id: 'survRef',    name: 'Refer\u00EAncia', icon: '\u{1F4D6}', width: 650, height: 520, viewId: 'survRefView' },
   { id: 'modelMgr',  name: 'Modelos IA', icon: '\u{1F9E0}', width: 600, height: 520, viewId: 'modelMgrView' },
   { id: 'companion', name: 'Companheiro', icon: '\u{1F9D1}\u200D\u{1F680}', width: 480, height: 620, viewId: 'companionView' },
+  { id: 'weather',  name: 'Estacao Clima', icon: '\u{1F326}\uFE0F', width: 680, height: 580, viewId: 'weatherView' },
   { id: 'pendrive', name: 'Preparar Pendrive', icon: '\u{1F4BE}', width: 580, height: 600, viewId: 'pendriveView' },
   { id: 'settings',   name: 'Configura\u00E7\u00F5es', icon: '\u2699\uFE0F', width: 560, height: 520, viewId: null },
 ];
@@ -469,7 +470,7 @@ const APP_CATEGORIES = [
   { id: 'ai',       label: 'IA & Chat',        icon: '\u{1F9E0}', apps: ['chat', 'companion', 'characters', 'tts', 'imagine', 'modelMgr', 'builder'] },
   { id: 'prod',     label: 'Produtividade',     icon: '\u{1F4BC}', apps: ['notepad', 'word', 'excel', 'tasks', 'checklist', 'journal', 'paint'] },
   { id: 'info',     label: 'Conhecimento',      icon: '\u{1F4DA}', apps: ['guides', 'protocols', 'books', 'wiki', 'survRef'] },
-  { id: 'survival', label: 'Sobrevivencia',     icon: '\u26A1',    apps: ['supplies', 'map', 'radio', 'morse', 'phonetic', 'sun', 'waterCalc'] },
+  { id: 'survival', label: 'Sobrevivencia',     icon: '\u26A1',    apps: ['supplies', 'map', 'radio', 'morse', 'phonetic', 'sun', 'waterCalc', 'weather'] },
   { id: 'tools',    label: 'Ferramentas',       icon: '\u{1F527}', apps: ['calc', 'timer', 'converter', 'fileManager', 'media', 'sysmon'] },
   { id: 'fun',      label: 'Entretenimento',    icon: '\u{1F3AE}', apps: ['games'] },
 ];

@@ -7175,3 +7175,473 @@ window.pendriveGoBack = pendriveGoBack;
 window.pendriveStartCopy = pendriveStartCopy;
 window.pendriveCancelCopy = pendriveCancelCopy;
 window.pendriveReset = pendriveReset;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ═══ WEATHER STATION — Barometer, Clouds, Wind, Natural Signs ═══════════════
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const WEATHER_STORAGE_KEY = 'bunker_weather_readings';
+
+// Cloud types reference data
+const CLOUD_TYPES = [
+  { name: 'Cirrus', alt: 'Alta (6-12 km)', icon: '🌤️', shape: 'Fios finos e brancos', weather: 'Tempo bom, mas pode indicar frente quente se aproximando em 24-48h', danger: 0 },
+  { name: 'Cirrostratus', alt: 'Alta (6-12 km)', icon: '🌥️', shape: 'Camada fina translucida, halo solar/lunar', weather: 'Chuva ou neve em 12-24h (frente quente chegando)', danger: 1 },
+  { name: 'Cirrocumulus', alt: 'Alta (6-12 km)', icon: '☁️', shape: 'Pequenas ondulacoes brancas (ceu de brigadeiro)', weather: 'Tempo instavel proximo, mudanca em 6-12h', danger: 1 },
+  { name: 'Altostratus', alt: 'Media (2-6 km)', icon: '🌥️', shape: 'Camada cinza uniforme, sol visivel fraco', weather: 'Chuva continua em 6-12h', danger: 2 },
+  { name: 'Altocumulus', alt: 'Media (2-6 km)', icon: '⛅', shape: 'Blocos brancos/cinzas, padroes regulares', weather: 'Se de manha: tempestade a tarde. Instabilidade', danger: 2 },
+  { name: 'Stratocumulus', alt: 'Baixa (0-2 km)', icon: '☁️', shape: 'Rolos ou blocos cinzas com frestas de azul', weather: 'Chuva leve ou garoa possivel, geralmente sem tempestade', danger: 1 },
+  { name: 'Stratus', alt: 'Baixa (0-2 km)', icon: '🌫️', shape: 'Camada cinza uniforme, ceu encoberto total', weather: 'Garoa ou chuvisco. Visibilidade reduzida. Neblina', danger: 1 },
+  { name: 'Nimbostratus', alt: 'Baixa-Media (0-4 km)', icon: '🌧️', shape: 'Camada escura e espessa, sem forma definida', weather: 'Chuva continua e moderada por horas. Planejar abrigo', danger: 2 },
+  { name: 'Cumulus', alt: 'Baixa (1-2 km)', icon: '⛅', shape: 'Algodao branco com base plana', weather: 'Tempo bom se pequenas. Se crescerem verticalmente: tempestade', danger: 0 },
+  { name: 'Cumulonimbus', alt: 'Todas (1-15 km)', icon: '⛈️', shape: 'Torre gigante com topo em bigorna, base escura', weather: 'PERIGO: tempestade severa, raios, granizo, tornado possivel. Procure abrigo IMEDIATO', danger: 3 },
+];
+
+// Beaufort wind scale
+const BEAUFORT_SCALE = [
+  { force: 0, name: 'Calmaria',    kmh: '0-1',    effects: 'Fumaca sobe verticalmente. Agua como espelho', sea: 'Mar liso' },
+  { force: 1, name: 'Bafagem',     kmh: '1-5',    effects: 'Fumaca desvia levemente. Folhas imoveis', sea: 'Ondulacoes pequenas' },
+  { force: 2, name: 'Brisa leve',  kmh: '6-11',   effects: 'Sente-se na pele. Folhas sussurram', sea: 'Ondas pequenas curtas' },
+  { force: 3, name: 'Brisa fraca', kmh: '12-19',  effects: 'Folhas e galhos finos em movimento. Bandeiras leves tremulam', sea: 'Ondas grandes com cristas' },
+  { force: 4, name: 'Brisa moderada', kmh: '20-28', effects: 'Poeira e papeis levantam. Galhos medios movem', sea: 'Ondas medias, espuma' },
+  { force: 5, name: 'Brisa forte', kmh: '29-38',  effects: 'Arbustos balancam. Ondas com cristas em lagos', sea: 'Ondas longas, espuma' },
+  { force: 6, name: 'Vento fresco', kmh: '39-49', effects: 'Galhos grandes movem. Dificil usar guarda-chuva. Fios assobiam', sea: 'Ondas altas, espuma branca' },
+  { force: 7, name: 'Vento forte', kmh: '50-61',  effects: 'Arvores inteiras balancam. Dificil andar contra o vento', sea: 'Mar revolto, espuma' },
+  { force: 8, name: 'Ventania',    kmh: '62-74',  effects: 'Galhos quebram. Impossivel andar contra o vento', sea: 'Ondas altas com cristas' },
+  { force: 9, name: 'Ventania forte', kmh: '75-88', effects: 'Telhas voam. Danos estruturais leves. PERIGO ao ar livre', sea: 'Ondas muito altas' },
+  { force: 10, name: 'Tempestade', kmh: '89-102', effects: 'Arvores arrancadas. Danos estruturais significativos. ABRIGAR-SE', sea: 'Mar branco, visibilidade reduzida' },
+  { force: 11, name: 'Tempestade violenta', kmh: '103-117', effects: 'Destruicao generalizada. PERIGO EXTREMO', sea: 'Ondas excepcionais' },
+  { force: 12, name: 'Furacao', kmh: '118+', effects: 'Devastacao total. Buscar abrigo subterraneo IMEDIATAMENTE', sea: 'Mar completamente branco' },
+];
+
+// Natural weather signs
+const WEATHER_SIGNS = [
+  { cat: 'Bom Tempo se Aproxima', icon: '☀️', signs: [
+    { sign: 'Ceu vermelho ao anoitecer (poente)', meaning: '"Ceu vermelho a noite, pastor em deleite" — bom tempo por 12-24h' },
+    { sign: 'Orvalho pesado na grama pela manha', meaning: 'Noite clara e calma = bom tempo continua' },
+    { sign: 'Neblina matinal nos vales', meaning: 'Dissipa com o sol = dia claro' },
+    { sign: 'Formigas construindo montes altos', meaning: 'Tempo seco prolongado esperado' },
+    { sign: 'Aranhas tecendo teias longas', meaning: 'Ar seco, bom tempo por varios dias' },
+    { sign: 'Pressao subindo constantemente', meaning: 'Ar frio e seco chegando, tempo estavel' },
+  ]},
+  { cat: 'Chuva se Aproxima', icon: '🌧️', signs: [
+    { sign: 'Ceu vermelho ao amanhecer (nascente)', meaning: '"Ceu vermelho de manha, pastor se acautela" — chuva em 12-24h' },
+    { sign: 'Halo ao redor do sol ou lua', meaning: 'Cristais de gelo = frente quente, chuva em 12-24h' },
+    { sign: 'Nuvens baixas escurecendo rapidamente', meaning: 'Chuva em 1-3 horas' },
+    { sign: 'Passaros voando baixo', meaning: 'Pressao caindo, insetos voam baixo, passaros seguem' },
+    { sign: 'Sapos coaxando mais alto e frequente', meaning: 'Umidade alta, chuva proxima' },
+    { sign: 'Flores se fechando (dente-de-leao, trebol)', meaning: 'Umidade subindo, chuva em horas' },
+    { sign: 'Cheiro forte de terra/plantas', meaning: 'Pressao caindo libera gases do solo' },
+    { sign: 'Fumaca descendo ao inves de subir', meaning: 'Pressao baixa = chuva iminente' },
+  ]},
+  { cat: 'Tempestade Severa', icon: '⛈️', signs: [
+    { sign: 'Ceu amarelo-esverdeado', meaning: 'PERIGO: granizo ou tornado possivel. Abrigo AGORA' },
+    { sign: 'Nuvem em formato de bigorna (cumulonimbus)', meaning: 'Tempestade severa em 30-60 min' },
+    { sign: 'Queda subita de temperatura', meaning: 'Frente fria agressiva, ventos fortes iminentes' },
+    { sign: 'Calma estranha apos ventos fortes', meaning: 'PERIGO: possivel olho de tempestade. Abrigo!' },
+    { sign: 'Pressao caindo rapido (>3 hPa em 3h)', meaning: 'ALERTA: tempestade severa se formando' },
+    { sign: 'Vento mudando de direcao subitamente', meaning: 'Frente de tempestade passando' },
+  ]},
+  { cat: 'Neve/Frio Extremo', icon: '❄️', signs: [
+    { sign: 'Halo largo ao redor da lua em noite fria', meaning: 'Neve em 12-24h' },
+    { sign: 'Ceu uniformemente cinza-claro no inverno', meaning: 'Neve provavel nas proximas horas' },
+    { sign: 'Estalos em galhos/arvores', meaning: 'Temperatura caindo abaixo de -15C. Risco de hipotermia' },
+    { sign: 'Vento norte constante (hemisferio sul: vento sul)', meaning: 'Ar artico/polar chegando. Preparar isolamento' },
+  ]},
+];
+
+// --- Weather Station Functions ---
+
+function weatherInit() {
+  weatherBuildClouds();
+  weatherBuildWind();
+  weatherBuildSigns();
+  weatherLoadHistory();
+  weatherCalcWindChill();
+  weatherCalcHeatIndex();
+  weatherBuildChillTable();
+}
+
+function weatherSwitchTab(tab) {
+  document.querySelectorAll('.weather-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.weather-panel').forEach(p => p.classList.add('hidden'));
+  const tabBtn = document.getElementById('wtab' + tab.charAt(0).toUpperCase() + tab.slice(1));
+  const panel = document.getElementById('wpanel' + tab.charAt(0).toUpperCase() + tab.slice(1));
+  if (tabBtn) tabBtn.classList.add('active');
+  if (panel) panel.classList.remove('hidden');
+  if (tab === 'barometer') weatherDrawChart();
+}
+
+function weatherGetReadings() {
+  try { return JSON.parse(localStorage.getItem(WEATHER_STORAGE_KEY) || '[]'); }
+  catch { return []; }
+}
+
+function weatherSaveReadings(readings) {
+  localStorage.setItem(WEATHER_STORAGE_KEY, JSON.stringify(readings.slice(-100))); // keep last 100
+}
+
+function weatherAddReading() {
+  const input = document.getElementById('weatherPressureInput');
+  const val = parseFloat(input?.value);
+  if (!val || val < 870 || val > 1084) {
+    input?.classList.add('weather-input-error');
+    setTimeout(() => input?.classList.remove('weather-input-error'), 1000);
+    return;
+  }
+  const readings = weatherGetReadings();
+  readings.push({ t: Date.now(), p: Math.round(val * 10) / 10 });
+  weatherSaveReadings(readings);
+  if (input) input.value = '';
+  weatherLoadHistory();
+}
+
+function weatherClearHistory() {
+  localStorage.removeItem(WEATHER_STORAGE_KEY);
+  weatherLoadHistory();
+}
+
+function weatherLoadHistory() {
+  const readings = weatherGetReadings();
+  const container = document.getElementById('weatherHistory');
+  const gaugeVal = document.getElementById('weatherGaugeValue');
+  const gaugeLabel = document.getElementById('weatherGaugeLabel');
+  const predIcon = document.getElementById('weatherPredIcon');
+  const predText = document.getElementById('weatherPredText');
+  const predTrend = document.getElementById('weatherPredTrend');
+
+  if (!container) return;
+
+  if (readings.length === 0) {
+    container.innerHTML = '<div class="weather-empty">Nenhuma leitura registrada ainda</div>';
+    if (gaugeVal) gaugeVal.textContent = '--- hPa';
+    if (gaugeLabel) gaugeLabel.textContent = 'Sem leituras';
+    if (predIcon) predIcon.textContent = '\u2753';
+    if (predText) predText.textContent = 'Registre leituras de pressao para previsao';
+    if (predTrend) predTrend.textContent = '';
+    weatherUpdateNeedle(1013);
+    weatherDrawChart();
+    return;
+  }
+
+  // Show last 20 readings, newest first
+  const recent = readings.slice(-20).reverse();
+  let html = '';
+  recent.forEach(r => {
+    const d = new Date(r.t);
+    const time = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const date = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+    html += `<div class="weather-reading">
+      <span class="weather-reading-time">${date} ${time}</span>
+      <span class="weather-reading-val">${r.p} hPa</span>
+    </div>`;
+  });
+  container.innerHTML = html;
+
+  // Update gauge
+  const latest = readings[readings.length - 1];
+  if (gaugeVal) gaugeVal.textContent = latest.p + ' hPa';
+  weatherUpdateNeedle(latest.p);
+
+  // Predict weather based on pressure and trend
+  const prediction = weatherPredict(readings);
+  if (gaugeLabel) gaugeLabel.textContent = prediction.label;
+  if (predIcon) predIcon.textContent = prediction.icon;
+  if (predText) predText.textContent = prediction.text;
+  if (predTrend) {
+    predTrend.textContent = prediction.trend;
+    predTrend.className = 'weather-pred-trend ' + prediction.trendClass;
+  }
+
+  weatherDrawChart();
+}
+
+function weatherUpdateNeedle(pressure) {
+  const needle = document.getElementById('weatherNeedle');
+  if (!needle) return;
+  // Map 960-1060 hPa to -90 to +90 degrees
+  const clamped = Math.max(960, Math.min(1060, pressure));
+  const angle = ((clamped - 960) / (1060 - 960)) * 180 - 90;
+  needle.setAttribute('transform', `rotate(${angle} 100 100)`);
+}
+
+function weatherPredict(readings) {
+  const latest = readings[readings.length - 1].p;
+  let trend = 0;
+  let trendText = '';
+  let trendClass = '';
+
+  if (readings.length >= 2) {
+    // Compare last 2 readings
+    const prev = readings[readings.length - 2].p;
+    trend = latest - prev;
+  }
+  if (readings.length >= 3) {
+    // Compare with 3h ago or earliest
+    const threeHoursAgo = Date.now() - 3 * 3600 * 1000;
+    const older = readings.filter(r => r.t <= threeHoursAgo);
+    if (older.length > 0) {
+      trend = latest - older[older.length - 1].p;
+    }
+  }
+
+  if (trend > 2) { trendText = '\u2B06 Subindo rapido (+' + trend.toFixed(1) + ' hPa)'; trendClass = 'trend-up'; }
+  else if (trend > 0.5) { trendText = '\u2197 Subindo (+' + trend.toFixed(1) + ' hPa)'; trendClass = 'trend-up'; }
+  else if (trend < -2) { trendText = '\u2B07 Caindo rapido (' + trend.toFixed(1) + ' hPa)'; trendClass = 'trend-down'; }
+  else if (trend < -0.5) { trendText = '\u2198 Caindo (' + trend.toFixed(1) + ' hPa)'; trendClass = 'trend-down'; }
+  else { trendText = '\u2194 Estavel'; trendClass = 'trend-stable'; }
+
+  // Prediction logic
+  let icon, text, label;
+
+  if (latest >= 1023 && trend >= 0) {
+    icon = '\u2600\uFE0F'; label = 'Tempo bom e estavel';
+    text = 'Alta pressao estavel. Ceu limpo provavel por 24-48h. Bom para atividades ao ar livre.';
+  } else if (latest >= 1013 && trend > 1) {
+    icon = '\u{1F324}\uFE0F'; label = 'Melhorando';
+    text = 'Pressao subindo. Tempo melhorando nas proximas horas. Nuvens se dissipando.';
+  } else if (latest >= 1013 && trend >= -1) {
+    icon = '\u26C5'; label = 'Parcialmente nublado';
+    text = 'Pressao normal e estavel. Possibilidade de nuvens mas sem chuva significativa.';
+  } else if (latest >= 1000 && trend < -2) {
+    icon = '\u{1F327}\uFE0F'; label = 'Chuva provavel';
+    text = 'ATENCAO: Pressao caindo rapidamente. Chuva provavel em 6-12h. Prepare abrigo e colete agua.';
+  } else if (latest >= 1000 && trend < 0) {
+    icon = '\u{1F326}\uFE0F'; label = 'Possivel chuva';
+    text = 'Pressao em queda lenta. Possibilidade de chuva em 12-24h. Monitore a tendencia.';
+  } else if (latest < 1000 && trend < -3) {
+    icon = '\u26C8\uFE0F'; label = 'TEMPESTADE PROXIMA';
+    text = 'ALERTA: Pressao muito baixa e caindo rapido. Tempestade provavel. Procure abrigo solido AGORA.';
+  } else if (latest < 1000) {
+    icon = '\u{1F327}\uFE0F'; label = 'Tempo instavel';
+    text = 'Pressao baixa. Tempo instavel com chuva e ventos. Nao se afaste do abrigo.';
+  } else {
+    icon = '\u{1F324}\uFE0F'; label = 'Normal';
+    text = 'Pressao dentro da faixa normal. Continue monitorando para detectar tendencias.';
+  }
+
+  return { icon, text, label, trend: trendText, trendClass };
+}
+
+function weatherDrawChart() {
+  const canvas = document.getElementById('weatherChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const readings = weatherGetReadings();
+  if (readings.length < 2) {
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.font = '12px var(--font-mono)';
+    ctx.textAlign = 'center';
+    ctx.fillText('Minimo 2 leituras para grafico', W / 2, H / 2);
+    return;
+  }
+
+  const last30 = readings.slice(-30);
+  const minP = Math.min(...last30.map(r => r.p)) - 2;
+  const maxP = Math.max(...last30.map(r => r.p)) + 2;
+  const range = maxP - minP || 1;
+
+  // Background grid
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = 10 + (i / 4) * (H - 20);
+    ctx.beginPath(); ctx.moveTo(40, y); ctx.lineTo(W - 10, y); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.font = '9px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText((maxP - (i / 4) * range).toFixed(0), 36, y + 3);
+  }
+
+  // Pressure line
+  ctx.strokeStyle = '#42f5a0';
+  ctx.lineWidth = 2;
+  ctx.shadowColor = '#42f5a0';
+  ctx.shadowBlur = 6;
+  ctx.beginPath();
+  last30.forEach((r, i) => {
+    const x = 44 + (i / (last30.length - 1)) * (W - 58);
+    const y = 10 + ((maxP - r.p) / range) * (H - 20);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Dots
+  last30.forEach((r, i) => {
+    const x = 44 + (i / (last30.length - 1)) * (W - 58);
+    const y = 10 + ((maxP - r.p) / range) * (H - 20);
+    ctx.fillStyle = '#42f5a0';
+    ctx.beginPath();
+    ctx.arc(x, y, 3, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // 1013 hPa reference line
+  if (1013 >= minP && 1013 <= maxP) {
+    const y1013 = 10 + ((maxP - 1013) / range) * (H - 20);
+    ctx.strokeStyle = 'rgba(251, 191, 36, 0.4)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.moveTo(44, y1013); ctx.lineTo(W - 10, y1013); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(251, 191, 36, 0.6)';
+    ctx.font = '8px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('1013 hPa (normal)', 46, y1013 - 4);
+  }
+}
+
+function weatherBuildClouds() {
+  const grid = document.getElementById('weatherCloudGrid');
+  if (!grid) return;
+  const dangerColors = ['#42f5a0', '#fbbf24', '#f97316', '#f43f5e'];
+  const dangerLabels = ['Sem risco', 'Atencao', 'Cuidado', 'PERIGO'];
+  grid.innerHTML = CLOUD_TYPES.map(c => `
+    <div class="weather-cloud-card">
+      <div class="weather-cloud-header">
+        <span class="weather-cloud-icon">${c.icon}</span>
+        <div>
+          <div class="weather-cloud-name">${c.name}</div>
+          <div class="weather-cloud-alt">${c.alt}</div>
+        </div>
+        <span class="weather-cloud-danger" style="color:${dangerColors[c.danger]}">${dangerLabels[c.danger]}</span>
+      </div>
+      <div class="weather-cloud-shape"><strong>Aparencia:</strong> ${c.shape}</div>
+      <div class="weather-cloud-weather"><strong>Previsao:</strong> ${c.weather}</div>
+    </div>
+  `).join('');
+}
+
+function weatherBuildWind() {
+  const table = document.getElementById('weatherWindTable');
+  if (!table) return;
+  table.innerHTML = BEAUFORT_SCALE.map(b => {
+    const color = b.force <= 3 ? '#42f5a0' : b.force <= 6 ? '#fbbf24' : b.force <= 8 ? '#f97316' : '#f43f5e';
+    return `<div class="weather-wind-row" style="border-left: 3px solid ${color}">
+      <div class="weather-wind-force">${b.force}</div>
+      <div class="weather-wind-info">
+        <div class="weather-wind-name">${b.name} <span class="weather-wind-speed">${b.kmh} km/h</span></div>
+        <div class="weather-wind-effects">${b.effects}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function weatherBuildSigns() {
+  const grid = document.getElementById('weatherSignsGrid');
+  if (!grid) return;
+  grid.innerHTML = WEATHER_SIGNS.map(cat => `
+    <div class="weather-signs-section">
+      <h3 class="weather-signs-cat">${cat.icon} ${cat.cat}</h3>
+      ${cat.signs.map(s => `
+        <div class="weather-sign-card">
+          <div class="weather-sign-obs">${s.sign}</div>
+          <div class="weather-sign-meaning">${s.meaning}</div>
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+}
+
+function weatherCalcWindChill() {
+  const temp = parseFloat(document.getElementById('weatherTemp')?.value) || 0;
+  const wind = parseFloat(document.getElementById('weatherWind')?.value) || 0;
+  const resultEl = document.getElementById('weatherWindChillVal');
+  const dangerEl = document.getElementById('weatherDangerZone');
+
+  if (!resultEl) return;
+
+  let wc;
+  if (temp > 10 || wind < 4.8) {
+    wc = temp; // Wind chill not applicable above 10C or very low winds
+  } else {
+    // Environment Canada / US NWS formula
+    wc = 13.12 + 0.6215 * temp - 11.37 * Math.pow(wind, 0.16) + 0.3965 * temp * Math.pow(wind, 0.16);
+  }
+
+  resultEl.textContent = wc.toFixed(1) + ' \u00B0C';
+
+  // Color by danger level
+  let color, danger;
+  if (wc > 0) { color = '#42f5a0'; danger = ''; }
+  else if (wc > -10) { color = '#38bdf8'; danger = 'Desconforto. Use camadas extras.'; }
+  else if (wc > -25) { color = '#fbbf24'; danger = 'ATENCAO: Risco de congelamento em pele exposta em 30 min.'; }
+  else if (wc > -45) { color = '#f97316'; danger = 'PERIGO: Congelamento em 10-15 min. Hipotermia rapida. Minimize exposicao.'; }
+  else { color = '#f43f5e'; danger = 'PERIGO EXTREMO: Congelamento em menos de 5 min. NAO sair ao ar livre.'; }
+
+  resultEl.style.color = color;
+  if (dangerEl) { dangerEl.textContent = danger; dangerEl.style.color = color; }
+}
+
+function weatherCalcHeatIndex() {
+  const temp = parseFloat(document.getElementById('weatherHeatTemp')?.value) || 35;
+  const rh = parseFloat(document.getElementById('weatherHumidity')?.value) || 60;
+  const resultEl = document.getElementById('weatherHeatVal');
+  const dangerEl = document.getElementById('weatherHeatDanger');
+
+  if (!resultEl) return;
+
+  // Rothfusz regression (converted from Fahrenheit)
+  const tf = temp * 9 / 5 + 32;
+  let hi;
+  if (tf < 80) {
+    hi = tf;
+  } else {
+    hi = -42.379 + 2.04901523 * tf + 10.14333127 * rh
+      - 0.22475541 * tf * rh - 0.00683783 * tf * tf
+      - 0.05481717 * rh * rh + 0.00122874 * tf * tf * rh
+      + 0.00085282 * tf * rh * rh - 0.00000199 * tf * tf * rh * rh;
+  }
+  const hiC = (hi - 32) * 5 / 9;
+
+  resultEl.textContent = hiC.toFixed(1) + ' \u00B0C';
+
+  let color, danger;
+  if (hiC < 27) { color = '#42f5a0'; danger = ''; }
+  else if (hiC < 32) { color = '#fbbf24'; danger = 'Cautela: Fadiga possivel com exposicao prolongada.'; }
+  else if (hiC < 40) { color = '#f97316'; danger = 'PERIGO: Caimbras e exaustao termica provaveis. Hidrate-se.'; }
+  else if (hiC < 54) { color = '#f43f5e'; danger = 'PERIGO EXTREMO: Insolacao provavel. Evite exposicao solar.'; }
+  else { color = '#ff0040'; danger = 'RISCO DE VIDA: Insolacao iminente. Busque resfriamento IMEDIATO.'; }
+
+  resultEl.style.color = color;
+  if (dangerEl) { dangerEl.textContent = danger; dangerEl.style.color = color; }
+}
+
+function weatherBuildChillTable() {
+  const table = document.getElementById('weatherChillTable');
+  if (!table) return;
+  const temps = [10, 5, 0, -5, -10, -15, -20, -30];
+  const winds = [10, 20, 30, 40, 50, 60];
+  let html = '<table class="weather-ref-table"><thead><tr><th>T \\ V</th>';
+  winds.forEach(w => html += `<th>${w}</th>`);
+  html += '</tr></thead><tbody>';
+  temps.forEach(t => {
+    html += `<tr><td>${t}°C</td>`;
+    winds.forEach(w => {
+      let wc;
+      if (t > 10 || w < 4.8) wc = t;
+      else wc = 13.12 + 0.6215 * t - 11.37 * Math.pow(w, 0.16) + 0.3965 * t * Math.pow(w, 0.16);
+      const v = Math.round(wc);
+      let cls = '';
+      if (v <= -45) cls = 'wc-extreme';
+      else if (v <= -25) cls = 'wc-danger';
+      else if (v <= -10) cls = 'wc-warning';
+      else if (v <= 0) cls = 'wc-caution';
+      html += `<td class="${cls}">${v}</td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  table.innerHTML = html;
+}
+
+// Exports
+window.weatherInit = weatherInit;
+window.weatherSwitchTab = weatherSwitchTab;
+window.weatherAddReading = weatherAddReading;
+window.weatherClearHistory = weatherClearHistory;
+window.weatherCalcWindChill = weatherCalcWindChill;
+window.weatherCalcHeatIndex = weatherCalcHeatIndex;

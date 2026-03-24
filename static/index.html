@@ -1591,6 +1591,127 @@ Responda no idioma do usuario. Use markdown.</textarea>
       </div>
     </div>
 
+    <!-- ═══ WEATHER STATION ═══ -->
+    <div class="panel-view hidden" id="weatherView">
+      <div class="weather-app">
+        <!-- Tabs -->
+        <div class="weather-tabs">
+          <button class="weather-tab active" onclick="weatherSwitchTab('barometer')" id="wtabBarometer">Barometro</button>
+          <button class="weather-tab" onclick="weatherSwitchTab('clouds')" id="wtabClouds">Nuvens</button>
+          <button class="weather-tab" onclick="weatherSwitchTab('wind')" id="wtabWind">Vento</button>
+          <button class="weather-tab" onclick="weatherSwitchTab('signs')" id="wtabSigns">Sinais Naturais</button>
+          <button class="weather-tab" onclick="weatherSwitchTab('windchill')" id="wtabWindchill">Sensacao Termica</button>
+        </div>
+
+        <!-- TAB: Barometer / Pressure Logger -->
+        <div class="weather-panel" id="wpanelBarometer">
+          <div class="weather-barometer-top">
+            <div class="weather-gauge">
+              <svg viewBox="0 0 200 120" class="weather-gauge-svg">
+                <defs>
+                  <linearGradient id="gaugeGrad" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stop-color="#f43f5e"/>
+                    <stop offset="30%" stop-color="#fbbf24"/>
+                    <stop offset="50%" stop-color="#42f5a0"/>
+                    <stop offset="70%" stop-color="#38bdf8"/>
+                    <stop offset="100%" stop-color="#818cf8"/>
+                  </linearGradient>
+                </defs>
+                <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="var(--glass-border)" stroke-width="12" stroke-linecap="round"/>
+                <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="url(#gaugeGrad)" stroke-width="8" stroke-linecap="round" opacity="0.6"/>
+                <line id="weatherNeedle" x1="100" y1="100" x2="100" y2="30" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" transform="rotate(-90 100 100)"/>
+                <circle cx="100" cy="100" r="5" fill="var(--accent)"/>
+                <text x="20" y="115" fill="var(--text-muted)" font-size="8" font-family="var(--font-mono)">960</text>
+                <text x="88" y="18" fill="var(--text-muted)" font-size="8" font-family="var(--font-mono)">1013</text>
+                <text x="168" y="115" fill="var(--text-muted)" font-size="8" font-family="var(--font-mono)">1060</text>
+              </svg>
+              <div class="weather-gauge-value" id="weatherGaugeValue">--- hPa</div>
+              <div class="weather-gauge-label" id="weatherGaugeLabel">Sem leituras</div>
+            </div>
+            <div class="weather-prediction">
+              <div class="weather-pred-icon" id="weatherPredIcon">&#x2753;</div>
+              <div class="weather-pred-text" id="weatherPredText">Registre leituras de pressao para previsao</div>
+              <div class="weather-pred-trend" id="weatherPredTrend"></div>
+            </div>
+          </div>
+          <div class="weather-input-row">
+            <label class="weather-input-label">Pressao (hPa):</label>
+            <input type="number" id="weatherPressureInput" class="weather-input" min="870" max="1084" step="0.1" placeholder="ex: 1013.25" />
+            <button class="btn-sm btn-accent" onclick="weatherAddReading()">Registrar</button>
+          </div>
+          <div class="weather-history-header">
+            <span>Historico de leituras</span>
+            <button class="btn-xs" onclick="weatherClearHistory()" title="Limpar">Limpar</button>
+          </div>
+          <div class="weather-history" id="weatherHistory">
+            <div class="weather-empty">Nenhuma leitura registrada ainda</div>
+          </div>
+          <canvas id="weatherChart" class="weather-chart" width="600" height="120"></canvas>
+        </div>
+
+        <!-- TAB: Cloud Types -->
+        <div class="weather-panel hidden" id="wpanelClouds">
+          <div class="weather-cloud-intro">Identifique nuvens para prever o tempo nas proximas horas.</div>
+          <div class="weather-cloud-grid" id="weatherCloudGrid"></div>
+        </div>
+
+        <!-- TAB: Wind / Beaufort -->
+        <div class="weather-panel hidden" id="wpanelWind">
+          <div class="weather-wind-intro">Escala Beaufort — estime a velocidade do vento pelos efeitos observados.</div>
+          <div class="weather-wind-table" id="weatherWindTable"></div>
+        </div>
+
+        <!-- TAB: Natural Signs -->
+        <div class="weather-panel hidden" id="wpanelSigns">
+          <div class="weather-signs-intro">Sinais da natureza que indicam mudancas no tempo.</div>
+          <div class="weather-signs-grid" id="weatherSignsGrid"></div>
+        </div>
+
+        <!-- TAB: Wind Chill Calculator -->
+        <div class="weather-panel hidden" id="wpanelWindchill">
+          <div class="weather-calc-section">
+            <div class="weather-calc-row">
+              <div class="weather-calc-field">
+                <label>Temperatura (C)</label>
+                <input type="number" id="weatherTemp" class="weather-input" value="10" step="1" oninput="weatherCalcWindChill()" />
+              </div>
+              <div class="weather-calc-field">
+                <label>Vento (km/h)</label>
+                <input type="number" id="weatherWind" class="weather-input" value="20" step="1" min="0" oninput="weatherCalcWindChill()" />
+              </div>
+            </div>
+            <div class="weather-calc-result" id="weatherCalcResult">
+              <div class="weather-calc-big" id="weatherWindChillVal">--</div>
+              <div class="weather-calc-label">Sensacao Termica</div>
+            </div>
+            <div class="weather-calc-danger" id="weatherDangerZone"></div>
+            <div class="weather-calc-section">
+              <h4>Tabela de Referencia Rapida</h4>
+              <div class="weather-chill-table" id="weatherChillTable"></div>
+            </div>
+            <div class="weather-calc-section">
+              <h4>Indice de Calor (Temperatura + Umidade)</h4>
+              <div class="weather-calc-row">
+                <div class="weather-calc-field">
+                  <label>Temperatura (C)</label>
+                  <input type="number" id="weatherHeatTemp" class="weather-input" value="35" step="1" oninput="weatherCalcHeatIndex()" />
+                </div>
+                <div class="weather-calc-field">
+                  <label>Umidade (%)</label>
+                  <input type="number" id="weatherHumidity" class="weather-input" value="60" step="1" min="0" max="100" oninput="weatherCalcHeatIndex()" />
+                </div>
+              </div>
+              <div class="weather-calc-result" id="weatherHeatResult">
+                <div class="weather-calc-big" id="weatherHeatVal">--</div>
+                <div class="weather-calc-label">Indice de Calor</div>
+              </div>
+              <div class="weather-calc-danger" id="weatherHeatDanger"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ═══ PREPARAR PENDRIVE ═══ -->
     <div class="panel-view hidden" id="pendriveView">
       <div class="pendrive-app">
