@@ -1,360 +1,290 @@
-# Bunker AI → Bunker OS — Roadmap
+# Bunker AI — Roadmap
 
-## Visao Geral
+> Objetivo: ser o melhor sistema offline de sobrevivencia com IA do mundo.
+> Referencia competitiva: Project NOMAD (11K+ stars) — e ultrapassar.
 
-**Bunker OS** — Um sistema operacional compacto estilo desktop para sobrevivencia offline.
-Interface tipo OS com area de trabalho, janelas arrastáveis, barra de tarefas, relogio e apps.
-Roda num PC com placa de video boa, sem internet, usando modelos locais via Ollama.
+## Status Atual
+
+**38K+ linhas de codigo** | **40+ apps** | **80+ endpoints** | **16 guias** | **10 protocolos**
+
+O Bunker AI ja e tecnicamente superior ao NOMAD em IA (RAG, voz, visao, app builder, geracao de imagem).
+O NOMAD e superior em volume de conteudo offline e visibilidade/comunidade.
+
+---
 
 ## Fases Completadas
-- [x] Fase 1: Backend — Novos endpoints + SQLite + Kiwix
-- [x] Fase 2: Auto-Setup (start.bat + setup_downloads.py)
-- [x] Fase 3: Frontend — Guias Dinamicos + Protocolos + Busca
-- [x] Fase 4: Frontend — Tracker de Suprimentos + Diario (+ Relogio, Calendario, Status do Servidor)
-- [x] Fase 5: Frontend — Livros (epub.js reader) + Jogos (iframe) + Wikipedia (Kiwix)
-- [x] Fase 6: **Bunker OS — Desktop Environment**
-  - Area de trabalho com icones de apps (grid, double-click abre)
-  - Janelas arrastaveis/redimensionaveis com barra de titulo (minimizar, maximizar, fechar)
-  - Barra de tarefas inferior (relogio, status sistema, apps abertos, start menu)
-  - Window manager: z-index, foco, minimizar para taskbar, cascade positioning
-  - Todos os modulos existentes viram "apps" em janelas
-  - Start menu com lista de todos os apps
 
-## Em Andamento
-- [x] Fase 7: **Apps Nativos do Bunker OS** (Notepad, Word, Excel adicionados)
-  - 🤖 AI Chat (gemma3 / dolphin3)
-  - 📋 Guias de Sobrevivencia
-  - 🚨 Protocolos de Emergencia
-  - 📦 Tracker de Suprimentos
-  - 📓 Diario + Calendario + Relogio
-  - 📚 Leitor de Livros (epub.js)
-  - 🎮 Jogos (8 jogos HTML5)
-  - 🗺️ Mapas Offline (PMTiles)
-  - 🌐 Wikipedia Offline (Kiwix)
-  - 🔨 App Builder (code + preview)
-  - 📝 Bloco de Notas (simples, salva em SQLite)
-  - 📄 Word Simples (rich text, bold/italic/listas, salva HTML)
-  - 📊 Excel Simples (grid com formulas basicas, salva CSV/JSON)
-  - 🎭 Avatar Companion (Live2D)
-  - ⚙️ Configuracoes do Sistema
-- [x] Fase 8: App Builder Melhorado + Polish
-  - Apps salvos abrem em janelas OS (iframe dentro de window)
-  - Boot screen com animacao de inicializacao estilo BIOS
-  - Relogio do taskbar com segundos + tooltip de data
-  - Focus window ao clicar em qualquer parte da janela
-  - Right-click context menu no desktop (abrir apps, trocar wallpaper, fechar todas janelas)
-  - 5 wallpapers (default, starfield, grid, aurora, matrix) com persistencia em localStorage
-  - Atalhos de teclado: Ctrl+W fechar, Ctrl+M minimizar, Ctrl+Shift+N abrir notepad, Esc fechar menu
-  - Auto-save de editores (Notepad/Word/Excel) ao fechar janela
-  - Start menu com opcao Reiniciar + separador
-  - Duplo clique no relogio abre Diario, duplo clique no status abre Config
-  - Titulo dinamico do chat com nome do personagem ativo
-  - Toast notifications para auto-save e eventos do sistema
-  - Window snapping (arrastar para bordas = snap left/right/maximize)
-  - Alt+Tab para alternar entre janelas
-  - Organizar janelas em grid (tile windows)
-  - Start menu com busca de apps + Enter para abrir
-  - Animacao de shutdown com overlay
-  - Botao Desligar no start menu
-- [ ] Fase 9: Avatar Companion (Live2D)
-- [x] Fase 10: Conteudo Denso (15 guias, 10 protocolos) — COMPLETO
-- [x] Fase 11: **Modularizacao + UX** (ES Modules + Spotlight + Terminal + Paint + File Manager)
-  - Refatoracao de app.js monolitico em ES Modules (main.js, chat.js, state.js, apps.js, etc.)
-  - Spotlight / Command Palette (Ctrl+K) com busca de apps e acoes rapidas
-  - Terminal integrado com allowlist de comandos seguros
-  - File Manager com navegacao de diretorios e preview
-  - Paint com ferramentas de desenho (brush, eraser, line, rect, circle, fill)
-  - Agenda/Tasks com CRUD, prioridades e datas
-  - Drag-and-drop para reordenar icones do desktop
-  - Atalhos de teclado expandidos (F1, Ctrl+Shift+C, Ctrl+Shift+A)
-- [x] Fase 12: **Modo Portavel Pendrive + Dual Backend**
-  - build_portable.py monta pacote completo para pendrive
-  - Python embarcado + llama-server + modelos GGUF built-in
-  - Auto-deteccao GPU via nvidia-smi com offload automatico
-  - Dual backend: Ollama (primario) / llama.cpp (fallback portavel)
-  - Modelo CPU (Dolphin 1B uncensored) + GPU (Dolphin 8B uncensored + Gemma 3 4B multimodal)
-  - API /api/models/recommended com deteccao de hardware
-  - INICIAR.bat / INICIAR.sh para Windows e Linux
-- [x] Fase 13: **Uncensored + Kokoro TTS**
-  - Filosofia: modelos uncensored por padrao (censura pode custar vidas)
-  - Dolphin3 como modelo padrao de chat (substituiu gemma3:12b)
-  - Kokoro TTS (82M params, near-human) como engine TTS principal
-  - Cascade: Kokoro > Piper > pyttsx3 > edge-tts
-  - Vozes pt-BR, en-US, es com Kokoro (pm_alex, af_heart, etc.)
-  - Download de modelos Kokoro via /api/tts/kokoro/download
-  - Modelos built-in portaveis atualizados para Dolphin uncensored
-- [x] Fase 14: **The Guide — AI Companion Widget**
-  - Widget persistente no desktop (canto inferior direito)
-  - Avatar sprite-based com expressoes ASCII por mood (idle, thinking, happy, alert, sleeping)
-  - 6 personalidades: Deep Thought, TARS, MOTHER, HAL 9000, Ford Prefect, Sobrevivente
-  - Quick-ask: perguntas rapidas sem abrir o chat completo
-  - Quick actions: grid de atalhos (Emergencia, Guias, Radio, Mapa, Suprimentos, Diario)
-  - Dicas proativas contextuais por modo IA ativo (medical, survival, etc.)
-  - Indicador visual de modo/personalidade ativa
-  - Integracao com sistema de modos — atualiza ao trocar modo no chat
-  - Modulo ES puro: static/js/guide-companion.js
-  - Scanner mode stub (futura integracao com webcam)
+### Fase 1-5: Fundacao
+- [x] Backend FastAPI + SQLite + Kiwix
+- [x] Auto-setup (start.bat/sh + setup_downloads.py)
+- [x] Guias dinamicos + Protocolos + Busca global
+- [x] Tracker de Suprimentos + Diario + Calendario
+- [x] Livros (epub.js) + Jogos (8 HTML5) + Wikipedia (Kiwix)
+
+### Fase 6: Desktop Environment
+- [x] Area de trabalho com icones, janelas arrastaveis/redimensionaveis
+- [x] Barra de tarefas, window manager, z-index, start menu
+- [x] Window snapping, Alt+Tab, tile windows, cascade positioning
+
+### Fase 7-8: Apps Nativos + Polish
+- [x] Notepad, Word, Excel, Paint, File Manager, Terminal
+- [x] Calculadora, Timer, Conversor, Checklist, Morse, Fonetico NATO
+- [x] App Builder (gera apps com IA) + apps salvos em janelas
+- [x] Boot screen, wallpapers, atalhos de teclado, context menu, toast notifications
+- [x] Monitor de Sistema, Media Player, Tarefas
+
+### Fase 9-10: Conteudo + Companion
+- [x] 16 guias de sobrevivencia (~6500 linhas de conteudo)
+- [x] 10 protocolos de emergencia (arvores de decisao interativas)
+- [x] Companion 3D (Three.js + VRM, lip-sync, expressoes, gestos)
+- [x] The Guide widget (6 personalidades: Deep Thought, TARS, MOTHER, HAL, Ford, Survivor)
+
+### Fase 11: Modularizacao + UX
+- [x] Refatoracao em ES Modules (main.js, chat.js, state.js, apps.js, etc.)
+- [x] Spotlight / Command Palette (Ctrl+K)
+- [x] 6 modos de IA: Geral, Medico, Sobrevivencia, Engenharia, Defesa, Psicologico
+
+### Fase 12-13: Portabilidade + Uncensored
+- [x] build_portable.py — pacote USB com Python embarcado + llama.cpp
+- [x] Dual backend: Ollama (primario) / llama.cpp (fallback)
+- [x] Dolphin3 uncensored como modelo padrao
+- [x] Kokoro TTS (near-human) + cascade de 4 engines TTS
+- [x] 5 modelos GGUF no registry
+
+### Fase 14: Guide Companion
+- [x] Widget persistente com 6 personalidades sci-fi
+- [x] Quick-ask, quick actions, dicas proativas por modo
+- [x] Moods animados (idle, thinking, happy, alert, sleeping)
+
+### Fase 15: Apps de Sobrevivencia Especializados
+- [x] Agua Segura — calculadora de purificacao (cloro, iodo, fervura, SODIS)
+- [x] Farmacia — inventario de medicamentos + dosagens
+- [x] Abrigo — guia interativo de construcao
+- [x] Energia — geracao de energia + baterias
+- [x] Navegacao — orientacao sem GPS (estrelas, sol, sombras, bussola)
+- [x] Plantas — banco de dados de plantas comestiveis/medicinais
+- [x] Racionamento — calculadora de racionamento alimentar
+- [x] Crypto — ferramentas de criptografia/encoding
+- [x] Primeiros Socorros — referencia rapida de emergencia
+
+### Fase 16: RAG + Kiwix + Documentacao (Atual)
+- [x] RAG Engine — FTS5 + Ollama embeddings, auto-indexa guias/protocolos
+- [x] RAG no chat — injeta contexto automaticamente nas respostas
+- [x] Upload de documentos do usuario (.txt, .md, .csv)
+- [x] Kiwix frontend completo (antes 70%, agora 100%)
+- [x] Kiwix cross-platform (Linux + macOS + Windows)
+- [x] Guide progress tracking (scroll tracking + marcar como lido)
+- [x] CLAUDE.md — guia para AI agents
+- [x] docs/ARCHITECTURE.md — mapa tecnico completo
+- [x] docs/API.md — referencia de 80+ endpoints
+- [x] README.md reescrito
 
 ---
 
-## Fase 15: Distribuicao Portatil Definitiva
+## Proximo: Fase 17 — Biblioteca de Conteudo Offline
 
-**Objetivo:** 1 download → pendrive → qualquer PC → duplo-clique → funciona. ZERO internet.
+**Objetivo:** Igualar e ultrapassar o NOMAD em volume de conteudo offline.
 
-### Problema Atual
-O Ollama nao e portatil — instala no sistema e guarda modelos em ~/.ollama/models.
-O start.sh precisa de internet na primeira vez para criar venv e instalar deps.
+**Principio:** O NOMAD oferece terabytes de ZIMs pre-prontos. Nos vamos oferecer
+um **download manager inteligente** que permite ao usuario escolher exatamente
+o que precisa, sem desperdicar espaco.
 
-### Solucao: Pacote Auto-Contido com llama.cpp
+### 17.1 — ZIM Download Manager (UI)
+- [ ] Painel "Biblioteca Offline" no app com categorias
+- [ ] Catalogo de ZIMs disponiveis: Wikipedia (completo/mini/medico), Wikihow, Project Gutenberg, Wikibooks, Stack Overflow, iFixit
+- [ ] Estimativa de tamanho antes do download
+- [ ] Progresso de download com SSE (como ja funciona para mapas)
+- [ ] Listar ZIMs instalados com tamanho e opcao de remover
+- [ ] Busca unificada que busca em TODOS os ZIMs instalados
 
-O `build_portable.py` existente ja faz 80% do trabalho. Falta:
+### 17.2 — Catalogo de ZIMs Curado para Sobrevivencia
+- [ ] Wikipedia medicina — diagnosticos, procedimentos, farmacologia
+- [ ] iFixit — manuais de reparo de tudo
+- [ ] Wikibooks — engenharia, agricultura, construcao
+- [ ] Project Gutenberg — literatura offline
+- [ ] Stack Overflow — programacao/engenharia
+- [ ] OpenStax — livros didaticos abertos (fisica, quimica, biologia)
+- [ ] Wikivoyage — informacoes geograficas/culturais
 
-#### 15.1 — Estrutura Final do Pacote
+### 17.3 — Indexacao RAG dos ZIMs
+- [ ] Indexar conteudo dos ZIMs no RAG (opcional, por ZIM)
+- [ ] Quando o usuario perguntar algo, o RAG busca nos ZIMs tambem
+- [ ] Combinar busca Kiwix nativa + RAG semantico
 
-```
-BunkerAI/                              (~12-15 GB)
-├── INICIAR.command                     ← Mac: duplo-clique
-├── INICIAR.bat                         ← Windows: duplo-clique
-├── LEIA-ME.txt                         ← Instrucoes
-│
-└── app/                                ← Tudo aqui dentro
-    ├── server.py                       ← Backend FastAPI
-    ├── start.sh / start.bat            ← Launcher interno
-    ├── static/                         ← Frontend completo
-    │   ├── js/                         ← ES Modules
-    │   ├── fonts/                      ← Google Fonts local
-    │   ├── lib/                        ← Leaflet, epub.js, etc.
-    │   └── style.css
-    ├── data/                           ← Conteudo offline
-    │   ├── guides/                     ← 15 guias markdown
-    │   ├── protocols/                  ← 11 protocolos JSON
-    │   ├── games/                      ← 8 jogos HTML5
-    │   ├── books/                      ← Biblioteca (epub opcionais)
-    │   └── zim/                        ← Wikipedia (ZIM opcional)
-    │
-    ├── models/                         ← LLMs GGUF embutidos
-    │   ├── dolphin-1b-q4.gguf         ← CPU leve (~0.8 GB)
-    │   ├── dolphin-8b-q4.gguf         ← Principal uncensored (~4.9 GB)
-    │   └── gemma3-4b-q4.gguf          ← Visao/multimodal (~3.0 GB)
-    │
-    ├── bin/                            ← Binarios llama.cpp
-    │   ├── mac/                        ← llama-server (macOS universal)
-    │   │   └── llama-server
-    │   ├── win/                        ← llama-server.exe (Windows x64)
-    │   │   └── llama-server.exe
-    │   └── linux/                      ← llama-server (Linux x64)
-    │       └── llama-server
-    │
-    ├── python/                         ← Python embarcado (Windows only)
-    │   └── python-3.11-embed-amd64/
-    │
-    ├── venv/                           ← Ambiente virtual pre-construido
-    │   └── (todas as deps ja instaladas)
-    │
-    └── kokoro_models/                  ← TTS Kokoro (opcional, ~300MB)
-        └── kokoro-v1.0.onnx
-```
-
-#### 15.2 — Launcher Inteligente
-
-O INICIAR.command/bat na raiz detecta automaticamente:
-1. OS (Mac/Windows/Linux)
-2. GPU disponivel (nvidia-smi / system_profiler)
-3. RAM disponivel
-4. Escolhe modelo: GPU (dolphin-8b) se possivel, senao CPU (dolphin-1b)
-5. Inicia llama-server com o modelo certo
-6. Inicia server.py
-7. Abre browser
-
-Sequencia de boot (~3 segundos):
-```
-INICIAR.command
-  → detecta OS + hardware
-  → inicia llama-server (background, porta 8070)
-  → ativa venv
-  → inicia uvicorn (porta 8888)
-  → abre http://localhost:8888
-```
-
-#### 15.3 — Tarefas de Implementacao
-
-- [ ] **build_portable.py v2** — Atualizar script de build:
-  - [ ] Baixar binarios llama.cpp para Mac (universal), Windows (x64), Linux (x64)
-  - [ ] Baixar 3 modelos GGUF (CPU + GPU + Vision)
-  - [ ] Criar venv pre-construido com todas as deps
-  - [ ] Empacotar Python embarcado (Windows only, Mac/Linux usam system Python)
-  - [ ] Gerar estrutura de pastas final
-  - [ ] Flag --light para pacote leve (~2GB, so modelo CPU)
-  - [ ] Flag --full para pacote completo (~15GB, 3 modelos + Kokoro + Wikipedia ZIM)
-
-- [ ] **Launcher Mac** — INICIAR.command v2:
-  - [ ] Auto-detecta hardware (sysctl para RAM, system_profiler para GPU)
-  - [ ] Inicia llama-server com modelo apropriado
-  - [ ] Cria venv se nao existir (fallback, idealmente ja vem pronto)
-  - [ ] Nao tenta baixar nada da internet
-
-- [ ] **Launcher Windows** — INICIAR.bat v2:
-  - [ ] Usa Python embarcado da pasta python/ se existir
-  - [ ] Detecta GPU via nvidia-smi ou wmic
-  - [ ] Mesmo fluxo do Mac
-
-- [ ] **server.py update** — Tri-backend:
-  - [ ] Backend 1: Ollama (dev mode, se rodando)
-  - [ ] Backend 2: llama.cpp local (modo portatil, autodetect)
-  - [ ] Backend 3: llamafile (futuro, single-file)
-  - [ ] Auto-selecao de backend na inicializacao
-
-- [ ] **UI: Download Manager** — Painel no app para gerenciar modelos:
-  - [ ] Listar modelos disponiveis vs instalados
-  - [ ] Progresso de download com barra visual
-  - [ ] Detectar hardware e recomendar modelos
-  - [ ] Funciona tanto com Ollama (dev) quanto llama.cpp (portatil)
-
-#### 15.4 — Modelos Recomendados (Março 2026)
-
-| Modelo | Tamanho | Tipo | Uso | Uncensored |
-|--------|---------|------|-----|------------|
-| Dolphin 1B Q4 | ~0.8 GB | CPU | Fallback leve, qualquer PC | Sim |
-| Dolphin 8B Q4 | ~4.9 GB | GPU 6GB+ | Chat principal | Sim |
-| Gemma 3 4B Q4 | ~3.0 GB | GPU 4GB+ | Visao/webcam/scanner | Nao |
-| Qwen 2.5 Coder 7B Q4 | ~5 GB | GPU 6GB+ | App Builder (opcional) | Nao |
-
-**Nota sobre modelos:** O HuggingFace e a fonte para GGUFs. Bartowski publica quantizacoes Q4_K_M otimizadas para quase todos os modelos populares.
-
-#### 15.5 — Opcao Nuclear: Llamafile
-
-Para o MAXIMO de portabilidade, considerar llamafile (Mozilla):
-- Modelo + runtime empacotados em UM UNICO executavel
-- Roda no Mac, Windows e Linux sem instalacao
-- Inclui servidor HTTP com API compativel com OpenAI
-- Desvantagem: menos flexivel, 1 modelo por arquivo, nao troca de modelo on-the-fly
-
-Fluxo llamafile:
-```
-BunkerAI/
-├── INICIAR.command
-├── dolphin-8b.llamafile         ← ~5GB, roda direto!
-└── app/
-    └── (frontend + server.py)
-```
-
-**Decisao:** Manter llama.cpp como primary (mais flexivel, multi-modelo), llamafile como futuro fallback.
+**Esforco:** Medio | **Impacto:** Alto | **Vantagem vs NOMAD:** Download seletivo ao inves de tudo-ou-nada
 
 ---
 
-## Fase 16: Evolucao do Guide Companion (Futuro)
+## Fase 18 — Routing e Navegacao nos Mapas
 
-- [ ] Scanner Mode real: webcam → llama.cpp vision → analise instantanea no widget
-- [ ] Notificacoes proativas com dados reais (agua, suprimentos, diario)
-- [ ] Animacoes SVG para o avatar (substituir ASCII por sprite sheets)
-- [ ] Vozes por personalidade (cada personalidade com voz TTS diferente)
-- [ ] Modo "Pokedex": apontar camera → identificar planta/animal/objeto
-- [ ] Humor adaptativo: muda baseado em atividade do usuario
-- [ ] Integracao com ARWES (framework UI sci-fi) para visual futurista
+**Objetivo:** Calcular rotas A→B offline, igualando NOMAD em mapas.
 
----
+### 18.1 — Routing Engine Offline
+- [ ] Integrar OSRM (Open Source Routing Machine) em modo offline
+- [ ] Pre-extrair dados de routing por regiao (junto com PMTiles)
+- [ ] Ou: implementar A* simplificado sobre dados OSM extraidos
+- [ ] Interface: clicar ponto A, clicar ponto B, ver rota no mapa
 
-## Apps do Bunker OS
+### 18.2 — Mapa Melhorado
+- [ ] Geocoding offline (buscar por nome de cidade/rua)
+- [ ] POI search (buscar hospitais, agua, abrigos no mapa)
+- [ ] Perfil de elevacao da rota
+- [ ] Estimativa de tempo a pe / veiculo
+- [ ] Exportar rota como lista de instrucoes
 
-### Core Apps (ja existem como modulos)
-| App | Icone | Funcionalidade | Status |
-|-----|-------|----------------|--------|
-| AI Chat | 🤖 | Chat com LLM local, visao, voz | ✅ Funcional |
-| Guias | 📋 | 15 guias de sobrevivencia | ✅ 15 escritos |
-| Protocolos | 🚨 | Arvores de decisao emergencia | ✅ 10 criados |
-| Suprimentos | 📦 | CRUD + dashboard + categorias | ✅ Funcional |
-| Diario | 📓 | Entries + calendario + status | ✅ Funcional |
-| Livros | 📚 | Leitor epub offline (epub.js) | ✅ Funcional |
-| Jogos | 🎮 | 8 jogos HTML5 self-contained | ✅ 8 criados |
-| Mapas | 🗺️ | PMTiles offline | ✅ Funcional |
-| Wikipedia | 🌐 | Kiwix iframe | ✅ Funcional |
-| Builder | 🔨 | Gera apps HTML com AI | ✅ Funcional |
-| Personagens | 🎭 | Character cards para AI | ✅ Funcional |
-| TTS | 🔊 | Text-to-speech config | ✅ Funcional |
-| The Guide | 📖 | Companion widget com personalidades | ✅ Funcional |
+### 18.3 — Manter Diferenciais Unicos
+- [ ] Manter app de navegacao por estrelas/sol (diferencial que NOMAD nao tem)
+- [ ] Integrar bussola do dispositivo (DeviceOrientation API)
+- [ ] Modo "trilha" — gravar percurso GPS e salvar como track
 
-### Novos Apps (Bunker OS exclusivos)
-| App | Icone | Funcionalidade | Status |
-|-----|-------|----------------|--------|
-| Bloco de Notas | 📝 | Editor de texto puro, multiplas notas, SQLite | ✅ Funcional |
-| Word Simples | 📄 | Rich text: bold, italic, listas, headings, contenteditable | ✅ Funcional |
-| Excel Simples | 📊 | Grid 10x30, formulas SUM/AVG/COUNT/MIN/MAX/IF | ✅ Funcional |
-| Monitor Sistema | 💻 | CPU, RAM, disco, uptime, conteudo — auto-refresh 5s | ✅ Funcional |
-| Calculadora | 🖩 | Calculadora com teclado, ±, %, operacoes | ✅ Funcional |
-| Timer | ⏱️ | Cronometro + contagem regressiva + voltas | ✅ Funcional |
-| Conversor | 🔢 | Temperatura, distancia, peso, volume, velocidade | ✅ Funcional |
-| Checklists | ✅ | Listas com templates de sobrevivencia, progresso | ✅ Funcional |
-| Codigo Morse | 📡 | Tradutor texto↔morse, audio, flash SOS, referencia | ✅ Funcional |
-| Frequencias Radio | 📻 | Emergencia, HAM, codigos Q, dicas | ✅ Funcional |
-| Fonetico NATO | 🎙️ | Tradutor A→Alpha, referencia completa | ✅ Funcional |
-| Sol / Lua | ☀️ | Nascer/por do sol, golden hour, fase da lua | ✅ Funcional |
-| Agua Segura | 💧 | Calculadora purificacao (cloro, iodo, fervura, SODIS) | ✅ Funcional |
-| Media Player | 🎵 | Audio player com playlist | ✅ Funcional |
-| Tarefas | 📌 | Task manager com prioridades | ✅ Funcional |
-| Gerenciador Arquivos | 📁 | Navegacao de arquivos com preview | ✅ Funcional |
-| Paint | 🎨 | Editor grafico com ferramentas de desenho | ✅ Funcional |
-| Gerador IA | 🖼️ | Gerador de imagens com AI | ✅ Funcional |
-| Referencia | 📖 | 80 entradas de referencia, 9 categorias | ✅ Funcional |
-| Config Sistema | ⚙️ | Modelos, TTS, tema, sobre | ✅ Funcional (drawer) |
-
-### Arquitetura do Window Manager
-```
-Desktop (fullscreen)
-├── Wallpaper (CSS gradient ou imagem)
-├── App Icons (grid, double-click abre)
-├── Guide Widget (companion IA, canto inferior direito)
-├── SOS Widget (emergencia, canto inferior direito)
-├── Windows[] (draggable, resizable)
-│   ├── Title bar (icone + titulo + min/max/close)
-│   ├── Content (cada app renderiza aqui)
-│   └── Resize handle (canto inferior direito)
-└── Taskbar (bottom, fixed)
-    ├── Start/Launcher button
-    ├── Running apps (click = focus/minimize)
-    ├── System tray (status icons)
-    └── Clock (HH:MM:SS + data)
-```
+**Esforco:** Alto | **Impacto:** Medio | **Vantagem vs NOMAD:** Nosso mapa ja tem marcadores de sobrevivencia + nav por estrelas
 
 ---
 
-## Ideias Futuras
+## Fase 19 — Docker + Self-Hosting
 
-### README/Manual.md para Auto-Compreensao do Modelo
-**Prioridade:** Media
-**Descricao:** Criar um `README/manual.md` MUITO bem detalhado, para que o proprio modelo de IA consiga entender como o Bunker AI funciona internamente.
+**Objetivo:** Abrir para publico de homelab/self-hosters.
 
-### Integracao Nanoclaw + Lock por Pasta
-**Prioridade:** Baixa (exploratoria)
-**Descricao:** Integrar o nanoclaw com sistema de lock por pasta, para que o proprio modelo/agente consiga acessar seu codigo interno de forma controlada e segura.
+### 19.1 — Dockerfile + docker-compose.yml
+- [ ] Dockerfile multi-stage (build + runtime)
+- [ ] docker-compose.yml com Ollama como servico separado
+- [ ] Volume mounts para data/, models/, static/maps/
+- [ ] Variavel OLLAMA_URL para apontar para Ollama externo
+- [ ] Health check no compose
 
-**Requisitos:**
-- Sistema de permissoes por diretorio
-- Lock file para evitar conflitos de escrita
-- Log de todas as alteracoes feitas pelo agente
-- Rollback automatico se algo quebrar
-- Sandbox de testes antes de aplicar mudancas no codigo principal
+### 19.2 — Deploy Guides
+- [ ] One-liner de instalacao: `curl -fsSL ... | bash`
+- [ ] Guia para Raspberry Pi 5 (sem GPU, modelo CPU)
+- [ ] Guia para Synology/QNAP NAS
+- [ ] Guia para servidor com GPU (melhor experiencia)
 
-**Nota:** Essa ideia depende do manual.md estar completo primeiro.
+### 19.3 — Manter Simplicidade
+- [ ] Docker e OPCIONAL — start.sh continua sendo o padrao
+- [ ] Nao adicionar dependencia de Docker para nada
+- [ ] O monolito server.py + static/ continua funcionando sozinho
 
-### RAG Local com Documentos do Usuario
-**Prioridade:** Media
-**Descricao:** Implementar Retrieval-Augmented Generation usando documentos locais.
-- Indexar PDFs, TXTs, markdowns do usuario
-- Embeddings locais (sentence-transformers via llama.cpp)
-- Busca semantica offline
-- Referencia: easy-local-rag (AllAboutAI-YT)
+**Esforco:** Medio | **Impacto:** Medio | **Vantagem vs NOMAD:** Nos temos AMBOS — nativo E Docker
 
-### Whisper.cpp WASM (STT no Browser)
-**Prioridade:** Media
-**Descricao:** Substituir faster-whisper (Python) por whisper.cpp compilado em WASM.
-- Roda 100% no browser, sem backend
-- Elimina dependencia de Python para STT
-- Modelo tiny/base sufficient para comandos de voz
-- Referencia: whisper.cpp WASM (ggml-org)
+---
 
-### Visual Sci-Fi com ARWES
-**Prioridade:** Baixa (estetica)
-**Descricao:** Integrar framework ARWES para UI sci-fi futurista.
-- Componentes animados com efeito glitch/holografico
-- Perfeito para o tema Bunker/sobrevivencia
-- Referencia: arwes (github.com/arwes/arwes)
+## Fase 20 — Internacionalizacao + Visibilidade
+
+**Objetivo:** Colocar o Bunker AI no mapa mundial.
+
+### 20.1 — README Bilingue
+- [ ] README.md em ingles (principal) com link para versao PT-BR
+- [ ] Tagline: "Offline survival OS with local AI — voice, vision, RAG, 40+ apps"
+- [ ] GIF/video demo no README (boot → chat → voz → mapa → guia)
+- [ ] Badges: stars, license, last commit, Python version
+
+### 20.2 — Lancamento
+- [ ] Post no r/selfhosted (maior publico de offline-first)
+- [ ] Post no r/LocalLLaMA (comunidade de LLMs locais)
+- [ ] Post no r/preppers (publico-alvo direto)
+- [ ] Post no Hacker News (Show HN)
+- [ ] Post no DEV.to com artigo tecnico
+- [ ] Video demo no YouTube (~3 min)
+
+### 20.3 — i18n (internacionalizacao)
+- [ ] Extrair strings de UI para arquivo de traducao (json)
+- [ ] Suporte a ingles como idioma alternativo
+- [ ] Guias traduzidos para ingles (pode ser feito pelo proprio LLM)
+- [ ] Auto-detectar idioma do browser
+
+**Esforco:** Medio | **Impacto:** Altissimo | **Meta:** Ultrapassar NOMAD em stars
+
+---
+
+## Fase 21 — IA Avancada
+
+**Objetivo:** Features de IA que ninguem mais tem.
+
+### 21.1 — RAG Avancado
+- [ ] Indexar PDFs (PyMuPDF ou pdfplumber, sem OCR)
+- [ ] Indexar conteudo dos ZIMs no pipeline RAG
+- [ ] Multi-query RAG: reformular pergunta em 3 variantes e buscar todas
+- [ ] Citacoes com link direto para o trecho fonte
+- [ ] Painel "Base de Conhecimento" para visualizar o que esta indexado
+
+### 21.2 — Agentes Autonomos
+- [ ] Agente "Diagnostico" — faz perguntas iterativas para chegar ao diagnostico
+- [ ] Agente "Planejador" — cria planos de acao multi-passo para situacoes
+- [ ] Agente "Instrutor" — ensina habilidades passo a passo com verificacao
+- [ ] Tool use: agentes podem consultar RAG, suprimentos, clima, mapa
+
+### 21.3 — Whisper.cpp WASM
+- [ ] STT 100% no browser (sem backend Python)
+- [ ] Modelo tiny/base para comandos de voz
+- [ ] Elimina dependencia de faster-whisper
+- [ ] Funciona ate em PCs fracos
+
+### 21.4 — Modo Pokedex
+- [ ] Apontar camera → identificar planta/animal/objeto
+- [ ] Usar modelo vision (Gemma3) para analise
+- [ ] Cross-reference com banco de plantas e guias
+- [ ] Mostrar: comestivel? medicinal? perigoso? como usar?
+
+**Esforco:** Alto | **Impacto:** Enorme | **Vantagem vs NOMAD:** NOMAD nunca tera isso
+
+---
+
+## Fase 22 — Polish e Experiencia
+
+**Objetivo:** Deixar tudo impecavel.
+
+### 22.1 — Visual
+- [ ] Temas adicionais (light mode, amber terminal, green phosphor)
+- [ ] Animacoes ARWES (sci-fi holografico) como opcao
+- [ ] Icones customizados para cada app (SVG, nao emoji)
+- [ ] Splash screen personalizada por personalidade do Guide
+
+### 22.2 — Onboarding
+- [ ] Wizard de primeiro uso melhorado
+- [ ] Tour guiado pelo sistema (highlight cada area)
+- [ ] Sugestoes contextuais ("Voce ainda nao leu o guia de Agua")
+- [ ] Achievement system (badges por guias lidos, dias de diario, etc.)
+
+### 22.3 — Performance
+- [ ] Lazy loading de apps (nao carregar todos os 14K de apps.js de uma vez)
+- [ ] Service Worker para cache offline real (PWA)
+- [ ] Compressao de embeddings (quantizar para int8)
+- [ ] Paginacao na busca RAG para grandes bases
+
+### 22.4 — Multi-usuario (futuro distante)
+- [ ] Perfis de usuario com senha
+- [ ] Cada usuario tem seus chats, notas, suprimentos
+- [ ] Admin pode gerenciar modelos e conteudo
+- [ ] Util para bunker/abrigo comunitario
+
+---
+
+## Resumo Estrategico
+
+```
+                    Hoje     Fase 17    Fase 18    Fase 19    Fase 20    Fase 21
+IA / RAG            ████████ ██████████ ██████████ ██████████ ██████████ ████████████
+Conteudo Offline    ████     ██████████ ██████████ ██████████ ██████████ ██████████
+Mapas               ██████   ██████     ██████████ ██████████ ██████████ ██████████
+Deploy              ██████   ██████     ██████     ██████████ ██████████ ██████████
+Visibilidade        ██       ██         ██         ██         ██████████ ██████████
+IA Avancada         ██████   ██████     ██████     ██████     ██████     ████████████
+
+NOMAD (referencia)  ██████   ██████     ██████     ██████     ██████     ██████
+```
+
+**Fase 17** fecha o gap de conteudo. **Fase 20** fecha o gap de visibilidade.
+**Fase 21** abre vantagem impossivel de alcançar.
+
+---
+
+## Principios Inegociaveis
+
+1. **100% offline** — tudo funciona sem internet apos setup inicial
+2. **Zero telemetria** — nenhum dado sai da maquina
+3. **Monolito portatil** — server.py + static/ = copia pra USB e roda
+4. **Sem build step** — nada de webpack, npm, compilacao
+5. **Uncensored por padrao** — censura pode custar vidas em emergencia
+6. **SQLite unico** — sem Redis, Postgres, ou bancos extras
+7. **Vanilla JS** — sem React, Vue, ou frameworks que exigem build
+
+> DON'T PANIC — Bunker AI
