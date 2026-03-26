@@ -99,9 +99,11 @@ The backend is organized into clearly labeled sections (~4500 lines):
 | 1200-1400 | Builder view | `#builderView` |
 | 1400-1700 | Supplies view | `#suppliesView` |
 | 1700-2000 | Map view | `#mapView` |
-| 2000-2400 | Various app views | Notepad, Word, Excel, etc. |
-| 2400-3000 | More app views | Tasks, FileManager, Paint, Imagine, etc. |
-| 3000-3200 | Modals & overlays | Context menu, spotlight, setup wizard |
+| 2000-2400 | Various app views | Notepad, Word, Excel, Sysmon, Calc, Timer, etc. |
+| 2400-3000 | More app views | Tasks, FileManager, Paint, Imagine, Survival apps |
+| 3000-3100 | Modals & overlays | Context menu, spotlight search, keyboard shortcuts |
+| 3100-3200 | Onboarding wizard | `#onboardingWizard` — first-run setup |
+| 3200-3300 | SOS Emergency | `#sosEmergencyOverlay` — emergency quick-access |
 | 3200-3400 | Script tags (ES modules) | main.js import |
 
 ### style.css (~11600 lines)

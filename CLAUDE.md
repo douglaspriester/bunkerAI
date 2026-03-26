@@ -178,6 +178,53 @@ Desktop icons are defined in `index.html` `#desktop` section.
 Start menu items are in the `#startMenu` section.
 Taskbar pinned items are in `#taskbar`.
 
+### All App IDs (40+)
+
+**AI/Chat**: `chat`, `companion`, `characters`, `tts`
+**Knowledge**: `guides`, `protocols`, `wiki`, `books`
+**Survival Tools**: `supplies`, `firstaid`, `waterCalc`, `rations`, `plants`, `pharmacy`, `shelter`, `energy`, `navigation`, `survRef`
+**Maps**: `map`
+**Office**: `notepad`, `word`, `excel`, `paint`
+**Utilities**: `calc`, `timer`, `converter`, `checklist`, `morse`, `phonetic`, `sun`, `crypto`, `tasks`
+**Media**: `games`, `media`, `imagine`
+**System**: `sysmon`, `modelMgr`, `weather`, `pendrive`, `fileManager`, `journal`, `builder`
+
+### Chat AI Modes (6 modes)
+
+The chat system has 6 specialized modes, each with a different system prompt:
+
+| Mode ID | Label | Color | Domain |
+|---------|-------|-------|--------|
+| `general` | Geral | #00d4ff | Custom system prompt, general AI |
+| `medical` | Medico | #ff4444 | Field medicine, trauma, triage |
+| `survival` | Sobrevivencia | #4caf50 | Bushcraft, shelter, water, fire |
+| `engineer` | Engenharia | #ff9800 | Mechanical, electrical, construction |
+| `defense` | Defesa | #9c27b0 | Tactical, perimeter, OPSEC |
+| `psych` | Psicologico | #2196f3 | Crisis counseling, trauma support |
+
+Modes are managed in `chat.js`: `AI_MODES`, `getActiveMode()`, `setAIMode(modeId)`.
+
+### Guide Companion Personalities (6 personalities)
+
+The floating "Guide" widget (`guide-companion.js`) has 6 AI personalities:
+
+| ID | Name | Style | Quirk |
+|----|------|-------|-------|
+| `deepThought` | Deep Thought | Philosophical | Everything relates to 42 |
+| `tars` | TARS | Sarcastic-useful | Mentions humor percentage |
+| `mother` | MOTHER | Clinical-protective | Terminal/computer style |
+| `hal` | HAL 9000 | Polite-sinister | Calls everyone Dave |
+| `ford` | Ford Prefect | Casual-alien | Obsessed with towels |
+| `survivor` | Survivor | Direct-military | Tactical, concise |
+
+### 3D Companion Avatar
+
+`companion.js` implements a full 3D avatar using Three.js + VRM:
+- Model: `static/avatars/companion.vrm` (15MB)
+- Animation: `static/avatars/idle_loop.vrma`
+- Features: lip-sync (Web Audio API), blinking, breathing, gestures, facial expressions
+- Fallback: geometric placeholder if VRM missing, text UI if no WebGL
+
 ## Coding Conventions
 
 ### Python (server.py)
@@ -266,6 +313,13 @@ client = TestClient(app)
 r = client.get('/api/guides')
 assert r.status_code == 200
 ```
+
+## Security & Rate Limiting
+
+- **Rate limiter**: Built into server.py. Limits: chat=30/min, terminal=10/min, build=10/min, tts=20/min
+- **Terminal sandboxing**: `/api/terminal` only allows whitelisted commands (ls, cat, grep, find, pwd, whoami, etc.)
+- **File manager sandboxing**: `/api/files` restricts browsing to `FILEMGR_ROOT` (project directory)
+- **No auth**: The server is designed for localhost only. No authentication, no sessions.
 
 ## Common Pitfalls
 
