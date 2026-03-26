@@ -459,6 +459,10 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
         <span>Wikipedia</span>
       </li>
+      <li class="nav-item nav-guide" onclick="openApp('library')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <span>Conteudo Offline</span>
+      </li>
       <li class="nav-item nav-guide" onclick="openJournalPanel()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
         <span>Diario</span>
@@ -1118,6 +1122,21 @@ Responda no idioma do usuario. Use markdown.</textarea>
           <p>Wikipedia offline nao disponivel.</p>
           <p class="wiki-hint">Coloque arquivos <code>.zim</code> em <code>data/zim/</code> e reinicie.</p>
         </div>
+      </div>
+    </div>
+
+    <!-- Library (ZIM Download Manager) View -->
+    <div class="panel-view hidden" id="libraryView">
+      <div class="panel-topbar">
+        <button class="btn-back" onclick="showChatView()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+          Voltar
+        </button>
+        <h2 class="panel-title">Conteudo Offline</h2>
+        <div class="library-status" id="libraryStatus"></div>
+      </div>
+      <div class="library-content" id="libraryContent">
+        <div class="library-loading">Carregando catalogo...</div>
       </div>
     </div>
 

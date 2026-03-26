@@ -1,179 +1,183 @@
-# Bunker AI — DON'T PANIC
+<p align="center">
+  <strong>BUNKER AI</strong><br>
+  <em>Offline survival OS with local AI — voice, vision, RAG, 40+ apps</em>
+</p>
 
-> "A resposta para a vida, o universo e tudo mais e 42.
-> Mas primeiro, certifique-se de que voce sabe onde esta sua toalha."
+<p align="center">
+  <a href="README.pt-BR.md">Portugues</a> · <a href="docs/ARCHITECTURE.md">Architecture</a> · <a href="docs/API.md">API Reference</a> · <a href="ROADMAP.md">Roadmap</a>
+</p>
 
-Sistema operacional de sobrevivencia com IA 100% local. Desktop completo no browser
-com LLM offline, voz, visao, mapas, guias, gerador de apps e muito mais.
+---
 
-Inspirado no Guia do Mochileiro das Galaxias, TARS (Interstellar), Mother (Alien) e Deep Thought.
+> *"The answer to life, the universe and everything is 42.
+> But first, make sure you know where your towel is."*
 
-## Features
+Bunker AI is a **fully offline survival operating system** that runs in the browser. It combines a local LLM backend with a desktop-like interface, 40+ applications, survival guides, offline maps, voice control, image generation, and a RAG-powered knowledge base — all running on your machine with **zero internet required** after initial setup.
 
-### IA Local
-- **Chat** — Conversa com LLM local via Ollama (Gemma3, Phi4, Dolphin3)
-- **Voz** — STT offline (Whisper) + TTS (Piper, Kokoro, pyttsx3, edge-tts)
-- **Visao** — Webcam ao vivo + analise de imagens com modelos multimodais
-- **Cerebro** — Modo `/brain` com Dolphin3 sem filtros para informacao bruta
-- **RAG** — Base de conhecimento indexada: o chat consulta guias, protocolos e seus documentos automaticamente
-- **App Builder** — `/build` + descricao = app completo gerado ao vivo
-- **Geracao de Imagem** — Stable Diffusion local integrado
+Inspired by *The Hitchhiker's Guide to the Galaxy*, *Interstellar* (TARS), *Alien* (Mother), and *2001* (HAL 9000).
 
-### Conhecimento Offline
-- **16 Guias de Sobrevivencia** — Agua, fogo, abrigo, plantas medicinais, navegacao, radio, e mais
-- **10 Protocolos de Emergencia** — Arvores de decisao interativas (RCP, hemorragia, queimaduras...)
-- **Wikipedia Offline** — Kiwix integrado com busca (arquivos ZIM)
-- **Upload de Documentos** — Indexe seus proprios .txt/.md/.csv na base de conhecimento
+## Highlights
 
-### Apps do Sistema
-- **Mapa Offline** — Leaflet + PMTiles + GPS + marcadores de sobrevivencia
-- **Navegacao sem GPS** — Orientacao por estrelas, sombras, sol, bussola analogica
-- **Inventario** — Controle de suprimentos por categoria com validade
-- **Diario** — Log de sobrevivencia com categorias e contador de dias
-- **Bloco de Notas / Word / Excel** — Editores integrados com auto-save
-- **Tarefas** — Gerenciador com prioridade, categoria e status
-- **Calculadora / Timer / Conversor** — Ferramentas utilitarias
-- **Codigo Morse / Alfabeto Fonetico** — Comunicacao de emergencia
-- **Agua Segura / Farmacia / Racionamento** — Calculadoras de sobrevivencia
-- **Jogos** — 8 jogos HTML5 + emulador de ROMs (GB, GBA, NES)
-- **Leitor de Livros** — EPUB reader com tracking de progresso
-- **Terminal + Gerenciador de Arquivos** — Acesso ao sistema
-- **Construtor de Pendrive** — Cria versao portatil em USB
+| Category | What you get |
+|----------|-------------|
+| **Local AI** | Chat with uncensored LLM, voice input/output, webcam vision, app generator, image generation |
+| **Knowledge Base** | 16 survival guides, 10 emergency protocols, offline Wikipedia (Kiwix), RAG search across all content |
+| **Offline Library** | Download ZIM archives: Wikipedia, iFixit, Wikibooks, Stack Overflow, Project Gutenberg, and more |
+| **Survival Tools** | Water purification calculator, first aid, pharmacy, food rationing, shelter builder, plant database |
+| **Maps** | Offline vector maps (PMTiles), GPS tracking, survival markers, celestial navigation |
+| **Desktop** | Draggable windows, taskbar, start menu, wallpapers, keyboard shortcuts, boot screen |
+| **Office** | Notepad, word processor, spreadsheet, paint, file manager, terminal |
+| **Media** | 8 HTML5 games, ROM emulator (GB/GBA/NES), EPUB reader, media player |
 
-### Desktop
-- **Interface tipo OS** — Janelas arrastaveis, barra de tarefas, menu iniciar
-- **5 wallpapers** — Incluindo Starfield, Matrix e Aurora
-- **Atalhos de teclado** — Ctrl+K (busca), Alt+Tab, F1 (atalhos), F2 (menu)
-- **Boot screen** — Animacao de inicializacao estilo BIOS
-
-## Inicio Rapido
+## Quick Start
 
 ### Windows
 ```bat
 start.bat
 ```
 
-### Linux / Mac
+### Linux / macOS
 ```bash
 chmod +x start.sh
 ./start.sh
 ```
 
-O script faz tudo automaticamente:
-1. Verifica Python e Ollama
-2. Cria ambiente virtual e instala dependencias
-3. Baixa modelos, bibliotecas e conteudo offline
-4. Inicia o servidor em http://localhost:8888
+The script handles everything automatically:
+1. Checks Python and Ollama
+2. Creates virtual environment and installs dependencies
+3. Downloads models, libraries, and offline content
+4. Starts the server at http://localhost:8888
 
-### Pre-requisitos
+### Prerequisites
 
-| Software | Download | Obrigatorio |
-|----------|----------|-------------|
-| Python 3.10+ | https://python.org | Sim |
-| Ollama | https://ollama.ai | Sim |
-| GPU NVIDIA 8GB+ | — | Recomendado |
+| Software | Required | Notes |
+|----------|----------|-------|
+| [Python 3.10+](https://python.org) | Yes | Backend runtime |
+| [Ollama](https://ollama.ai) | Yes | Local LLM inference |
+| NVIDIA GPU 8GB+ | Recommended | CPU works but slower |
 
-## Modelos
+## Models
 
-| Uso | Modelo | Tamanho | Por que |
-|-----|--------|---------|---------|
-| Chat geral + Visao | `gemma3:12b` | ~8 GB | Multimodal nativo |
-| App Builder (codigo) | `qwen2.5-coder:14b` | ~9 GB | Melhor modelo de codigo |
-| Chat rapido | `phi4` | ~9 GB | Ultra rapido |
-| Cerebro (sem filtros) | `dolphin3` | ~5 GB | Sem censura |
-| Embeddings (RAG) | `nomic-embed-text` | ~274 MB | Busca semantica |
+| Purpose | Model | Size | Why |
+|---------|-------|------|-----|
+| Chat + Vision | `gemma3:12b` | ~8 GB | Native multimodal |
+| Code generation | `qwen2.5-coder:14b` | ~9 GB | Best code model |
+| Fast chat | `phi4` | ~9 GB | Ultra fast inference |
+| Uncensored | `dolphin3` | ~5 GB | No safety filters |
+| Embeddings (RAG) | `nomic-embed-text` | ~274 MB | Semantic search |
 
-> Baixados automaticamente. Total ~31GB no cache do Ollama.
+> All models are downloaded automatically on first run. Total: ~31 GB in Ollama cache.
 
-## RAG (Retrieval-Augmented Generation)
+## How It Works
 
-O Bunker AI indexa automaticamente todos os guias e protocolos no startup.
-Quando voce faz uma pergunta no chat, o sistema:
+### RAG (Retrieval-Augmented Generation)
 
-1. Busca trechos relevantes na base de conhecimento (FTS5 + embeddings semanticos)
-2. Injeta o contexto encontrado no prompt do LLM
-3. O modelo responde com informacoes da base + conhecimento proprio
+Bunker AI automatically indexes all survival guides and protocols at startup. When you ask a question:
 
-Voce tambem pode fazer upload de seus proprios documentos (.txt, .md, .csv)
-para expandir a base de conhecimento.
+1. Searches the knowledge base using FTS5 + semantic embeddings
+2. Injects relevant context into the LLM prompt
+3. The model responds with grounded information from your knowledge base
 
-## Mapa Offline
+You can also upload your own documents (.txt, .md, .csv) to expand the knowledge base.
 
-Dois modos:
-- **Online** — CartoDB Dark Matter tiles (padrao, precisa de internet)
-- **Offline** — PMTiles (arquivo unico por regiao, zero internet)
+### Offline Library (ZIM Manager)
 
-Marcadores de sobrevivencia: agua, abrigo, perigo, comida, medico, suprimentos.
-Medicao de distancias com formula de Haversine.
+Download curated offline content archives directly from the app:
+- **Wikipedia** — Full, mini, or medical subsets
+- **iFixit** — Repair manuals for everything
+- **Wikibooks** — Engineering, agriculture, construction
+- **Stack Overflow** — Programming and engineering
+- **Project Gutenberg** — Thousands of books
 
-## Estrutura do Projeto
+Each ZIM is searchable through Kiwix and can be indexed into the RAG system.
+
+### Offline Maps
+
+Two modes:
+- **Online** — CartoDB Dark Matter tiles (default, needs internet)
+- **Offline** — PMTiles (single file per region, zero internet)
+
+Survival markers: water, shelter, danger, food, medical, supplies.
+Distance measurement with Haversine formula.
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Backend | Python FastAPI (single file) |
+| Frontend | Vanilla HTML/CSS/JS (zero frameworks, zero build step) |
+| LLM | Ollama + llama.cpp (auto-detected) |
+| Database | SQLite (single file) |
+| Maps | Leaflet + Protomaps/PMTiles |
+| STT | faster-whisper (offline) |
+| TTS | Piper / Kokoro / pyttsx3 / edge-tts |
+| Search | SQLite FTS5 + Ollama embeddings |
+| Wikipedia | Kiwix (kiwix-serve) |
+| Images | Stable Diffusion (local) |
+
+## Project Structure
 
 ```
 bunkerAI/
-├── server.py              # Backend FastAPI (~4500 linhas)
-├── setup_downloads.py     # Setup automatico de primeiro uso
-├── start.sh / start.bat   # Launchers
-├── static/                # Frontend (HTML/CSS/JS vanilla)
-│   ├── index.html         # Interface principal (~3400 linhas)
-│   ├── style.css          # Tema dark cyberpunk (~11600 linhas)
-│   └── js/                # Modulos ES (chat, apps, windowManager, etc.)
+├── server.py              # Backend — all API routes (~4500 lines)
+├── setup_downloads.py     # First-run setup and downloads
+├── start.sh / start.bat   # Launch scripts
+├── static/                # Frontend (HTML/CSS/JS, served directly)
+│   ├── index.html         # Main interface (~3400 lines)
+│   ├── style.css          # Dark cyberpunk theme (~11600 lines)
+│   └── js/                # ES modules (chat, apps, windowManager, etc.)
 ├── data/
-│   ├── guides/            # 16 guias markdown
-│   ├── protocols/         # 10 protocolos JSON (arvores de decisao)
-│   ├── games/             # 8 jogos HTML5
-│   ├── books/             # Livros EPUB
-│   ├── zim/               # Arquivos ZIM (Wikipedia)
-│   └── db/                # SQLite (suprimentos, diario, notas, RAG)
-├── docs/                  # Documentacao tecnica
-│   ├── ARCHITECTURE.md    # Arquitetura completa do codigo
-│   └── API.md             # Referencia de todos os 80+ endpoints
-├── CLAUDE.md              # Guia para AI agents (Claude Code, Copilot, etc.)
-└── ROADMAP.md             # Historico de fases do desenvolvimento
+│   ├── guides/            # 16 survival guides (Markdown)
+│   ├── protocols/         # 10 emergency protocols (JSON decision trees)
+│   ├── games/             # 8 HTML5 games
+│   ├── books/             # EPUB files
+│   ├── zim/               # ZIM archives (Wikipedia, iFixit, etc.)
+│   └── db/                # SQLite database
+├── docs/                  # Developer documentation
+│   ├── ARCHITECTURE.md    # Full architecture map
+│   └── API.md             # 80+ endpoint reference
+├── CLAUDE.md              # Guide for AI coding agents
+└── ROADMAP.md             # Development history and future plans
 ```
 
-## Stack Tecnica
+## Documentation
 
-| Camada | Tecnologia |
-|--------|-----------|
-| Backend | Python FastAPI (arquivo unico) |
-| Frontend | HTML/CSS/JS vanilla (zero frameworks, zero build) |
-| LLM | Ollama + llama.cpp (auto-detectado) |
-| Database | SQLite (arquivo unico) |
-| Mapas | Leaflet + Protomaps/PMTiles |
-| STT | faster-whisper (offline) |
-| TTS | Piper / Kokoro / pyttsx3 / edge-tts |
-| Busca | SQLite FTS5 + Ollama embeddings |
-| Wikipedia | Kiwix (kiwix-serve) |
-| Imagens | Stable Diffusion (local) |
+- **[CLAUDE.md](CLAUDE.md)** — Guide for AI agents working on this codebase
+- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — Complete architecture map
+- **[docs/API.md](docs/API.md)** — All 80+ API endpoints
+- **[ROADMAP.md](ROADMAP.md)** — Past phases and future roadmap
 
-## Documentacao
+## Design Principles
 
-- **[CLAUDE.md](CLAUDE.md)** — Guia para AI agents trabalharem no codigo
-- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — Mapa completo da arquitetura
-- **[docs/API.md](docs/API.md)** — Referencia de todos os endpoints da API
-- **[ROADMAP.md](ROADMAP.md)** — Historico e proximos passos
+1. **100% offline** — everything works without internet after initial setup
+2. **Zero telemetry** — no data leaves your machine
+3. **Portable monolith** — copy `server.py` + `static/` to USB and run
+4. **No build step** — no webpack, npm, or compilation
+5. **Uncensored by default** — censorship can cost lives in emergencies
+6. **Single SQLite DB** — no Redis, Postgres, or extra databases
+7. **Vanilla JS** — no React, Vue, or framework dependencies
 
 ## Troubleshooting
 
-| Problema | Solucao |
-|----------|---------|
-| "Ollama offline" | Rode `ollama serve` no terminal |
-| Modelos nao aparecem | `ollama list` para verificar |
-| Voz nao funciona | Use Chrome (Web Speech API) |
-| Mapa sem tiles | Coloque .pmtiles em `static/maps/` |
-| VRAM insuficiente | Use modelos menores: `gemma3:4b`, `phi4-mini` |
-| RAG sem embeddings | O modelo `nomic-embed-text` e baixado automaticamente |
+| Problem | Solution |
+|---------|----------|
+| "Ollama offline" | Run `ollama serve` in a terminal |
+| Models not showing | Run `ollama list` to check |
+| Voice not working | Use Chrome (Web Speech API) |
+| Map has no tiles | Place `.pmtiles` files in `static/maps/` |
+| Not enough VRAM | Use smaller models: `gemma3:4b`, `phi4-mini` |
+| RAG not working | The `nomic-embed-text` model is downloaded automatically |
 
-## Referencias
+## References
 
 ### Sci-Fi
-- Guia do Mochileiro das Galaxias (Douglas Adams) — DON'T PANIC
+- The Hitchhiker's Guide to the Galaxy (Douglas Adams) — DON'T PANIC
 - Interstellar — TARS
 - Alien — Mother (Nostromo)
-- 2001 — HAL 9000
-- Wool/Silo (Hugh Howey) — vida em bunkers
+- 2001: A Space Odyssey — HAL 9000
+- Wool/Silo (Hugh Howey) — life in bunkers
 
-### Sobrevivencia
+### Survival
 - SAS Survival Handbook (John Wiseman)
 - Bushcraft 101 (Dave Canterbury)
 - How to Invent Everything (Ryan North)

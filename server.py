@@ -2983,6 +2983,217 @@ async def kiwix_proxy(path: str, request: Request):
         return JSONResponse({"error": "Kiwix unavailable"}, status_code=503)
 
 
+# ─── ZIM Download Manager ────────────────────────────────────────────────────
+
+ZIM_CATALOG = {
+    "wikipedia_mini": {
+        "name": "Wikipedia Mini",
+        "desc": "Wikipedia resumida (~110K artigos em ingles)",
+        "url": "https://download.kiwix.org/zim/wikipedia/wikipedia_en_all_mini_2024-10.zim",
+        "est_mb": 1100,
+        "category": "encyclopedia",
+    },
+    "wikipedia_medicine": {
+        "name": "Wikipedia Medicina",
+        "desc": "Artigos medicos da Wikipedia (diagnosticos, farmacos, procedimentos)",
+        "url": "https://download.kiwix.org/zim/wikipedia/wikipedia_en_medicine_2024-10.zim",
+        "est_mb": 700,
+        "category": "medical",
+    },
+    "wikibooks": {
+        "name": "Wikibooks",
+        "desc": "Livros abertos: engenharia, agricultura, construcao, ciencias",
+        "url": "https://download.kiwix.org/zim/wikibooks/wikibooks_en_all_2024-10.zim",
+        "est_mb": 600,
+        "category": "education",
+    },
+    "wikihow": {
+        "name": "WikiHow",
+        "desc": "Tutoriais praticos para quase tudo",
+        "url": "https://download.kiwix.org/zim/other/wikihow_en_all_2024-09.zim",
+        "est_mb": 7200,
+        "category": "howto",
+    },
+    "gutenberg": {
+        "name": "Project Gutenberg",
+        "desc": "70.000+ livros de dominio publico",
+        "url": "https://download.kiwix.org/zim/gutenberg/gutenberg_en_all_2023-08.zim",
+        "est_mb": 65000,
+        "category": "books",
+    },
+    "wikivoyage": {
+        "name": "Wikivoyage",
+        "desc": "Guia de viagem: informacoes geograficas, culturais, praticas",
+        "url": "https://download.kiwix.org/zim/wikivoyage/wikivoyage_en_all_2024-10.zim",
+        "est_mb": 800,
+        "category": "geography",
+    },
+    "ifixit": {
+        "name": "iFixit",
+        "desc": "Manuais de reparo para eletronica, veiculos, equipamentos",
+        "url": "https://download.kiwix.org/zim/ifixit/ifixit_en_all_2023-10.zim",
+        "est_mb": 3000,
+        "category": "repair",
+    },
+    "ted": {
+        "name": "TED Talks",
+        "desc": "Palestras TED com legendas (sem video, texto completo)",
+        "url": "https://download.kiwix.org/zim/ted/ted_en_playlist-how-things-work_2024-06.zim",
+        "est_mb": 150,
+        "category": "education",
+    },
+}
+
+_zim_downloads = {}  # {zim_id: {"status": ..., "progress": ..., "error": ...}}
+
+
+@app.get("/api/zim/catalog")
+async def zim_catalog():
+    """List all available ZIM archives for download + installed status"""
+    zim_dir = DATA_DIR / "zim"
+    installed = {}
+    if zim_dir.exists():
+        for f in sorted(zim_dir.glob("*.zim")):
+            size_mb = round(f.stat().st_size / (1024 ** 2), 1)
+            installed[f.stem] = {"file": f.name, "size_mb": size_mb}
+
+    catalog = []
+    for zid, info in ZIM_CATALOG.items():
+        entry = {**info, "id": zid, "installed": zid in installed}
+        if zid in installed:
+            entry["installed_size_mb"] = installed[zid]["size_mb"]
+        catalog.append(entry)
+
+    # Also add any manually-placed ZIMs not in catalog
+    for stem, meta in installed.items():
+        if stem not in ZIM_CATALOG:
+            catalog.append({
+                "id": stem, "name": stem, "desc": "Arquivo ZIM manual",
+                "est_mb": meta["size_mb"], "category": "other",
+                "installed": True, "installed_size_mb": meta["size_mb"],
+            })
+
+    return {"catalog": catalog, "installed": list(installed.keys())}
+
+
+@app.post("/api/zim/download")
+async def download_zim(request: Request):
+    """Download a ZIM archive. Streams progress via SSE."""
+    body = await request.json()
+    zim_id = body.get("id", "")
+    zim_info = ZIM_CATALOG.get(zim_id)
+    if not zim_info:
+        return JSONResponse({"error": "ZIM desconhecido"}, status_code=400)
+
+    zim_dir = DATA_DIR / "zim"
+    zim_dir.mkdir(parents=True, exist_ok=True)
+    output_path = zim_dir / f"{zim_id}.zim"
+
+    if output_path.exists():
+        size_mb = round(output_path.stat().st_size / (1024 ** 2), 1)
+        return JSONResponse({"status": "already_installed", "size_mb": size_mb})
+
+    if zim_id in _zim_downloads and _zim_downloads[zim_id].get("status") == "downloading":
+        return JSONResponse({"error": "Download ja em andamento"}, status_code=409)
+
+    async def stream_download():
+        _zim_downloads[zim_id] = {"status": "downloading", "progress": 0}
+        url = zim_info["url"]
+        temp_path = output_path.with_suffix(".zim.part")
+
+        try:
+            yield f"data: {json.dumps({'status': 'starting', 'id': zim_id, 'name': zim_info['name'], 'est_mb': zim_info['est_mb']})}\n\n"
+
+            async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, read=3600.0), follow_redirects=True) as client:
+                async with client.stream("GET", url) as resp:
+                    if resp.status_code != 200:
+                        yield f"data: {json.dumps({'status': 'error', 'message': f'HTTP {resp.status_code}'})}\n\n"
+                        _zim_downloads[zim_id] = {"status": "error"}
+                        return
+
+                    total = int(resp.headers.get("content-length", 0))
+                    downloaded = 0
+                    last_pct = -1
+
+                    with open(str(temp_path), "wb") as f:
+                        async for chunk in resp.aiter_bytes(chunk_size=1024 * 256):
+                            f.write(chunk)
+                            downloaded += len(chunk)
+                            if total > 0:
+                                pct = int(downloaded * 100 / total)
+                                if pct != last_pct and pct % 2 == 0:
+                                    last_pct = pct
+                                    dl_mb = round(downloaded / (1024 ** 2), 1)
+                                    total_mb = round(total / (1024 ** 2), 1)
+                                    _zim_downloads[zim_id] = {"status": "downloading", "progress": pct}
+                                    yield f"data: {json.dumps({'status': 'progress', 'pct': pct, 'dl_mb': dl_mb, 'total_mb': total_mb})}\n\n"
+
+            # Rename temp to final
+            temp_path.rename(output_path)
+            size_mb = round(output_path.stat().st_size / (1024 ** 2), 1)
+            _zim_downloads[zim_id] = {"status": "done", "size_mb": size_mb}
+            yield f"data: {json.dumps({'status': 'done', 'size_mb': size_mb, 'name': zim_info['name']})}\n\n"
+
+            # Restart Kiwix to pick up the new ZIM
+            yield f"data: {json.dumps({'status': 'restarting_kiwix'})}\n\n"
+            await _restart_kiwix()
+
+        except Exception as e:
+            _zim_downloads[zim_id] = {"status": "error", "error": str(e)}
+            if temp_path.exists():
+                temp_path.unlink()
+            yield f"data: {json.dumps({'status': 'error', 'message': str(e)[:300]})}\n\n"
+
+    return StreamingResponse(stream_download(), media_type="text/event-stream")
+
+
+@app.get("/api/zim/progress/{zim_id}")
+async def zim_progress(zim_id: str):
+    """Get download progress for a ZIM"""
+    if zim_id in _zim_downloads:
+        return _zim_downloads[zim_id]
+    # Check if already installed
+    zim_path = DATA_DIR / "zim" / f"{zim_id}.zim"
+    if zim_path.exists():
+        return {"status": "done", "size_mb": round(zim_path.stat().st_size / (1024 ** 2), 1)}
+    return {"status": "idle"}
+
+
+@app.delete("/api/zim/{zim_id}")
+async def delete_zim(zim_id: str):
+    """Delete a ZIM archive and restart Kiwix"""
+    safe_name = Path(zim_id).stem  # Sanitize
+    zim_path = DATA_DIR / "zim" / f"{safe_name}.zim"
+    if not zim_path.exists():
+        return JSONResponse({"error": "ZIM nao encontrado"}, status_code=404)
+
+    size_mb = round(zim_path.stat().st_size / (1024 ** 2), 1)
+    zim_path.unlink()
+    _zim_downloads.pop(safe_name, None)
+
+    # Restart Kiwix without the deleted ZIM
+    await _restart_kiwix()
+    return {"status": "deleted", "id": safe_name, "freed_mb": size_mb}
+
+
+async def _restart_kiwix():
+    """Kill and restart kiwix-serve to pick up ZIM changes"""
+    # Kill existing kiwix-serve
+    try:
+        if platform.system() == "Windows":
+            subprocess.run(["taskkill", "/f", "/im", "kiwix-serve.exe"],
+                         capture_output=True, timeout=5)
+        else:
+            subprocess.run(["pkill", "-f", "kiwix-serve"], capture_output=True, timeout=5)
+    except Exception:
+        pass
+
+    await asyncio.sleep(1)
+
+    # Restart via the startup function
+    await _auto_start_kiwix()
+
+
 # ─── Setup status ────────────────────────────────────────────────────────────
 
 @app.get("/api/setup/status")

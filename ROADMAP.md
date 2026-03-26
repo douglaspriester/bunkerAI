@@ -90,21 +90,21 @@ um **download manager inteligente** que permite ao usuario escolher exatamente
 o que precisa, sem desperdicar espaco.
 
 ### 17.1 — ZIM Download Manager (UI)
-- [ ] Painel "Biblioteca Offline" no app com categorias
-- [ ] Catalogo de ZIMs disponiveis: Wikipedia (completo/mini/medico), Wikihow, Project Gutenberg, Wikibooks, Stack Overflow, iFixit
-- [ ] Estimativa de tamanho antes do download
-- [ ] Progresso de download com SSE (como ja funciona para mapas)
-- [ ] Listar ZIMs instalados com tamanho e opcao de remover
+- [x] Painel "Conteudo Offline" no app com categorias
+- [x] Catalogo de ZIMs disponiveis: Wikipedia (mini/medico), Wikihow, Project Gutenberg, Wikibooks, iFixit, Wikivoyage, TED
+- [x] Estimativa de tamanho antes do download
+- [x] Progresso de download com SSE (como ja funciona para mapas)
+- [x] Listar ZIMs instalados com tamanho e opcao de remover
 - [ ] Busca unificada que busca em TODOS os ZIMs instalados
 
 ### 17.2 — Catalogo de ZIMs Curado para Sobrevivencia
-- [ ] Wikipedia medicina — diagnosticos, procedimentos, farmacologia
-- [ ] iFixit — manuais de reparo de tudo
-- [ ] Wikibooks — engenharia, agricultura, construcao
-- [ ] Project Gutenberg — literatura offline
+- [x] Wikipedia medicina — diagnosticos, procedimentos, farmacologia
+- [x] iFixit — manuais de reparo de tudo
+- [x] Wikibooks — engenharia, agricultura, construcao
+- [x] Project Gutenberg — literatura offline
 - [ ] Stack Overflow — programacao/engenharia
 - [ ] OpenStax — livros didaticos abertos (fisica, quimica, biologia)
-- [ ] Wikivoyage — informacoes geograficas/culturais
+- [x] Wikivoyage — informacoes geograficas/culturais
 
 ### 17.3 — Indexacao RAG dos ZIMs
 - [ ] Indexar conteudo dos ZIMs no RAG (opcional, por ZIM)

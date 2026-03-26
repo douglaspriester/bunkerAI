@@ -172,6 +172,7 @@ function wireAppCallbacks() {
     protocols:  () => window.loadProtocolsIndex?.(),
     games:      () => window.renderGamesGrid?.(),
     wiki:       () => window._wikiInit?.(),
+    library:    () => window._libraryInit?.(),
     journal:    () => window._journalInit?.(),
     tts:        () => window._ttsInit?.(),
     builder:    () => window._builderInit?.(),

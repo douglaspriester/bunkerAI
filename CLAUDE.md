@@ -181,7 +181,7 @@ Taskbar pinned items are in `#taskbar`.
 ### All App IDs (40+)
 
 **AI/Chat**: `chat`, `companion`, `characters`, `tts`
-**Knowledge**: `guides`, `protocols`, `wiki`, `books`
+**Knowledge**: `guides`, `protocols`, `wiki`, `books`, `library`
 **Survival Tools**: `supplies`, `firstaid`, `waterCalc`, `rations`, `plants`, `pharmacy`, `shelter`, `energy`, `navigation`, `survRef`
 **Maps**: `map`
 **Office**: `notepad`, `word`, `excel`, `paint`

@@ -15,6 +15,7 @@ export const OS_APPS = [
   { id: 'gamePlay',   name: 'Jogo',           icon: '\u{1F3AE}', width: 700, height: 550, viewId: 'gamePlayView', hidden: true },
   { id: 'map',        name: 'Mapas',          icon: '\u{1F5FA}\uFE0F', width: 850, height: 620, viewId: 'mapView' },
   { id: 'wiki',       name: 'Wikipedia',      icon: '\u{1F310}', width: 820, height: 620, viewId: 'wikiView' },
+  { id: 'library',    name: 'Conteudo Offline', icon: '\u{1F4E5}', width: 720, height: 600, viewId: 'libraryView' },
   { id: 'builder',    name: 'App Builder',    icon: '\u{1F528}', width: 780, height: 520, viewId: 'appsView' },
   { id: 'characters', name: 'Personagens',    icon: '\u{1F3AD}', width: 620, height: 500, viewId: 'charactersView' },
   { id: 'tts',        name: 'Texto p/ Voz',   icon: '\u{1F50A}', width: 540, height: 480, viewId: 'ttsView' },

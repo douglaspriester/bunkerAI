@@ -194,6 +194,46 @@ Response:
 
 ---
 
+## Offline Library (ZIM Manager)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/zim/catalog` | List all ZIM archives (available + installed) |
+| `POST` | `/api/zim/download` | Download a ZIM archive (SSE progress stream) |
+| `GET` | `/api/zim/progress/{id}` | Get download progress for a ZIM |
+| `DELETE` | `/api/zim/{id}` | Delete a ZIM archive and restart Kiwix |
+
+### GET /api/zim/catalog
+```json
+{
+  "catalog": [
+    {
+      "id": "wikipedia_mini",
+      "name": "Wikipedia Mini",
+      "desc": "Wikipedia resumida (~110K artigos em ingles)",
+      "url": "https://download.kiwix.org/zim/...",
+      "est_mb": 1100,
+      "category": "encyclopedia",
+      "installed": false
+    }
+  ],
+  "installed": ["wikipedia_medicine"]
+}
+```
+
+### POST /api/zim/download
+```json
+// Request
+{ "id": "wikipedia_medicine" }
+// Response: SSE stream
+data: {"status": "starting", "id": "wikipedia_medicine", "name": "Wikipedia Medicina", "est_mb": 700}
+data: {"status": "progress", "pct": 45, "dl_mb": 315.2, "total_mb": 700.0}
+data: {"status": "done", "size_mb": 698.5, "name": "Wikipedia Medicina"}
+data: {"status": "restarting_kiwix"}
+```
+
+---
+
 ## Maps
 
 | Method | Path | Description | Line |

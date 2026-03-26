@@ -2509,6 +2509,109 @@ body::after {
 
 
 /* ═══════════════════════════════════════════════════════════════
+   OFFLINE LIBRARY (ZIM DOWNLOAD MANAGER) VIEW
+   ═══════════════════════════════════════════════════════════════ */
+.library-content {
+  padding: 16px;
+  overflow-y: auto;
+  max-height: calc(100% - 48px);
+}
+.library-loading, .library-empty, .library-error {
+  text-align: center;
+  padding: 40px 16px;
+  color: var(--text-muted);
+}
+.library-error { color: #ff4757; }
+.library-status {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.lib-section-title {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--accent);
+  margin: 16px 0 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.lib-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  background: var(--surface);
+  flex-wrap: wrap;
+}
+.lib-item.lib-installed {
+  border-color: rgba(46, 213, 115, 0.3);
+}
+.lib-icon {
+  font-size: 1.4rem;
+  flex-shrink: 0;
+  width: 32px;
+  text-align: center;
+}
+.lib-info {
+  flex: 1;
+  min-width: 160px;
+}
+.lib-name {
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: var(--text);
+}
+.lib-desc {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.lib-size {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.lib-progress {
+  width: 100%;
+  margin-top: 4px;
+}
+.lib-progress.hidden { display: none; }
+.lib-status-text {
+  width: 100%;
+  font-size: 0.75rem;
+  color: var(--accent);
+  margin-top: 2px;
+}
+.btn-danger {
+  background: transparent;
+  border: 1px solid rgba(255, 71, 87, 0.4);
+  color: #ff4757;
+  border-radius: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+.btn-danger:hover {
+  background: rgba(255, 71, 87, 0.15);
+  border-color: #ff4757;
+}
+.btn-success {
+  background: rgba(46, 213, 115, 0.15);
+  border: 1px solid rgba(46, 213, 115, 0.4);
+  color: #2ed573;
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: default;
+}
+
+/* ═══════════════════════════════════════════════════════════════
    JOURNAL VIEW
    ═══════════════════════════════════════════════════════════════ */
 .journal-content {

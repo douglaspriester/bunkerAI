@@ -2936,6 +2936,174 @@ function wikiSearch(query) {
   frame.src = '/api/kiwix/search?pattern=' + encodeURIComponent(query.trim());
 }
 
+// ─── Offline Library (ZIM Download Manager) ─────────────────────────────────
+// Browse, download, and manage ZIM archives for offline knowledge
+
+const ZIM_CATEGORY_META = {
+  encyclopedia: { icon: '📖', label: 'Enciclopedia', color: '#00d4ff' },
+  medical:      { icon: '🩺', label: 'Medicina',     color: '#ff4757' },
+  education:    { icon: '🎓', label: 'Educacao',     color: '#ffa502' },
+  howto:        { icon: '🔧', label: 'Como Fazer',   color: '#2ed573' },
+  books:        { icon: '📚', label: 'Livros',       color: '#9b59b6' },
+  geography:    { icon: '🌍', label: 'Geografia',    color: '#1abc9c' },
+  repair:       { icon: '🔩', label: 'Reparos',      color: '#e67e22' },
+  other:        { icon: '📁', label: 'Outros',       color: '#636e72' },
+};
+
+window._libraryInit = function() {
+  const content = document.getElementById('libraryContent');
+  const status  = document.getElementById('libraryStatus');
+  if (!content) return;
+
+  content.innerHTML = '<div class="library-loading">Carregando catalogo...</div>';
+
+  fetch('/api/zim/catalog')
+    .then(r => r.json())
+    .then(data => {
+      const catalog = data.catalog || [];
+      const installed = catalog.filter(z => z.installed);
+      const available = catalog.filter(z => !z.installed);
+
+      // Status summary
+      if (status) {
+        const totalMb = installed.reduce((s, z) => s + (z.installed_size_mb || 0), 0);
+        status.innerHTML = `<span class="sys-dot sys-ok"></span> ${installed.length} instalado(s)` +
+          (totalMb > 0 ? ` (${totalMb > 1024 ? (totalMb/1024).toFixed(1) + ' GB' : totalMb + ' MB'})` : '');
+      }
+
+      let html = '';
+
+      // Installed section
+      if (installed.length > 0) {
+        html += '<div class="lib-section-title">Instalados</div>';
+        html += installed.map(z => {
+          const cat = ZIM_CATEGORY_META[z.category] || ZIM_CATEGORY_META.other;
+          const sizeTxt = z.installed_size_mb > 1024
+            ? (z.installed_size_mb / 1024).toFixed(1) + ' GB'
+            : z.installed_size_mb + ' MB';
+          return `<div class="lib-item lib-installed" id="libItem_${z.id}">
+            <div class="lib-icon" style="color:${cat.color}">${cat.icon}</div>
+            <div class="lib-info">
+              <div class="lib-name">${escapeHtml(z.name)}</div>
+              <div class="lib-desc">${escapeHtml(z.desc)}</div>
+            </div>
+            <span class="lib-size">${sizeTxt}</span>
+            <button class="btn-sm btn-danger" onclick="_libraryDelete('${z.id}', '${escapeHtml(z.name)}')" title="Remover">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+            </button>
+          </div>`;
+        }).join('');
+      }
+
+      // Available section
+      if (available.length > 0) {
+        html += '<div class="lib-section-title">Disponiveis para Download</div>';
+        html += available.map(z => {
+          const cat = ZIM_CATEGORY_META[z.category] || ZIM_CATEGORY_META.other;
+          const sizeTxt = z.est_mb > 1024
+            ? (z.est_mb / 1024).toFixed(1) + ' GB'
+            : z.est_mb + ' MB';
+          return `<div class="lib-item" id="libItem_${z.id}">
+            <div class="lib-icon" style="color:${cat.color}">${cat.icon}</div>
+            <div class="lib-info">
+              <div class="lib-name">${escapeHtml(z.name)}</div>
+              <div class="lib-desc">${escapeHtml(z.desc)} (~${sizeTxt})</div>
+            </div>
+            <button class="btn-sm btn-accent" id="libBtn_${z.id}" onclick="_libraryDownload('${z.id}')">
+              Baixar
+            </button>
+            <div class="lib-progress hidden" id="libProg_${z.id}">
+              <div class="setup-bar-track"><div class="setup-bar" id="libBar_${z.id}" style="width:0%"></div></div>
+            </div>
+            <div class="lib-status-text" id="libStat_${z.id}"></div>
+          </div>`;
+        }).join('');
+      }
+
+      if (!html) {
+        html = '<div class="library-empty">Nenhum ZIM disponivel no catalogo.</div>';
+      }
+
+      content.innerHTML = html;
+    })
+    .catch(err => {
+      content.innerHTML = `<div class="library-error">Erro ao carregar catalogo: ${escapeHtml(err.message)}</div>`;
+    });
+};
+
+window._libraryDownload = async function(zimId) {
+  const btn   = document.getElementById('libBtn_' + zimId);
+  const prog  = document.getElementById('libProg_' + zimId);
+  const bar   = document.getElementById('libBar_' + zimId);
+  const stat  = document.getElementById('libStat_' + zimId);
+  if (btn) btn.disabled = true;
+  if (prog) prog.classList.remove('hidden');
+  if (stat) stat.textContent = 'Iniciando download...';
+
+  try {
+    const r = await fetch('/api/zim/download', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({id: zimId})
+    });
+
+    const reader = r.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+
+    while (true) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, {stream: true});
+      const lines = buf.split('\n');
+      buf = lines.pop();
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const ev = JSON.parse(line.slice(6));
+          if (ev.status === 'progress') {
+            if (bar) bar.style.width = ev.pct + '%';
+            if (stat) stat.textContent = `${ev.dl_mb} / ${ev.total_mb} MB (${ev.pct}%)`;
+          } else if (ev.status === 'done') {
+            if (bar) bar.style.width = '100%';
+            if (stat) stat.textContent = `Concluido! ${ev.size_mb} MB`;
+            if (btn) { btn.textContent = 'Instalado'; btn.disabled = true; btn.className = 'btn-sm btn-success'; }
+            osToast('ZIM baixado: ' + (ev.name || zimId));
+            setTimeout(() => window._libraryInit?.(), 2000);
+          } else if (ev.status === 'restarting_kiwix') {
+            if (stat) stat.textContent = 'Reiniciando Kiwix...';
+          } else if (ev.status === 'error') {
+            if (stat) stat.textContent = 'Erro: ' + ev.message;
+            if (btn) { btn.disabled = false; btn.textContent = 'Tentar novamente'; }
+          } else if (ev.status === 'starting') {
+            if (stat) stat.textContent = `Baixando ${ev.name} (~${ev.est_mb} MB)...`;
+          }
+        } catch {}
+      }
+    }
+  } catch (err) {
+    if (stat) stat.textContent = 'Falha: ' + err.message;
+    if (btn) { btn.disabled = false; btn.textContent = 'Tentar novamente'; }
+  }
+};
+
+window._libraryDelete = async function(zimId, name) {
+  if (!confirm(`Remover "${name}"? O arquivo ZIM sera deletado.`)) return;
+  try {
+    const r = await fetch('/api/zim/' + zimId, { method: 'DELETE' });
+    const data = await r.json();
+    if (data.status === 'deleted') {
+      osToast('ZIM removido: ' + name + ' (' + data.freed_mb + ' MB liberados)');
+      window._libraryInit?.();
+    } else {
+      osToast('Erro: ' + (data.error || 'falha ao remover'));
+    }
+  } catch (err) {
+    osToast('Erro: ' + err.message);
+  }
+};
+
 // ─── Survival Journal ───────────────────────────────────────────────────────
 // Multi-entry survival log with categories, search, export, day counter
 
