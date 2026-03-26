@@ -1443,8 +1443,36 @@ async def chat(request: Request):
     model = get_model("chat", body.get("model", ""))
     messages = body.get("messages", [])
     system = body.get("system", "")
+    use_rag = body.get("rag", True)  # RAG enabled by default
 
     msgs = list(messages)
+
+    # RAG: inject relevant context from guides/docs if enabled
+    if use_rag and msgs and _rag_indexed:
+        last_msg = msgs[-1].get("content", "") if msgs else ""
+        if last_msg and len(last_msg) > 10:
+            try:
+                rag_results = await rag_search(last_msg, top_k=3, use_semantic=True)
+                if rag_results:
+                    context_parts = []
+                    for r in rag_results:
+                        src_label = {"guide": "Guia", "protocol": "Protocolo", "upload": "Documento"}.get(r["source"], r["source"])
+                        context_parts.append(f"[{src_label}: {r['title']}]\n{r['content']}")
+                    rag_context = "\n\n---\n\n".join(context_parts)
+                    rag_injection = (
+                        "\n\n[Contexto relevante encontrado na base de conhecimento do Bunker AI:]\n"
+                        + rag_context
+                        + "\n\n[Use essas informacoes para enriquecer sua resposta quando relevante. "
+                        + "Cite a fonte (guia/protocolo) quando usar essas informacoes.]"
+                    )
+                    # Add RAG context as a system message
+                    if system:
+                        system += rag_injection
+                    else:
+                        system = rag_injection
+            except Exception as e:
+                print(f"[RAG] Erro na busca: {e}")
+
     if system:
         msgs = [{"role": "system", "content": system}] + msgs
 
@@ -2127,6 +2155,46 @@ def _init_db():
             created_at TEXT DEFAULT (datetime('now','localtime')),
             updated_at TEXT DEFAULT (datetime('now','localtime'))
         );
+
+        -- RAG: document chunks with embeddings for semantic search
+        CREATE TABLE IF NOT EXISTS rag_chunks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source TEXT NOT NULL,
+            source_id TEXT NOT NULL,
+            title TEXT DEFAULT '',
+            chunk_index INTEGER DEFAULT 0,
+            content TEXT NOT NULL,
+            embedding TEXT DEFAULT '',
+            created_at TEXT DEFAULT (datetime('now','localtime'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_rag_source ON rag_chunks(source, source_id);
+
+        -- RAG: FTS5 full-text search index
+        CREATE VIRTUAL TABLE IF NOT EXISTS rag_fts USING fts5(
+            content, source, source_id, title,
+            content=rag_chunks, content_rowid=id,
+            tokenize='unicode61 remove_diacritics 2'
+        );
+
+        -- RAG: user-uploaded documents
+        CREATE TABLE IF NOT EXISTS rag_documents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            filename TEXT NOT NULL,
+            file_type TEXT DEFAULT 'txt',
+            size_kb INTEGER DEFAULT 0,
+            chunk_count INTEGER DEFAULT 0,
+            indexed_at TEXT DEFAULT (datetime('now','localtime'))
+        );
+
+        -- Guide progress tracking
+        CREATE TABLE IF NOT EXISTS guide_progress (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            guide_id TEXT NOT NULL UNIQUE,
+            status TEXT DEFAULT 'unread',
+            read_pct REAL DEFAULT 0,
+            last_read TEXT DEFAULT (datetime('now','localtime')),
+            notes TEXT DEFAULT ''
+        );
     """)
     conn.close()
 
@@ -2138,6 +2206,345 @@ def _db():
     conn = sqlite3.connect(str(DB_PATH))
     conn.row_factory = sqlite3.Row
     return conn
+
+
+# ─── RAG Engine ──────────────────────────────────────────────────────────────
+
+RAG_DOCS_DIR = DATA_DIR / "rag_uploads"
+RAG_DOCS_DIR.mkdir(parents=True, exist_ok=True)
+
+_rag_indexed = False  # Track if guides/protocols have been indexed
+
+
+def _chunk_text(text: str, chunk_size: int = 500, overlap: int = 50) -> list[str]:
+    """Split text into overlapping chunks by sentences."""
+    sentences = re.split(r'(?<=[.!?\n])\s+', text)
+    chunks = []
+    current = ""
+    for sent in sentences:
+        if len(current) + len(sent) > chunk_size and current:
+            chunks.append(current.strip())
+            # Keep overlap from end of current chunk
+            words = current.split()
+            overlap_text = " ".join(words[-overlap // 5:]) if len(words) > overlap // 5 else ""
+            current = overlap_text + " " + sent
+        else:
+            current = (current + " " + sent).strip()
+    if current.strip():
+        chunks.append(current.strip())
+    return chunks
+
+
+_rag_embed_model = None  # Cache which embed model is available
+
+async def _get_embedding(text: str) -> list[float]:
+    """Get embedding vector from Ollama (nomic-embed-text or all-minilm)."""
+    global _rag_embed_model
+    if BACKEND != "ollama":
+        return []
+
+    models_to_try = [_rag_embed_model] if _rag_embed_model else ["nomic-embed-text", "all-minilm"]
+    try:
+        async with httpx.AsyncClient(timeout=30) as c:
+            for model in models_to_try:
+                if not model:
+                    continue
+                try:
+                    r = await c.post(f"{OLLAMA_BASE}/api/embed", json={
+                        "model": model, "input": text
+                    })
+                    if r.status_code == 200:
+                        data = r.json()
+                        embs = data.get("embeddings", [])
+                        if embs:
+                            _rag_embed_model = model
+                            return embs[0]
+                except Exception:
+                    continue
+    except Exception:
+        pass
+    return []
+
+
+async def _ensure_embed_model():
+    """Auto-pull an embedding model if none available."""
+    if BACKEND != "ollama":
+        return
+    try:
+        async with httpx.AsyncClient(timeout=5) as c:
+            r = await c.get(f"{OLLAMA_BASE}/api/tags")
+            if r.status_code == 200:
+                models = [m["name"].split(":")[0] for m in r.json().get("models", [])]
+                if "nomic-embed-text" in models or "all-minilm" in models:
+                    return  # Already have an embed model
+        # Pull nomic-embed-text (~274MB, small and fast)
+        print("[RAG] Baixando modelo de embeddings (nomic-embed-text)...")
+        async with httpx.AsyncClient(timeout=600) as c:
+            async with c.stream("POST", f"{OLLAMA_BASE}/api/pull", json={"name": "nomic-embed-text"}) as resp:
+                async for line in resp.aiter_lines():
+                    pass
+        print("[RAG] Modelo de embeddings pronto")
+    except Exception as e:
+        print(f"[RAG] Nao foi possivel baixar modelo de embeddings: {e}")
+
+
+def _cosine_similarity(a: list[float], b: list[float]) -> float:
+    """Compute cosine similarity between two vectors."""
+    if not a or not b or len(a) != len(b):
+        return 0.0
+    dot = sum(x * y for x, y in zip(a, b))
+    norm_a = sum(x * x for x in a) ** 0.5
+    norm_b = sum(x * x for x in b) ** 0.5
+    if norm_a == 0 or norm_b == 0:
+        return 0.0
+    return dot / (norm_a * norm_b)
+
+
+async def _index_guides_and_protocols():
+    """Index all guides and protocols into RAG system (runs once at startup)."""
+    global _rag_indexed
+    if _rag_indexed:
+        return
+
+    conn = _db()
+    existing = conn.execute("SELECT COUNT(*) FROM rag_chunks WHERE source IN ('guide','protocol')").fetchone()[0]
+    if existing > 0:
+        _rag_indexed = True
+        conn.close()
+        print(f"[RAG] {existing} chunks ja indexados")
+        return
+
+    print("[RAG] Indexando guias e protocolos...")
+    count = 0
+
+    # Index guides
+    for guide_file in sorted(GUIDES_DIR.glob("*.md")):
+        if guide_file.name.startswith("_"):
+            continue
+        guide_id = guide_file.stem
+        text = guide_file.read_text(encoding="utf-8", errors="ignore")
+        title = text.split("\n")[0].replace("#", "").strip() if text else guide_id
+        chunks = _chunk_text(text, chunk_size=600)
+        for i, chunk in enumerate(chunks):
+            embedding = await _get_embedding(chunk)
+            emb_json = json.dumps(embedding) if embedding else ""
+            conn.execute(
+                "INSERT INTO rag_chunks (source, source_id, title, chunk_index, content, embedding) VALUES (?,?,?,?,?,?)",
+                ("guide", guide_id, title, i, chunk, emb_json)
+            )
+            count += 1
+
+    # Index protocols
+    for proto_file in sorted(PROTOCOLS_DIR.glob("*.json")):
+        if proto_file.name.startswith("_"):
+            continue
+        proto_id = proto_file.stem
+        try:
+            proto_data = json.loads(proto_file.read_text(encoding="utf-8"))
+            title = proto_data.get("title", proto_id)
+            # Flatten protocol steps into searchable text
+            steps_text = f"Protocolo: {title}\n"
+            for step in proto_data.get("steps", []):
+                steps_text += f"\n{step.get('title', '')}: {step.get('content', '')}"
+                if step.get("warning"):
+                    steps_text += f"\nAVISO: {step['warning']}"
+            chunks = _chunk_text(steps_text, chunk_size=600)
+            for i, chunk in enumerate(chunks):
+                embedding = await _get_embedding(chunk)
+                emb_json = json.dumps(embedding) if embedding else ""
+                conn.execute(
+                    "INSERT INTO rag_chunks (source, source_id, title, chunk_index, content, embedding) VALUES (?,?,?,?,?,?)",
+                    ("protocol", proto_id, title, i, chunk, emb_json)
+                )
+                count += 1
+        except (json.JSONDecodeError, OSError):
+            continue
+
+    # Rebuild FTS index
+    conn.execute("INSERT INTO rag_fts(rag_fts) VALUES('rebuild')")
+    conn.commit()
+    conn.close()
+
+    _rag_indexed = True
+    print(f"[RAG] {count} chunks indexados com sucesso")
+
+
+async def rag_search(query: str, top_k: int = 5, use_semantic: bool = True) -> list[dict]:
+    """Search RAG index using FTS5 + optional semantic search."""
+    results = []
+    conn = _db()
+
+    # 1) FTS5 full-text search
+    try:
+        fts_rows = conn.execute(
+            "SELECT source, source_id, title, content, rank FROM rag_fts WHERE rag_fts MATCH ? ORDER BY rank LIMIT ?",
+            (query, top_k * 2)
+        ).fetchall()
+        for row in fts_rows:
+            results.append({
+                "source": row[0], "source_id": row[1], "title": row[2],
+                "content": row[3], "score": -row[4], "method": "fts"
+            })
+    except Exception:
+        pass
+
+    # 2) Semantic search via embeddings
+    if use_semantic and BACKEND == "ollama":
+        query_emb = await _get_embedding(query)
+        if query_emb:
+            rows = conn.execute(
+                "SELECT source, source_id, title, content, embedding FROM rag_chunks WHERE embedding != ''"
+            ).fetchall()
+            scored = []
+            for row in rows:
+                try:
+                    chunk_emb = json.loads(row[4])
+                    sim = _cosine_similarity(query_emb, chunk_emb)
+                    scored.append({
+                        "source": row[0], "source_id": row[1], "title": row[2],
+                        "content": row[3], "score": sim, "method": "semantic"
+                    })
+                except (json.JSONDecodeError, TypeError):
+                    continue
+            scored.sort(key=lambda x: x["score"], reverse=True)
+            results.extend(scored[:top_k])
+
+    conn.close()
+
+    # Deduplicate by content and sort by score
+    seen = set()
+    unique = []
+    for r in sorted(results, key=lambda x: x["score"], reverse=True):
+        key = r["content"][:100]
+        if key not in seen:
+            seen.add(key)
+            unique.append(r)
+    return unique[:top_k]
+
+
+@app.on_event("startup")
+async def _startup_rag_index():
+    """Index guides/protocols on first startup (background)."""
+    async def _rag_startup():
+        await _ensure_embed_model()
+        await _index_guides_and_protocols()
+    asyncio.create_task(_rag_startup())
+
+
+# ─── RAG API endpoints ───────────────────────────────────────────────────────
+
+@app.get("/api/rag/status")
+async def rag_status():
+    """Return RAG index status."""
+    conn = _db()
+    chunks = conn.execute("SELECT COUNT(*) FROM rag_chunks").fetchone()[0]
+    docs = conn.execute("SELECT COUNT(*) FROM rag_documents").fetchone()[0]
+    has_embeddings = conn.execute("SELECT COUNT(*) FROM rag_chunks WHERE embedding != ''").fetchone()[0]
+    conn.close()
+    return {
+        "indexed": _rag_indexed, "total_chunks": chunks,
+        "with_embeddings": has_embeddings, "user_documents": docs
+    }
+
+
+@app.get("/api/rag/search")
+async def rag_search_api(q: str = "", top_k: int = 5):
+    """Search the RAG index."""
+    if not q.strip():
+        return {"results": []}
+    results = await rag_search(q.strip(), top_k=top_k)
+    return {"query": q, "results": results}
+
+
+@app.post("/api/rag/upload")
+async def rag_upload(file: UploadFile = File(...)):
+    """Upload and index a document for RAG."""
+    if not file.filename:
+        return JSONResponse({"error": "Nenhum arquivo"}, status_code=400)
+
+    # Accept txt, md, and plain text files
+    ext = Path(file.filename).suffix.lower()
+    if ext not in (".txt", ".md", ".text", ".csv", ".log"):
+        return JSONResponse({"error": f"Tipo nao suportado: {ext}. Use .txt, .md, .csv"}, status_code=400)
+
+    content = await file.read()
+    text = content.decode("utf-8", errors="ignore")
+    if not text.strip():
+        return JSONResponse({"error": "Arquivo vazio"}, status_code=400)
+
+    # Save file
+    dest = RAG_DOCS_DIR / file.filename
+    dest.write_bytes(content)
+    size_kb = len(content) // 1024
+
+    # Chunk and index
+    chunks = _chunk_text(text, chunk_size=600)
+    doc_id = file.filename
+
+    conn = _db()
+    # Remove old chunks for this document if re-uploading
+    conn.execute("DELETE FROM rag_chunks WHERE source = 'upload' AND source_id = ?", (doc_id,))
+
+    for i, chunk in enumerate(chunks):
+        embedding = await _get_embedding(chunk)
+        emb_json = json.dumps(embedding) if embedding else ""
+        conn.execute(
+            "INSERT INTO rag_chunks (source, source_id, title, chunk_index, content, embedding) VALUES (?,?,?,?,?,?)",
+            ("upload", doc_id, file.filename, i, chunk, emb_json)
+        )
+
+    # Update FTS
+    conn.execute("INSERT INTO rag_fts(rag_fts) VALUES('rebuild')")
+
+    # Record document
+    conn.execute("DELETE FROM rag_documents WHERE filename = ?", (file.filename,))
+    conn.execute(
+        "INSERT INTO rag_documents (filename, file_type, size_kb, chunk_count) VALUES (?,?,?,?)",
+        (file.filename, ext.lstrip('.'), size_kb, len(chunks))
+    )
+    conn.commit()
+    conn.close()
+
+    return {"ok": True, "filename": file.filename, "chunks": len(chunks), "size_kb": size_kb}
+
+
+@app.get("/api/rag/documents")
+async def rag_list_documents():
+    """List uploaded RAG documents."""
+    conn = _db()
+    rows = conn.execute("SELECT * FROM rag_documents ORDER BY indexed_at DESC").fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+@app.delete("/api/rag/documents/{filename:path}")
+async def rag_delete_document(filename: str):
+    """Remove a document from RAG index."""
+    conn = _db()
+    conn.execute("DELETE FROM rag_chunks WHERE source = 'upload' AND source_id = ?", (filename,))
+    conn.execute("DELETE FROM rag_documents WHERE filename = ?", (filename,))
+    conn.execute("INSERT INTO rag_fts(rag_fts) VALUES('rebuild')")
+    conn.commit()
+    conn.close()
+    # Remove file
+    f = RAG_DOCS_DIR / filename
+    if f.exists():
+        f.unlink()
+    return {"ok": True}
+
+
+@app.post("/api/rag/reindex")
+async def rag_reindex():
+    """Force reindex all guides and protocols."""
+    global _rag_indexed
+    conn = _db()
+    conn.execute("DELETE FROM rag_chunks WHERE source IN ('guide','protocol')")
+    conn.execute("INSERT INTO rag_fts(rag_fts) VALUES('rebuild')")
+    conn.commit()
+    conn.close()
+    _rag_indexed = False
+    asyncio.create_task(_index_guides_and_protocols())
+    return {"ok": True, "message": "Reindexando em background..."}
 
 
 # ─── Guides API ──────────────────────────────────────────────────────────────
@@ -2165,6 +2572,51 @@ async def get_guide(guide_id: str):
         if fp.exists():
             return Response(fp.read_text(encoding="utf-8"), media_type="text/markdown")
     return JSONResponse({"error": "Guide not found"}, status_code=404)
+
+
+# ─── Guide Progress API ─────────────────────────────────────────────────────
+
+@app.get("/api/guides/progress/all")
+async def guides_progress_all():
+    """Get progress for all guides."""
+    conn = _db()
+    rows = conn.execute("SELECT * FROM guide_progress").fetchall()
+    conn.close()
+    return {r["guide_id"]: dict(r) for r in rows}
+
+
+@app.get("/api/guides/{guide_id}/progress")
+async def guide_progress_get(guide_id: str):
+    """Get progress for a specific guide."""
+    conn = _db()
+    row = conn.execute("SELECT * FROM guide_progress WHERE guide_id = ?", (guide_id,)).fetchone()
+    conn.close()
+    if row:
+        return dict(row)
+    return {"guide_id": guide_id, "status": "unread", "read_pct": 0, "notes": ""}
+
+
+@app.put("/api/guides/{guide_id}/progress")
+async def guide_progress_update(guide_id: str, request: Request):
+    """Update progress for a guide."""
+    body = await request.json()
+    status = body.get("status", "reading")  # unread, reading, completed
+    read_pct = body.get("read_pct", 0)
+    notes = body.get("notes", "")
+
+    conn = _db()
+    conn.execute("""
+        INSERT INTO guide_progress (guide_id, status, read_pct, notes, last_read)
+        VALUES (?, ?, ?, ?, datetime('now','localtime'))
+        ON CONFLICT(guide_id) DO UPDATE SET
+            status = excluded.status,
+            read_pct = excluded.read_pct,
+            notes = CASE WHEN excluded.notes != '' THEN excluded.notes ELSE guide_progress.notes END,
+            last_read = datetime('now','localtime')
+    """, (guide_id, status, read_pct, notes))
+    conn.commit()
+    conn.close()
+    return {"ok": True, "guide_id": guide_id, "status": status, "read_pct": read_pct}
 
 
 # ─── Protocols API ───────────────────────────────────────────────────────────

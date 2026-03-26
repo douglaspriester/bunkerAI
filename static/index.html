@@ -1099,6 +1099,13 @@ Responda no idioma do usuario. Use markdown.</textarea>
           Voltar
         </button>
         <h2 class="panel-title">Wikipedia Offline</h2>
+        <div class="wiki-search hidden" id="wikiSearch">
+          <input type="text" id="wikiSearchInput" placeholder="Buscar na Wikipedia..." autocomplete="off"
+            onkeydown="if(event.key==='Enter'){wikiSearch(this.value)}">
+          <button onclick="wikiSearch(document.getElementById('wikiSearchInput').value)" title="Buscar">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </button>
+        </div>
         <div class="wiki-status" id="wikiStatus">
           <span class="sys-dot sys-warn"></span>
           <span>Verificando...</span>

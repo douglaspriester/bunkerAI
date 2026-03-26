@@ -12,9 +12,11 @@ Uses only Python stdlib (no third-party packages required).
 
 import json
 import os
+import platform
 import sqlite3
 import subprocess
 import sys
+import tarfile
 import time
 import urllib.error
 import urllib.request
@@ -258,8 +260,13 @@ def download_js_libs() -> None:
 
 # ── Kiwix ────────────────────────────────────────────────────────────────────
 
-KIWIX_URL = "https://download.kiwix.org/release/kiwix-tools/kiwix-tools_win-x86_64-3.8.1.zip"
-KIWIX_EXE = ROOT / "tools" / "kiwix-serve.exe"
+KIWIX_URLS = {
+    "Windows": "https://download.kiwix.org/release/kiwix-tools/kiwix-tools_win-x86_64-3.8.1.zip",
+    "Linux":   "https://download.kiwix.org/release/kiwix-tools/kiwix-tools_linux-x86_64-3.8.1.tar.gz",
+    "Darwin":  "https://download.kiwix.org/release/kiwix-tools/kiwix-tools_macos-x86_64-3.8.1.tar.gz",
+}
+_kiwix_exe_name = "kiwix-serve.exe" if platform.system() == "Windows" else "kiwix-serve"
+KIWIX_EXE = ROOT / "tools" / _kiwix_exe_name
 
 # Wikipedia mini — ~400MB (all articles, no images)
 # Browse options at https://download.kiwix.org/zim/wikipedia/
@@ -271,36 +278,56 @@ ZIM_DEST = DATA / "zim" / "wikipedia_en_all_mini.zim"
 def download_kiwix() -> None:
     step("Downloading Kiwix tools")
     if KIWIX_EXE.exists() and KIWIX_EXE.stat().st_size > 10_000:
-        info("kiwix-serve.exe already present, skipping")
+        info(f"{_kiwix_exe_name} already present, skipping")
         return
 
-    zip_dest = ROOT / "tools" / "kiwix-tools.zip"
-    ok = download_file(KIWIX_URL, zip_dest, "kiwix-tools (Windows x86_64)")
+    system = platform.system()
+    url = KIWIX_URLS.get(system)
+    if not url:
+        warn(f"Kiwix tools not available for {system}")
+        return
+
+    is_windows = system == "Windows"
+    archive_name = "kiwix-tools.zip" if is_windows else "kiwix-tools.tar.gz"
+    archive_dest = ROOT / "tools" / archive_name
+    ok = download_file(url, archive_dest, f"kiwix-tools ({system} x86_64)")
     if not ok:
         warn("Could not download Kiwix tools — offline wiki will be unavailable")
         return
 
-    # Extract kiwix-serve.exe from the zip
+    # Extract kiwix-serve binary from the archive
     try:
-        with zipfile.ZipFile(zip_dest, "r") as zf:
-            exe_found = False
-            for member in zf.namelist():
-                if member.endswith("kiwix-serve.exe"):
-                    # Extract to tools/ flattening the internal directory
-                    target = ROOT / "tools" / "kiwix-serve.exe"
-                    with zf.open(member) as src, open(target, "wb") as dst:
-                        dst.write(src.read())
-                    exe_found = True
-                    info("Extracted kiwix-serve.exe")
-                    break
-            if not exe_found:
-                warn("kiwix-serve.exe not found inside the zip archive")
-    except (zipfile.BadZipFile, OSError) as exc:
+        target = KIWIX_EXE
+        exe_found = False
+        if is_windows:
+            with zipfile.ZipFile(archive_dest, "r") as zf:
+                for member in zf.namelist():
+                    if member.endswith("kiwix-serve.exe"):
+                        with zf.open(member) as src, open(target, "wb") as dst:
+                            dst.write(src.read())
+                        exe_found = True
+                        break
+        else:
+            with tarfile.open(archive_dest, "r:gz") as tf:
+                for member in tf.getmembers():
+                    if member.name.endswith("kiwix-serve") and member.isfile():
+                        f = tf.extractfile(member)
+                        if f:
+                            with open(target, "wb") as dst:
+                                dst.write(f.read())
+                            os.chmod(str(target), 0o755)
+                            exe_found = True
+                        break
+
+        if exe_found:
+            info(f"Extracted {_kiwix_exe_name}")
+        else:
+            warn(f"{_kiwix_exe_name} not found inside the archive")
+    except (zipfile.BadZipFile, tarfile.TarError, OSError) as exc:
         fail(f"Failed to extract kiwix-tools: {exc}")
     finally:
-        # Clean up the zip to save space
         try:
-            zip_dest.unlink()
+            archive_dest.unlink()
         except OSError:
             pass
 

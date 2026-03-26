@@ -105,11 +105,18 @@ function runBootSequence() {
 }
 
 // ─── Guides (dynamic, loaded from API) ──────────────────────────────────────
+// Guide progress cache
+let _guideProgressData = {};
+
 async function loadGuidesIndex() {
   try {
-    const r = await fetch('/api/guides');
+    const [r, pr] = await Promise.all([
+      fetch('/api/guides'),
+      fetch('/api/guides/progress/all').catch(() => ({ ok: false }))
+    ]);
     const d = await r.json();
     setGuidesIndex(Array.isArray(d) ? d : (d.guides || []));
+    if (pr.ok) { _guideProgressData = await pr.json(); }
     renderSidebarGuides();
     renderGuidesGrid();
     indexContent();
@@ -138,9 +145,14 @@ function renderGuidesGrid() {
     html += `<div class="guides-cat-title">${escapeHtml(catLabels[cat] || cat)}</div>`;
     html += '<div class="guides-cat-items">';
     for (const g of items) {
-      html += `<div class="guide-card" onclick="openGuide('${g.id}')">
+      const prog = _guideProgressData[g.id];
+      const progBadge = prog?.status === 'completed' ? '<span class="guide-badge guide-done" title="Concluido">✓</span>'
+        : prog?.status === 'reading' ? `<span class="guide-badge guide-reading" title="Lendo — ${Math.round(prog.read_pct || 0)}%">◐</span>`
+        : '';
+      html += `<div class="guide-card${prog?.status === 'completed' ? ' guide-completed' : ''}" onclick="openGuide('${g.id}')">
         <span class="guide-card-icon">${g.icon || '📖'}</span>
         <span class="guide-card-title">${escapeHtml(g.title)}</span>
+        ${progBadge}
       </div>`;
     }
     html += '</div>';
@@ -212,17 +224,75 @@ async function openGuide(guideId) {
     const titleFromIndex = window.guidesIndex.find(g => g.id === guideId);
     const title = titleFromIndex?.title || guideId;
 
+    const prog = _guideProgressData[guideId];
+    const isCompleted = prog?.status === 'completed';
     content.innerHTML = `
       <div class="guide-body">
         <h1>${escapeHtml(title)}</h1>
         <div class="guide-md-content">${markdownToHtml(guide.content || '')}</div>
+        <div class="guide-progress-bar">
+          <button class="btn-mark-read ${isCompleted ? 'completed' : ''}" onclick="toggleGuideComplete('${guideId}')">
+            ${isCompleted ? '✓ Concluido' : '☐ Marcar como lido'}
+          </button>
+        </div>
       </div>`;
     content.scrollTop = 0;
+
+    // Track scroll progress
+    _trackGuideScroll(guideId, content);
+
+    // Mark as reading
+    if (!isCompleted) {
+      _updateGuideProgress(guideId, 'reading', prog?.read_pct || 0);
+    }
   } catch(e) {
     content.innerHTML = `<div class="guide-error">Erro ao carregar guia: ${e.message}</div>`;
   }
 
   updateGuideFavBtn();
+}
+
+function _trackGuideScroll(guideId, container) {
+  let _scrollTimer = null;
+  container.onscroll = () => {
+    clearTimeout(_scrollTimer);
+    _scrollTimer = setTimeout(() => {
+      const pct = Math.min(100, Math.round(
+        (container.scrollTop / (container.scrollHeight - container.clientHeight)) * 100
+      ));
+      if (pct > (_guideProgressData[guideId]?.read_pct || 0)) {
+        const status = pct >= 95 ? 'completed' : 'reading';
+        _updateGuideProgress(guideId, status, pct);
+      }
+    }, 500);
+  };
+}
+
+async function _updateGuideProgress(guideId, status, readPct) {
+  _guideProgressData[guideId] = { guide_id: guideId, status, read_pct: readPct };
+  try {
+    await fetch(`/api/guides/${guideId}/progress`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status, read_pct: readPct })
+    });
+  } catch(e) { /* silent */ }
+}
+
+async function toggleGuideComplete(guideId) {
+  const prog = _guideProgressData[guideId];
+  const newStatus = prog?.status === 'completed' ? 'reading' : 'completed';
+  const newPct = newStatus === 'completed' ? 100 : (prog?.read_pct || 0);
+  await _updateGuideProgress(guideId, newStatus, newPct);
+
+  // Update button UI
+  const btn = document.querySelector('.btn-mark-read');
+  if (btn) {
+    btn.classList.toggle('completed', newStatus === 'completed');
+    btn.textContent = newStatus === 'completed' ? '✓ Concluido' : '☐ Marcar como lido';
+  }
+  // Refresh grid when we go back
+  renderGuidesGrid();
 }
 
 function closeGuide() {
@@ -2811,6 +2881,59 @@ document.addEventListener('keydown', (e) => {
 // ─── Wiki / Kiwix ────────────────────────────────────────────────────────────
 async function openWikiPanel() {
   openApp('wiki');
+}
+
+window._wikiInit = async function() {
+  const frame   = document.getElementById('wikiFrame');
+  const status  = document.getElementById('wikiStatus');
+  const offline = document.getElementById('wikiOfflineMsg');
+  const search  = document.getElementById('wikiSearch');
+  if (!frame || !status) return;
+
+  // Show loading state
+  status.innerHTML = '<span class="sys-dot sys-warn"></span><span>Verificando...</span>';
+  offline.classList.add('hidden');
+  frame.src = 'about:blank';
+
+  try {
+    const r = await fetch('/api/kiwix/status');
+    const data = await r.json();
+
+    if (data.running && data.zim_files?.length > 0) {
+      // Kiwix is running — load it
+      status.innerHTML = '<span class="sys-dot sys-ok"></span><span>Online — ' +
+        data.zim_files.length + ' arquivo(s) ZIM</span>';
+      frame.src = '/api/kiwix/';
+      frame.classList.remove('hidden');
+      offline.classList.add('hidden');
+      if (search) search.classList.remove('hidden');
+    } else if (data.zim_files?.length > 0) {
+      // ZIM files exist but kiwix-serve not running
+      status.innerHTML = '<span class="sys-dot sys-err"></span><span>Kiwix parado</span>';
+      frame.classList.add('hidden');
+      offline.classList.remove('hidden');
+      offline.querySelector('p').textContent = 'Kiwix nao esta rodando. Reinicie o servidor.';
+      if (search) search.classList.add('hidden');
+    } else {
+      // No ZIM files
+      status.innerHTML = '<span class="sys-dot sys-err"></span><span>Sem arquivos ZIM</span>';
+      frame.classList.add('hidden');
+      offline.classList.remove('hidden');
+      if (search) search.classList.add('hidden');
+    }
+  } catch (e) {
+    status.innerHTML = '<span class="sys-dot sys-err"></span><span>Erro</span>';
+    frame.classList.add('hidden');
+    offline.classList.remove('hidden');
+    if (search) search.classList.add('hidden');
+  }
+};
+
+// Wiki search handler
+function wikiSearch(query) {
+  const frame = document.getElementById('wikiFrame');
+  if (!frame || !query.trim()) return;
+  frame.src = '/api/kiwix/search?pattern=' + encodeURIComponent(query.trim());
 }
 
 // ─── Survival Journal ───────────────────────────────────────────────────────
