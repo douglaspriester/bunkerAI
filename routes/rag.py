@@ -30,7 +30,8 @@ def _rag_extract_text(content: bytes, filename: str) -> str:
                 page.extract_text() or "" for page in reader.pages
             )
         except Exception as e:
-            return f"[Erro ao extrair PDF: {e}]"
+            print(f"[RAG] PDF extraction error: {e}")
+            return "[Erro ao extrair PDF]"
     else:
         try:
             return content.decode("utf-8", errors="replace")

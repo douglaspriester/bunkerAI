@@ -260,7 +260,7 @@ async def _auto_download_gguf():
 
     except Exception as e:
         print(f"[LLM] Erro ao baixar GGUF: {e}")
-        cfg._auto_download_status = {"status": "error", "model": model["name"], "error": str(e)}
+        cfg._auto_download_status = {"status": "error", "model": model["name"], "error": "Erro ao baixar modelo. Verifique os logs do servidor."}
         if filepath.exists() and filepath.stat().st_size < 1000:
             filepath.unlink()
 
@@ -463,6 +463,85 @@ async def health():
 _MODEL_NAME_RE = re.compile(r'^[a-zA-Z0-9_.:\-/]+$')
 _MODEL_NAME_TRAVERSAL_RE = re.compile(r'\.\.')
 
+
+@router.get("/api/models")
+async def list_all_models():
+    """List ALL available models: Ollama models + local GGUF models combined."""
+    ollama_models = []
+    try:
+        async with httpx.AsyncClient(timeout=5) as c:
+            r = await c.get(f"{cfg.OLLAMA_BASE}/api/tags")
+            if r.status_code == 200:
+                for m in r.json().get("models", []):
+                    ollama_models.append({
+                        "name": m["name"],
+                        "source": "ollama",
+                        "size_gb": round(m.get("size", 0) / 1024**3, 1),
+                        "modified": m.get("modified_at", ""),
+                        "details": m.get("details", {}),
+                    })
+    except Exception:
+        pass
+
+    gguf_models = []
+    known_files = {m["filename"] for m in cfg.GGUF_REGISTRY}
+    # Registered GGUF models
+    for model in cfg.GGUF_REGISTRY:
+        filepath = cfg.MODELS_DIR / model["filename"]
+        downloaded = filepath.exists()
+        size_on_disk = filepath.stat().st_size if downloaded else 0
+        expected_bytes = int(model["size_gb"] * 1024**3)
+        complete = downloaded and size_on_disk > expected_bytes * 0.9
+        gguf_models.append({
+            "name": model["name"],
+            "id": model["id"],
+            "filename": model["filename"],
+            "source": "gguf",
+            "size_gb": model["size_gb"],
+            "downloaded": complete,
+            "partial": downloaded and not complete,
+            "tags": model.get("tags", []),
+            "uncensored": model.get("uncensored", False),
+        })
+    # Custom (unregistered) GGUF files in models/ dir
+    for f in cfg.MODELS_DIR.glob("*.gguf"):
+        if f.name not in known_files:
+            gguf_models.append({
+                "name": f.stem,
+                "id": f.stem,
+                "filename": f.name,
+                "source": "gguf",
+                "size_gb": round(f.stat().st_size / 1024**3, 1),
+                "downloaded": True,
+                "partial": False,
+                "tags": ["custom"],
+                "uncensored": False,
+            })
+
+    return {
+        "backend": cfg.BACKEND,
+        "ollama_models": ollama_models,
+        "gguf_models": gguf_models,
+        "total": len(ollama_models) + len(gguf_models),
+        "auto_selected": dict(cfg._auto_models),
+    }
+
+
+@router.delete("/api/models/{name:path}")
+async def delete_ollama_model(name: str):
+    """Delete an Ollama model by name (e.g. 'llama3:8b')."""
+    if not name or not _MODEL_NAME_RE.match(name) or _MODEL_NAME_TRAVERSAL_RE.search(name):
+        return JSONResponse({"error": "Invalid model name"}, status_code=400)
+    try:
+        async with httpx.AsyncClient(timeout=60) as c:
+            r = await c.delete(f"{cfg.OLLAMA_BASE}/api/delete", json={"name": name})
+            if r.status_code in (200, 204):
+                return {"deleted": True, "name": name}
+            return JSONResponse({"error": f"Ollama error: {r.status_code}"}, status_code=r.status_code)
+    except httpx.ConnectError:
+        return JSONResponse({"error": "Ollama unavailable"}, status_code=503)
+
+
 @router.post("/api/models/pull")
 async def pull_model(request: Request):
     body = await request.json()
@@ -654,8 +733,8 @@ async def _download_gguf(model: dict):
         cfg._active_downloads[model_id]["percent"] = 100
         print(f"[MODEL] {model['name']} downloaded: {filepath}")
     except Exception as e:
-        cfg._active_downloads[model_id]["error"] = str(e)
         print(f"[MODEL] Download failed for {model['name']}: {e}")
+        cfg._active_downloads[model_id]["error"] = "Erro ao baixar modelo. Verifique os logs do servidor."
         if filepath.exists() and filepath.stat().st_size < 1000:
             filepath.unlink()
     finally:
@@ -806,8 +885,8 @@ async def terminal_exec(request: Request):
     import shlex
     try:
         args = shlex.split(cmd)
-    except ValueError as e:
-        return {"output": f"bunker-sh: erro de parse: {e}", "exit_code": 1}
+    except ValueError:
+        return {"output": "bunker-sh: erro de parse: comando invalido", "exit_code": 1}
 
     if not args:
         return {"output": "", "exit_code": 0}
