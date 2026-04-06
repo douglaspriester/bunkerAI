@@ -15,6 +15,7 @@ echo "[HW] RAM: ${RAM_GB}GB"
 
 # Detectar GPU
 GPU_TYPE="cpu"
+LLAMA_PID=""
 if command -v nvidia-smi &>/dev/null && nvidia-smi &>/dev/null; then
     GPU_TYPE="nvidia"
     echo "[HW] GPU: NVIDIA"

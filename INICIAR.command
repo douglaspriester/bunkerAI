@@ -12,6 +12,7 @@ echo "[HW] RAM: ${RAM_GB}GB"
 
 # Detectar GPU
 GPU_TYPE="cpu"
+LLAMA_PID=""
 if system_profiler SPDisplaysDataType 2>/dev/null | grep -qi "apple m"; then
     GPU_TYPE="apple"
     echo "[HW] GPU: Apple Silicon"
