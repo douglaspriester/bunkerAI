@@ -142,6 +142,10 @@ async def chat(request: Request):
     messages = body.get("messages", [])
     system = body.get("system", "")
 
+    # Guard: messages must be a list
+    if not isinstance(messages, list):
+        return JSONResponse({"error": "messages deve ser uma lista."}, status_code=400)
+
     # Guard: reject oversized inputs to prevent memory / prompt-injection abuse
     if len(messages) > _MAX_CHAT_HISTORY:
         return JSONResponse({"error": "Muitas mensagens no histórico (max 200)."}, status_code=400)
@@ -181,6 +185,8 @@ async def chat(request: Request):
     return _chat_stream({"model": model, "messages": msgs, "stream": True})
 
 
+_MAX_VISION_IMG_B64_CHARS = 14_000_000  # ~10 MB of raw bytes as base64 (ceil(10MB * 4/3))
+
 @router.post("/api/vision")
 async def vision(request: Request):
     body = await request.json()
@@ -191,6 +197,9 @@ async def vision(request: Request):
 
     if "," in img_b64:
         img_b64 = img_b64.split(",", 1)[1]
+
+    if len(img_b64) > _MAX_VISION_IMG_B64_CHARS:
+        return JSONResponse({"error": "Imagem muito grande (max ~10 MB)."}, status_code=400)
 
     msgs = list(messages)
     msgs.append({"role": "user", "content": prompt, "images": [img_b64]})
@@ -214,6 +223,9 @@ async def vision_upload(
     if content_type not in _ALLOWED_IMAGE_TYPES and ext not in _ALLOWED_IMAGE_EXTS:
         return JSONResponse({"error": "Tipo de arquivo nao suportado. Use JPEG, PNG, GIF ou WebP."}, status_code=400)
     img_bytes = await image.read()
+    # Validate size limit: 10 MB
+    if len(img_bytes) > 10 * 1024 * 1024:
+        return JSONResponse({"error": "Imagem muito grande (max 10 MB)."}, status_code=400)
     # Validate magic bytes: check for known image file signatures
     if len(img_bytes) < 4:
         return JSONResponse({"error": "Arquivo de imagem invalido"}, status_code=400)
@@ -282,6 +294,8 @@ async def save_app(request: Request):
     return {"saved": True, "path": str(app_dir), "name": safe_name}
 
 
+_MAX_BUILD_LIST = 100  # cap to avoid returning thousands of entries
+
 @router.get("/api/build/list")
 async def list_apps():
     apps = []
@@ -289,7 +303,9 @@ async def list_apps():
         for d in sorted(cfg.GENERATED_DIR.iterdir()):
             if d.is_dir() and (d / "index.html").exists():
                 apps.append({"name": d.name, "path": str(d), "size": (d / "index.html").stat().st_size})
-    return {"apps": apps}
+                if len(apps) >= _MAX_BUILD_LIST:
+                    break
+    return {"apps": apps, "total": len(apps), "limit": _MAX_BUILD_LIST}
 
 
 @router.delete("/api/build/{name}")
