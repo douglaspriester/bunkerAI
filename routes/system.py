@@ -806,17 +806,24 @@ async def terminal_exec(request: Request):
     binary = shutil.which(args[0]) or args[0]
     exec_args = [binary] + args[1:]
 
+    _MAX_OUTPUT_BYTES = 65_536  # 64 KB output cap
+
     try:
         result = subprocess.run(
-            exec_args, shell=False, capture_output=True, text=True,
-            timeout=15, cwd=str(Path.cwd()),
+            exec_args, shell=False, capture_output=True,
+            timeout=10, cwd=str(Path.cwd()),
         )
-        output = result.stdout + result.stderr
+        # Decode bytes with errors="replace" to handle binary / non-UTF-8 output gracefully
+        stdout = result.stdout[:_MAX_OUTPUT_BYTES].decode("utf-8", errors="replace")
+        stderr = result.stderr[:_MAX_OUTPUT_BYTES].decode("utf-8", errors="replace")
+        output = stdout + stderr
+        if len(result.stdout) + len(result.stderr) > _MAX_OUTPUT_BYTES:
+            output = output.rstrip() + "\n[saida truncada em 64 KB]"
         return {"output": output.rstrip(), "exit_code": result.returncode}
     except FileNotFoundError:
         return {"output": f"bunker-sh: {base_cmd}: comando nao encontrado", "exit_code": 127}
     except subprocess.TimeoutExpired:
-        return {"output": "bunker-sh: tempo limite excedido (15s)", "exit_code": 124}
+        return {"output": "bunker-sh: tempo limite excedido (10s)", "exit_code": 124}
     except Exception as e:
         return {"output": f"bunker-sh: erro interno", "exit_code": 1}
 
