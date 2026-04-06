@@ -133,6 +133,17 @@ async def create_supply(request: Request):
     name = str(body.get("name", "")).strip()
     if not name:
         return JSONResponse({"error": "Nome obrigatorio"}, status_code=400)
+    if len(name) > 200:
+        return JSONResponse({"error": "Nome muito longo (max 200 chars)"}, status_code=400)
+    category = str(body.get("category", "outros"))
+    if len(category) > 100:
+        return JSONResponse({"error": "Categoria muito longa (max 100 chars)"}, status_code=400)
+    unit = str(body.get("unit", "un"))
+    if len(unit) > 20:
+        return JSONResponse({"error": "Unidade muito longa (max 20 chars)"}, status_code=400)
+    notes_val = str(body.get("notes", ""))
+    if len(notes_val) > 1000:
+        return JSONResponse({"error": "Notas muito longas (max 1000 chars)"}, status_code=400)
     quantity = body.get("quantity", 0)
     try:
         quantity = float(quantity)
@@ -144,8 +155,8 @@ async def create_supply(request: Request):
         conn = _db()
         cur = conn.execute(
             "INSERT INTO supplies (name, category, quantity, unit, expiry, notes) VALUES (?, ?, ?, ?, ?, ?)",
-            (name, body.get("category", "outros"), quantity,
-             body.get("unit", "un"), body.get("expiry", ""), body.get("notes", "")),
+            (name, category, quantity,
+             unit, body.get("expiry", ""), notes_val),
         )
         conn.commit()
         item_id = cur.lastrowid
@@ -158,6 +169,14 @@ async def create_supply(request: Request):
 @router.put("/api/supplies/{item_id}")
 async def update_supply(item_id: int, request: Request):
     body = await request.json()
+    if "name" in body and len(str(body["name"])) > 200:
+        return JSONResponse({"error": "name too long (max 200 chars)"}, status_code=400)
+    if "category" in body and len(str(body["category"])) > 100:
+        return JSONResponse({"error": "category too long (max 100 chars)"}, status_code=400)
+    if "unit" in body and len(str(body["unit"])) > 20:
+        return JSONResponse({"error": "unit too long (max 20 chars)"}, status_code=400)
+    if "notes" in body and len(str(body["notes"])) > 1000:
+        return JSONResponse({"error": "notes too long (max 1000 chars)"}, status_code=400)
     if "quantity" in body:
         try:
             qty = float(body["quantity"])
@@ -258,9 +277,12 @@ async def list_games():
     games = []
     idx = cfg.GAMES_DIR / "_index.json"
     if idx.exists():
-        data = json.loads(idx.read_text(encoding="utf-8"))
-        if isinstance(data, list):
-            games.extend(data)
+        try:
+            data = json.loads(idx.read_text(encoding="utf-8"))
+            if isinstance(data, list):
+                games.extend(data)
+        except (json.JSONDecodeError, OSError):
+            pass
     else:
         for f in sorted(cfg.GAMES_DIR.glob("*.html")):
             games.append({"id": f.stem, "name": f.stem.replace("-", " ").title(), "file": f.name, "type": "html"})
@@ -356,8 +378,12 @@ async def upsert_journal(request: Request):
         datetime.strptime(str(entry_date), "%Y-%m-%d")
     except ValueError:
         return JSONResponse({"error": "Data invalida"}, status_code=400)
-    content = body.get("content", "")
-    mood = body.get("mood", "neutral")
+    content = str(body.get("content", ""))
+    if len(content) > 1_000_000:
+        return JSONResponse({"error": "Conteudo muito longo (max 1MB)"}, status_code=400)
+    mood = str(body.get("mood", "neutral"))
+    if len(mood) > 50:
+        return JSONResponse({"error": "Mood muito longo (max 50 chars)"}, status_code=400)
     def _query():
         conn = _db()
         conn.execute(
@@ -447,9 +473,15 @@ async def get_note(note_id: int):
 @router.post("/api/notes")
 async def create_note(request: Request):
     data = await request.json()
-    title = data.get("title", "Sem titulo")
-    content = data.get("content", "")
-    doc_type = data.get("doc_type", "text")
+    title = str(data.get("title", "Sem titulo"))
+    if len(title) > 300:
+        return JSONResponse({"error": "Titulo muito longo (max 300 chars)"}, status_code=400)
+    content = str(data.get("content", ""))
+    if len(content) > 500_000:
+        return JSONResponse({"error": "Conteudo muito longo (max 500KB)"}, status_code=400)
+    doc_type = str(data.get("doc_type", "text"))
+    if len(doc_type) > 50:
+        return JSONResponse({"error": "doc_type muito longo (max 50 chars)"}, status_code=400)
     def _query():
         conn = _db()
         cur = conn.execute(
@@ -466,6 +498,12 @@ async def create_note(request: Request):
 @router.put("/api/notes/{note_id}")
 async def update_note(note_id: int, request: Request):
     data = await request.json()
+    if "title" in data and len(str(data["title"])) > 300:
+        return JSONResponse({"error": "title too long (max 300 chars)"}, status_code=400)
+    if "content" in data and len(str(data["content"])) > 500_000:
+        return JSONResponse({"error": "content too long (max 500KB)"}, status_code=400)
+    if "doc_type" in data and len(str(data["doc_type"])) > 50:
+        return JSONResponse({"error": "doc_type too long (max 50 chars)"}, status_code=400)
     fields = []
     values = []
     for key in ("title", "content", "doc_type"):
@@ -522,14 +560,19 @@ async def list_tasks(status: str = None, category: str = None):
 @router.post("/api/tasks")
 async def create_task(request: Request):
     body = await request.json()
-    title = body.get("title", "").strip()
+    title = str(body.get("title", "")).strip()
     if not title:
         return JSONResponse({"error": "Titulo obrigatorio"}, status_code=400)
+    if len(title) > 300:
+        return JSONResponse({"error": "Titulo muito longo (max 300 chars)"}, status_code=400)
+    description = str(body.get("description", ""))
+    if len(description) > 10_000:
+        return JSONResponse({"error": "Descricao muito longa (max 10000 chars)"}, status_code=400)
     def _query():
         conn = _db()
         cur = conn.execute(
             "INSERT INTO tasks (title, description, priority, category, due_date) VALUES (?,?,?,?,?)",
-            (title, body.get("description", ""), body.get("priority", "medium"),
+            (title, description, body.get("priority", "medium"),
              body.get("category", "geral"), body.get("due_date")),
         )
         conn.commit()
@@ -543,6 +586,10 @@ async def create_task(request: Request):
 @router.put("/api/tasks/{task_id}")
 async def update_task(task_id: int, request: Request):
     body = await request.json()
+    if "title" in body and len(str(body["title"])) > 300:
+        return JSONResponse({"error": "title too long (max 300 chars)"}, status_code=400)
+    if "description" in body and len(str(body["description"])) > 10_000:
+        return JSONResponse({"error": "description too long (max 10000 chars)"}, status_code=400)
     fields = []
     params = []
     for key in ("title", "description", "priority", "status", "due_date", "category"):
@@ -641,4 +688,5 @@ async def read_file(path: str, raw: str = ""):
             content = content[:102400] + "\n\n... [truncado em 100KB]"
         return {"content": content, "binary": False, "size": target.stat().st_size}
     except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
+        print(f"[FILES] read error: {e}")
+        return JSONResponse({"error": "Erro ao ler arquivo"}, status_code=500)
