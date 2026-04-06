@@ -2,6 +2,11 @@
 set -e
 cd "$(dirname "$0")/app"
 
+# ── Configuracao — altere aqui para mudar as portas ──────────────────────────
+PORT=8888        # Porta do servidor BunkerAI (FastAPI)
+LLAMA_PORT=8070  # Porta do llama-server (LLM local)
+# ─────────────────────────────────────────────────────────────────────────────
+
 echo "╔══════════════════════════════╗"
 echo "║      BunkerAI — Boot         ║"
 echo "╚══════════════════════════════╝"
@@ -63,7 +68,7 @@ if [ -f "$LLAMA_BIN" ]; then
 
     "$LLAMA_BIN" \
         --model "$MODEL" \
-        --port 8070 \
+        --port "$LLAMA_PORT" \
         --host 127.0.0.1 \
         --ctx-size 4096 \
         --n-gpu-layers $N_GPU_LAYERS \
@@ -84,10 +89,10 @@ elif command -v python3 &>/dev/null; then
     echo "[PY] Usando python3 do sistema"
 fi
 
-# Verificar se porta 8888 ja esta em uso
-if ss -tlnp 2>/dev/null | grep -q ':8888 ' || netstat -tlnp 2>/dev/null | grep -q ':8888 '; then
-    echo "[AVISO] Porta 8888 ja esta em uso. Encerrando processo anterior..."
-    fuser -k 8888/tcp 2>/dev/null || true
+# Verificar se porta $PORT ja esta em uso
+if ss -tlnp 2>/dev/null | grep -q ":${PORT} " || netstat -tlnp 2>/dev/null | grep -q ":${PORT} "; then
+    echo "[AVISO] Porta ${PORT} ja esta em uso. Encerrando processo anterior..."
+    fuser -k "${PORT}/tcp" 2>/dev/null || true
     sleep 1
 fi
 
@@ -98,7 +103,7 @@ SERVER_PID=$!
 
 # Aguardar o servidor responder (ate 20 segundos)
 WAIT=0
-until curl -sf http://localhost:8888/api/ping >/dev/null 2>&1; do
+until curl -sf "http://localhost:${PORT}/api/ping" >/dev/null 2>&1; do
     sleep 1
     WAIT=$((WAIT+1))
     if ! kill -0 $SERVER_PID 2>/dev/null; then
@@ -114,8 +119,8 @@ until curl -sf http://localhost:8888/api/ping >/dev/null 2>&1; do
 done
 
 # Abrir navegador
-echo "[OK] Abrindo http://localhost:8888"
-xdg-open "http://localhost:8888" 2>/dev/null || open "http://localhost:8888" 2>/dev/null || true
+echo "[OK] Abrindo http://localhost:${PORT}"
+xdg-open "http://localhost:${PORT}" 2>/dev/null || open "http://localhost:${PORT}" 2>/dev/null || true
 
 echo ""
 echo "=== BunkerAI rodando ==="

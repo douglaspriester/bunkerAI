@@ -3,6 +3,11 @@ setlocal enabledelayedexpansion
 title BunkerAI — Boot
 cd /d "%~dp0app"
 
+:: ── Configuracao — altere aqui para mudar as portas ─────────────────────────
+set PORT=8888
+set LLAMA_PORT=8070
+:: ────────────────────────────────────────────────────────────────────────────
+
 echo.
 echo  ╔══════════════════════════════╗
 echo  ║      BunkerAI — Boot         ║
@@ -80,7 +85,7 @@ set LLAMA_BIN=bin\win\llama-server.exe
 if exist "!LLAMA_BIN!" (
     set N_GPU_LAYERS=0
     if "!GPU_TYPE!"=="nvidia" set N_GPU_LAYERS=35
-    start /b "" "!LLAMA_BIN!" --model "!MODEL!" --port 8070 --host 127.0.0.1 --ctx-size 4096 --n-gpu-layers !N_GPU_LAYERS! --log-disable
+    start /b "" "!LLAMA_BIN!" --model "!MODEL!" --port !LLAMA_PORT! --host 127.0.0.1 --ctx-size 4096 --n-gpu-layers !N_GPU_LAYERS! --log-disable
     echo [LLM] llama-server iniciado
     timeout /t 3 /nobreak >nul
 ) else (
@@ -97,11 +102,11 @@ if exist "python\python.exe" (
     echo [PY] venv ativado
 )
 
-:: Verificar se porta 8888 ja esta em uso e encerrar processo anterior
-netstat -ano | findstr ":8888 " | findstr "LISTENING" >nul 2>&1
+:: Verificar se porta !PORT! ja esta em uso e encerrar processo anterior
+netstat -ano | findstr ":!PORT! " | findstr "LISTENING" >nul 2>&1
 if !errorlevel!==0 (
-    echo [AVISO] Porta 8888 em uso. Encerrando processo anterior...
-    for /f "tokens=5" %%p in ('netstat -ano ^| findstr ":8888 " ^| findstr "LISTENING"') do (
+    echo [AVISO] Porta !PORT! em uso. Encerrando processo anterior...
+    for /f "tokens=5" %%p in ('netstat -ano ^| findstr ":!PORT! " ^| findstr "LISTENING"') do (
         taskkill /pid %%p /f >nul 2>&1
     )
     timeout /t 1 /nobreak >nul
@@ -115,7 +120,7 @@ start /b "" !PYTHON! server.py
 set WAIT=0
 :wait_loop
 timeout /t 1 /nobreak >nul
-curl -sf http://localhost:8888/api/ping >nul 2>&1
+curl -sf http://localhost:!PORT!/api/ping >nul 2>&1
 if !errorlevel!==0 goto :server_ready
 set /a WAIT=!WAIT!+1
 if !WAIT! GEQ 20 (
@@ -126,8 +131,8 @@ goto :wait_loop
 :server_ready
 
 :: Abrir navegador
-echo [OK] Abrindo http://localhost:8888
-start "" http://localhost:8888
+echo [OK] Abrindo http://localhost:!PORT!
+start "" http://localhost:!PORT!
 
 echo.
 echo  === BunkerAI rodando ===
