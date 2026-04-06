@@ -12,6 +12,9 @@ router = APIRouter(tags=["rag"])
 
 RAG_DB = str(cfg.DATA_DIR / "rag.db")
 
+_MAX_RAG_FILE_BYTES = 50 * 1024 * 1024   # 50 MB — reject larger files
+_MAX_RAG_CHUNKS = 2000                    # per document — truncate with warning
+
 
 # ─── Text helpers ─────────────────────────────────────────────────────────────
 
@@ -36,10 +39,30 @@ def _rag_extract_text(content: bytes, filename: str) -> str:
 
 
 def _rag_chunk_text(text: str, chunk_size: int = 500, overlap: int = 50) -> list:
-    """Split text into overlapping chunks by words."""
+    """Split text into overlapping chunks by words.
+
+    Handles documents with no whitespace (e.g. accidental binary uploads) by
+    falling back to fixed-width character chunks so we don't return a single
+    enormous string as a single chunk.
+    """
     words = text.split()
     if not words:
         return []
+
+    # No-whitespace edge case: text.split() yields a single token that is the
+    # entire file content.  Treat as character-level chunking to avoid a 1-chunk
+    # document that could be millions of chars long.
+    if len(words) == 1 and len(text) > chunk_size * 6:
+        char_chunk = chunk_size * 6  # ~3000 chars per chunk
+        char_overlap = overlap * 6
+        chunks = []
+        i = 0
+        while i < len(text):
+            chunk = text[i:i + char_chunk]
+            chunks.append(chunk)
+            i += char_chunk - char_overlap
+        return [c for c in chunks if len(c.strip()) > 20]
+
     chunks = []
     i = 0
     while i < len(words):
@@ -94,6 +117,12 @@ async def rag_index_document(file: UploadFile = File(...)):
     content = await file.read()
     filename = file.filename or "document.txt"
 
+    if len(content) > _MAX_RAG_FILE_BYTES:
+        return JSONResponse(
+            {"status": "error", "message": f"Arquivo muito grande (max {_MAX_RAG_FILE_BYTES // (1024*1024)} MB)"},
+            status_code=400,
+        )
+
     doc_id = hashlib.md5(content).hexdigest()
 
     con = sqlite3.connect(RAG_DB)
@@ -112,6 +141,12 @@ async def rag_index_document(file: UploadFile = File(...)):
         con.close()
         return JSONResponse({"status": "error", "message": "Nenhum chunk gerado"}, status_code=400)
 
+    truncated = False
+    if len(chunks) > _MAX_RAG_CHUNKS:
+        print(f"[RAG] {filename}: {len(chunks)} chunks truncated to {_MAX_RAG_CHUNKS}")
+        chunks = chunks[:_MAX_RAG_CHUNKS]
+        truncated = True
+
     ext = filename.lower().rsplit(".", 1)[-1] if "." in filename else "txt"
     con.execute(
         "INSERT INTO rag_docs (id, filename, file_type, chunk_count) VALUES (?, ?, ?, ?)",
@@ -125,12 +160,15 @@ async def rag_index_document(file: UploadFile = File(...)):
     con.commit()
     con.close()
 
-    return JSONResponse({
+    response: dict = {
         "status": "indexed",
         "doc_id": doc_id,
         "filename": filename,
         "chunks": len(chunks),
-    })
+    }
+    if truncated:
+        response["warning"] = f"Documento truncado para {_MAX_RAG_CHUNKS} chunks"
+    return JSONResponse(response)
 
 
 @router.get("/api/rag/search")
