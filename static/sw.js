@@ -1,7 +1,7 @@
 // static/sw.js — BunkerAI Service Worker
 // Caches static assets for offline operation
 
-const CACHE_NAME = 'bunkerai-v2';
+const CACHE_NAME = 'bunkerai-v3';
 
 // Assets to pre-cache on install
 // NOTE: static files are served at "/" (not "/static/"), so paths start with /js/, /lib/, etc.
