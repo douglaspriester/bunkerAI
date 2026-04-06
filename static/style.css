@@ -662,6 +662,13 @@ body::after {
   padding-left: 12px;
 }
 
+/* ── Stream error ── */
+.stream-error {
+  color: #f87171;
+  font-style: italic;
+  opacity: 0.9;
+}
+
 /* ── Model stats footer ── */
 .msg-stats {
   font-size: 10px;

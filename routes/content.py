@@ -640,22 +640,45 @@ async def delete_task(task_id: int):
 # ─── File Manager ─────────────────────────────────────────────────────────────
 
 FILEMGR_ROOT = Path.cwd()
+_FILEMGR_ROOT_STR = str(FILEMGR_ROOT.resolve())
+
+
+def _is_safe_path(target: Path) -> bool:
+    """Return True only if target is strictly within FILEMGR_ROOT (no traversal, no symlink escape)."""
+    resolved = target.resolve()
+    root = _FILEMGR_ROOT_STR
+    # Ensure path is inside root — add trailing sep to prevent prefix-collision
+    # (e.g. root=/app must not match /app-secret)
+    target_str = str(resolved)
+    return target_str == root or target_str.startswith(root + "/") or target_str.startswith(root + "\\")
+
+
+# Maximum items to return from a single directory listing (prevents OOM on huge dirs)
+_FILEMGR_MAX_ITEMS = 500
 
 
 @router.get("/api/files")
 async def list_files(path: str = "."):
     target = (FILEMGR_ROOT / path).resolve()
-    if not str(target).startswith(str(FILEMGR_ROOT.resolve())):
+    if not _is_safe_path(target):
         return JSONResponse({"error": "Acesso negado"}, status_code=403)
     if not target.is_dir():
         return JSONResponse({"error": "Diretorio nao encontrado"}, status_code=404)
 
     items = []
+    truncated = False
     try:
-        for entry in sorted(target.iterdir(), key=lambda e: (not e.is_dir(), e.name.lower())):
+        all_entries = sorted(target.iterdir(), key=lambda e: (not e.is_dir(), e.name.lower()))
+        for entry in all_entries:
             if entry.name.startswith(".") or entry.name in ("__pycache__", "node_modules", ".git"):
                 continue
-            stat = entry.stat()
+            # Skip symlinks that point outside FILEMGR_ROOT to prevent escape
+            if entry.is_symlink() and not _is_safe_path(entry):
+                continue
+            try:
+                stat = entry.stat()
+            except OSError:
+                continue
             items.append({
                 "name": entry.name,
                 "type": "dir" if entry.is_dir() else "file",
@@ -663,19 +686,25 @@ async def list_files(path: str = "."):
                 "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
                 "ext": entry.suffix.lower() if entry.is_file() else None,
             })
+            if len(items) >= _FILEMGR_MAX_ITEMS:
+                truncated = True
+                break
     except PermissionError:
         return JSONResponse({"error": "Permissao negada"}, status_code=403)
 
     rel = str(target.relative_to(FILEMGR_ROOT)).replace("\\", "/")
     if rel == ".":
         rel = ""
-    return {"path": rel, "items": items}
+    return {"path": rel, "items": items, "truncated": truncated, "max_items": _FILEMGR_MAX_ITEMS}
 
 
 @router.get("/api/files/read")
 async def read_file(path: str, raw: str = ""):
     target = (FILEMGR_ROOT / path).resolve()
-    if not str(target).startswith(str(FILEMGR_ROOT.resolve())):
+    if not _is_safe_path(target):
+        return JSONResponse({"error": "Acesso negado"}, status_code=403)
+    # Reject symlinks pointing outside root
+    if (FILEMGR_ROOT / path).is_symlink() and not _is_safe_path(target):
         return JSONResponse({"error": "Acesso negado"}, status_code=403)
     if not target.is_file():
         return JSONResponse({"error": "Arquivo nao encontrado"}, status_code=404)

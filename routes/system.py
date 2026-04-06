@@ -356,6 +356,25 @@ async def health():
             "downloaded": onnx.exists() and onnx.stat().st_size > 1000,
         }
 
+    # ── RAG docs count ────────────────────────────────────────────────────────
+    rag_docs_count = 0
+    try:
+        rag_db = cfg.DATA_DIR / "rag.db"
+        if rag_db.exists():
+            con = sqlite3.connect(str(rag_db))
+            rag_docs_count = con.execute("SELECT COUNT(*) FROM rag_docs").fetchone()[0]
+            con.close()
+    except Exception:
+        pass
+
+    # ── Maps available count ──────────────────────────────────────────────────
+    maps_available = 0
+    try:
+        if cfg.MAPS_DIR.exists():
+            maps_available = len(list(cfg.MAPS_DIR.glob("*.pmtiles")))
+    except Exception:
+        pass
+
     try:
         async with httpx.AsyncClient(timeout=5) as c:
             r = await c.get(f"{cfg.OLLAMA_BASE}/api/tags")
@@ -384,6 +403,8 @@ async def health():
                 "pyttsx3_available": pyttsx3_ok,
                 "piper_models": piper_models_status,
                 "offline_mode": cfg.OFFLINE_MODE,
+                "rag_docs_count": rag_docs_count,
+                "maps_available": maps_available,
             }
     except Exception:
         pass
@@ -411,6 +432,8 @@ async def health():
                     "pyttsx3_available": pyttsx3_ok,
                     "piper_models": piper_models_status,
                     "portable": True,
+                    "rag_docs_count": rag_docs_count,
+                    "maps_available": maps_available,
                 }
         except Exception:
             pass
@@ -430,6 +453,8 @@ async def health():
         "pyttsx3_available": pyttsx3_ok,
         "piper_models": piper_models_status,
         "offline_mode": cfg.OFFLINE_MODE,
+        "rag_docs_count": rag_docs_count,
+        "maps_available": maps_available,
     }
 
 

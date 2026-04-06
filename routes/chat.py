@@ -73,10 +73,13 @@ def _chat_stream_ollama(payload: dict, timeout: float) -> StreamingResponse:
                         except json.JSONDecodeError:
                             pass
         except httpx.ConnectError:
-            yield f"data: {json.dumps({'token': '[Erro: Ollama nao conectado]'})}\n\n"
+            yield f"data: {json.dumps({'error': 'Modelo IA indisponivel. Verifique se o Ollama esta rodando.'})}\n\n"
             yield f"data: {json.dumps({'done': True})}\n\n"
         except httpx.TimeoutException:
-            yield f"data: {json.dumps({'token': '[Erro: tempo limite excedido]'})}\n\n"
+            yield f"data: {json.dumps({'error': 'Tempo limite excedido. O modelo pode estar carregando — tente novamente.'})}\n\n"
+            yield f"data: {json.dumps({'done': True})}\n\n"
+        except Exception as _e:
+            yield f"data: {json.dumps({'error': f'Erro inesperado: {type(_e).__name__}'})}\n\n"
             yield f"data: {json.dumps({'done': True})}\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream")
@@ -122,7 +125,13 @@ def _chat_stream_llamacpp(payload: dict, timeout: float) -> StreamingResponse:
                         except (json.JSONDecodeError, IndexError, KeyError):
                             pass
         except httpx.ConnectError:
-            yield f"data: {json.dumps({'token': '[Erro: servidor LLM nao conectado]'})}\n\n"
+            yield f"data: {json.dumps({'error': 'Modelo IA indisponivel. Verifique se o servidor llama.cpp esta rodando.'})}\n\n"
+            yield f"data: {json.dumps({'done': True})}\n\n"
+        except httpx.TimeoutException:
+            yield f"data: {json.dumps({'error': 'Tempo limite excedido. O modelo pode estar carregando — tente novamente.'})}\n\n"
+            yield f"data: {json.dumps({'done': True})}\n\n"
+        except Exception as _e:
+            yield f"data: {json.dumps({'error': f'Erro inesperado: {type(_e).__name__}'})}\n\n"
             yield f"data: {json.dumps({'done': True})}\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream")

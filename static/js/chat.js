@@ -453,9 +453,18 @@ function setStopMode(on) {
 export async function streamFromAPI(url, body, contentEl) {
   let full = "";
   let stats = null;
+  let errorMsg = null;
   const controller = new AbortController();
   state.abortController = controller;
   setStopMode(true);
+
+  // 3-minute client-side timeout
+  const STREAM_TIMEOUT_MS = 3 * 60 * 1000;
+  const timeoutId = setTimeout(() => {
+    if (!controller.signal.aborted) {
+      controller.abort("timeout");
+    }
+  }, STREAM_TIMEOUT_MS);
 
   try {
     const r = await fetch(url, {
@@ -476,6 +485,9 @@ export async function streamFromAPI(url, body, contentEl) {
         if (line.startsWith("data: ")) {
           try {
             const data = JSON.parse(line.slice(6));
+            if (data.error) {
+              errorMsg = data.error;
+            }
             if (data.token) {
               full += data.token;
               contentEl.textContent = full;
@@ -487,9 +499,17 @@ export async function streamFromAPI(url, body, contentEl) {
       }
     }
   } catch (e) {
-    if (e.name !== "AbortError") {
-      contentEl.textContent = `Erro: ${e.message}. Verifique se o servidor de IA esta rodando.`;
+    if (e.name === "AbortError") {
+      const reason = controller.signal.reason;
+      if (reason === "timeout") {
+        errorMsg = "Tempo esgotado — o modelo pode estar carregando. Tente novamente.";
+      }
+      // else: user-triggered abort, no message needed
+    } else {
+      errorMsg = `Erro: ${e.message}. Verifique se o servidor de IA esta rodando.`;
     }
+  } finally {
+    clearTimeout(timeoutId);
   }
 
   state.abortController = null;
@@ -497,6 +517,12 @@ export async function streamFromAPI(url, body, contentEl) {
 
   const dots = contentEl.parentElement?.querySelector(".typing-indicator");
   if (dots) dots.remove();
+
+  // Show error state clearly (including timeout abort messages)
+  if (errorMsg) {
+    contentEl.innerHTML = `<span class="stream-error">${escapeHtml(errorMsg)}</span>`;
+    return full;
+  }
 
   if (full) contentEl.innerHTML = markdownToHtml(full) + (controller.signal.aborted ? ' <em class="stream-stopped">[interrompido]</em>' : "");
 
