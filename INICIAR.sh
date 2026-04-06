@@ -7,15 +7,15 @@ echo "║      BunkerAI — Boot         ║"
 echo "╚══════════════════════════════╝"
 
 # Detectar RAM
-RAM_GB=$(sysctl -n hw.memsize 2>/dev/null | awk '{printf "%d", $1/1024/1024/1024}')
+RAM_GB=$(free -g 2>/dev/null | awk '/^Mem:/{print $2}')
+if [ -z "$RAM_GB" ]; then
+    RAM_GB=$(awk '/MemTotal/{printf "%d", $2/1024/1024}' /proc/meminfo 2>/dev/null || echo 0)
+fi
 echo "[HW] RAM: ${RAM_GB}GB"
 
 # Detectar GPU
 GPU_TYPE="cpu"
-if system_profiler SPDisplaysDataType 2>/dev/null | grep -qi "apple m"; then
-    GPU_TYPE="apple"
-    echo "[HW] GPU: Apple Silicon"
-elif command -v nvidia-smi &>/dev/null && nvidia-smi &>/dev/null; then
+if command -v nvidia-smi &>/dev/null && nvidia-smi &>/dev/null; then
     GPU_TYPE="nvidia"
     echo "[HW] GPU: NVIDIA"
 else
@@ -24,10 +24,10 @@ fi
 
 # Escolher modelo com base no hardware
 MODEL=""
-if [ -f "models/dolphin-8b-q4.gguf" ] && ([ "$GPU_TYPE" != "cpu" ] || [ "$RAM_GB" -ge 16 ]); then
+if [ -f "models/dolphin-8b-q4.gguf" ] && ([ "$GPU_TYPE" = "nvidia" ] || [ "$RAM_GB" -ge 16 ]); then
     MODEL="models/dolphin-8b-q4.gguf"
     echo "[LLM] Modelo: 8B (uncensored)"
-elif [ -f "models/dolphin-2.9.4-llama3.1-8b-Q4_K_M.gguf" ] && ([ "$GPU_TYPE" != "cpu" ] || [ "$RAM_GB" -ge 16 ]); then
+elif [ -f "models/dolphin-2.9.4-llama3.1-8b-Q4_K_M.gguf" ] && ([ "$GPU_TYPE" = "nvidia" ] || [ "$RAM_GB" -ge 16 ]); then
     MODEL="models/dolphin-2.9.4-llama3.1-8b-Q4_K_M.gguf"
     echo "[LLM] Modelo: 8B Q4 (uncensored)"
 elif [ -f "models/dolphin-1b-q4.gguf" ]; then
@@ -53,12 +53,11 @@ pkill -f "llama-server" 2>/dev/null || true
 sleep 1
 
 # Iniciar llama-server
-LLAMA_BIN="bin/mac/llama-server"
+LLAMA_BIN="bin/linux/llama-server"
 if [ -f "$LLAMA_BIN" ]; then
     chmod +x "$LLAMA_BIN"
-    # Usar layers GPU se Apple Silicon ou NVIDIA
+    # Usar layers GPU se NVIDIA detectada
     N_GPU_LAYERS=0
-    [ "$GPU_TYPE" = "apple" ] && N_GPU_LAYERS=99
     [ "$GPU_TYPE" = "nvidia" ] && N_GPU_LAYERS=35
 
     "$LLAMA_BIN" \
@@ -100,7 +99,7 @@ fi
 
 # Abrir navegador
 echo "[OK] Abrindo http://localhost:8888"
-open "http://localhost:8888" 2>/dev/null || xdg-open "http://localhost:8888" 2>/dev/null || true
+xdg-open "http://localhost:8888" 2>/dev/null || open "http://localhost:8888" 2>/dev/null || true
 
 echo ""
 echo "=== BunkerAI rodando ==="

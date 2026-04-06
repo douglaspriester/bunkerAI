@@ -4,15 +4,18 @@ build_portable.py — Monta o pacote portátil do Bunker AI para pendrive.
 
 Baixa automaticamente:
   - Python embeddable (Windows)
-  - llama-server (llama.cpp)
-  - Modelo GGUF built-in (Qwen2.5-1.5B-Instruct, ~1GB, roda em CPU)
+  - llama-server (llama.cpp) para Mac, Windows e Linux (bin/mac/, bin/win/, bin/linux/)
+  - Modelos GGUF built-in (uncensored por padrao)
   - Dependências pip (offline wheel cache)
+  - Launchers inteligentes (INICIAR.command / INICIAR.bat / INICIAR.sh)
 
 Uso:
   python build_portable.py [--output PASTA] [--model URL_GGUF] [--skip-model]
+  python build_portable.py --light    # so modelo CPU 1B (~1 GB)
+  python build_portable.py --full     # 3 modelos + Kokoro TTS (~7 GB)
 
 Resultado:
-  Uma pasta pronta pra copiar pro pendrive com INICIAR.bat na raiz.
+  Uma pasta pronta pra copiar pro pendrive. Double-click em INICIAR.
 
 DON'T PANIC.
 """
@@ -39,6 +42,15 @@ LLAMA_CPP_VERSION = "b5200"
 LLAMA_CPP_URLS = {
     "windows": f"https://github.com/ggml-org/llama.cpp/releases/download/{LLAMA_CPP_VERSION}/llama-{LLAMA_CPP_VERSION}-bin-win-cpu-x64.zip",
     "linux": f"https://github.com/ggml-org/llama.cpp/releases/download/{LLAMA_CPP_VERSION}/llama-{LLAMA_CPP_VERSION}-bin-ubuntu-x64.zip",
+    # macOS: universal build (Apple Silicon + Intel)
+    "mac": f"https://github.com/ggml-org/llama.cpp/releases/download/{LLAMA_CPP_VERSION}/llama-{LLAMA_CPP_VERSION}-bin-macos-arm64.zip",
+}
+
+# Mapeamento plataforma -> pasta bin/ de destino no pacote portatil
+LLAMA_BIN_DIRS = {
+    "windows": "bin/win",
+    "linux": "bin/linux",
+    "mac": "bin/mac",
 }
 
 # Chrome for Testing — portable Chromium (no install needed)
@@ -95,6 +107,16 @@ BUILTIN_MODELS = [
         "uncensored": False,
     },
 ]
+
+# ─── Presets de build ────────────────────────────────────────────────────────
+# --light: so o modelo CPU (~0.8 GB) — pendrive de 2 GB
+# --full:  3 modelos + Kokoro TTS (~7 GB) — pendrive de 8 GB
+BUILTIN_MODELS_LIGHT = [m for m in BUILTIN_MODELS if m["type"] == "cpu"]
+BUILTIN_MODELS_FULL = BUILTIN_MODELS  # todos os 3
+
+# Kokoro TTS (sintetizador de voz offline, ~300 MB)
+KOKORO_TTS_URL = "https://huggingface.co/hexgrad/Kokoro-82M/resolve/main/kokoro-v1_0.pth"
+KOKORO_TTS_FILE = "kokoro-v1_0.pth"
 
 # Pacotes pip necessários (sem os opcionais pesados como whisper/pyttsx3)
 PIP_PACKAGES = [
@@ -162,8 +184,15 @@ def extract_zip(zip_path: Path, dest_dir: Path):
 
 # ── Build steps ───────────────────────────────────────────────────────────────
 
-def build_portable(output_dir: Path, skip_model: bool = False, cpu_only: bool = False, skip_chrome: bool = False, skip_sd: bool = False):
-    """Assemble the portable package."""
+def build_portable(output_dir: Path, skip_model: bool = False, cpu_only: bool = False,
+                   skip_chrome: bool = False, skip_sd: bool = False,
+                   light: bool = False, full: bool = False):
+    """Assemble the portable package.
+
+    Presets:
+      light — apenas modelo CPU 1B (~0.8 GB). Ideal para pendrives de 2 GB.
+      full  — 3 modelos + Kokoro TTS (~7 GB). Pacote completo.
+    """
 
     print()
     print(bold("  ╔══════════════════════════════════════════════════╗"))
@@ -171,6 +200,13 @@ def build_portable(output_dir: Path, skip_model: bool = False, cpu_only: bool = 
     print(bold("  ║   DON'T PANIC                                   ║"))
     print(bold("  ╚══════════════════════════════════════════════════╝"))
     print()
+
+    if light:
+        info("Preset: --light (modelo CPU ~0.8 GB, sem Chrome, sem SD)")
+    elif full:
+        info("Preset: --full  (3 modelos + Kokoro TTS ~7 GB)")
+    else:
+        info("Preset: padrao (todos os modelos, com Chrome e SD)")
 
     os_name = "windows" if platform.system() == "Windows" else "linux"
 
@@ -225,8 +261,10 @@ def build_portable(output_dir: Path, skip_model: bool = False, cpu_only: bool = 
     else:
         info("Linux: usando Python do sistema (python3)")
 
-    # ─── 2. llama.cpp server ─────────────────────────────────────────────────
-    step("2/8 — llama.cpp server")
+    # ─── 2. llama.cpp server (plataforma atual) ──────────────────────────────
+    # Nota: o step 6b baixa para as 3 plataformas em app/bin/{mac,win,linux}/
+    # Este step baixa para runtime/llama/ (usado pelo launcher embutido legado)
+    step("2/8 — llama.cpp server (plataforma atual)")
 
     llama_url = LLAMA_CPP_URLS.get(os_name)
     if llama_url:
@@ -266,10 +304,17 @@ def build_portable(output_dir: Path, skip_model: bool = False, cpu_only: bool = 
         warn("Download de modelos pulado (--skip-model)")
         warn("Coloque arquivos .gguf em models/ manualmente")
     else:
-        models_to_dl = BUILTIN_MODELS
-        if cpu_only:
+        if light:
+            models_to_dl = BUILTIN_MODELS_LIGHT
+            info("Preset --light: baixando apenas modelo CPU 1B (~0.8 GB)")
+        elif full:
+            models_to_dl = BUILTIN_MODELS_FULL
+            info("Preset --full: baixando 3 modelos completos (~7 GB)")
+        elif cpu_only:
             models_to_dl = [m for m in BUILTIN_MODELS if m["type"] == "cpu"]
             info("Modo --cpu-only: baixando apenas modelo CPU")
+        else:
+            models_to_dl = BUILTIN_MODELS
 
         for model_info in models_to_dl:
             model_path = models_dir / model_info["filename"]
@@ -293,6 +338,16 @@ def build_portable(output_dir: Path, skip_model: bool = False, cpu_only: bool = 
         ],
     }
     (models_dir / "manifest.json").write_text(_json.dumps(manifest, indent=2, ensure_ascii=False))
+
+    # Kokoro TTS — apenas no preset --full
+    if full:
+        kokoro_dir = output_dir / "app" / "kokoro_models"
+        kokoro_dir.mkdir(parents=True, exist_ok=True)
+        kokoro_path = kokoro_dir / KOKORO_TTS_FILE
+        if not kokoro_path.exists():
+            download(KOKORO_TTS_URL, kokoro_path, f"Kokoro TTS (~300 MB)")
+        else:
+            info(f"Kokoro TTS ja existe: {KOKORO_TTS_FILE}")
 
     # ─── 4. Chromium portátil ─────────────────────────────────────────────
     step("4/8 — Chromium portátil (browser embutido)")
@@ -375,6 +430,15 @@ def build_portable(output_dir: Path, skip_model: bool = False, cpu_only: bool = 
     # ─── 6. Copiar app ──────────────────────────────────────────────────────
     step("6/8 — Copiando app Bunker AI")
 
+    # O app fica em output_dir/app/ para que os launchers na raiz possam fazer
+    # cd "$(dirname "$0")/app"
+    app_dest = output_dir / "app"
+    app_dest.mkdir(exist_ok=True)
+
+    # Mover modelos para app/models/ (ja foram baixados em output_dir/models/)
+    if (output_dir / "models").exists():
+        shutil.move(str(output_dir / "models"), str(app_dest / "models"))
+
     # Copy app files
     app_files = [
         "server.py", "setup_downloads.py", "requirements.txt",
@@ -382,7 +446,7 @@ def build_portable(output_dir: Path, skip_model: bool = False, cpu_only: bool = 
     for f in app_files:
         src = ROOT / f
         if src.exists():
-            shutil.copy2(src, output_dir / f)
+            shutil.copy2(src, app_dest / f)
             info(f)
 
     # Copy directories
@@ -390,29 +454,83 @@ def build_portable(output_dir: Path, skip_model: bool = False, cpu_only: bool = 
     for d in app_dirs:
         src = ROOT / d
         if src.is_dir():
-            shutil.copytree(src, output_dir / d, dirs_exist_ok=True,
+            shutil.copytree(src, app_dest / d, dirs_exist_ok=True,
                            ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".git"))
             info(f"{d}/")
 
-    # Create required dirs
+    # Create required dirs inside app/
     for d in ["generated_apps", "tts_cache", "voice_models", "generated_images"]:
-        (output_dir / d).mkdir(exist_ok=True)
+        (app_dest / d).mkdir(exist_ok=True)
 
-    # ─── 6. Criar launchers ─────────────────────────────────────────────────
-    step("7/8 — Criando launchers")
+    # Write portable config marker inside app/
+    (app_dest / ".portable").write_text("bunker-ai-portable\n")
 
-    # Write INICIAR.bat
-    iniciar_bat = output_dir / "INICIAR.bat"
-    iniciar_bat.write_text(_INICIAR_BAT, encoding="utf-8")
-    info("INICIAR.bat")
+    # ─── 6b. llama.cpp binarios multi-plataforma ─────────────────────────────
+    step("6b/8 — llama.cpp binarios (Mac + Windows + Linux)")
+    info("Baixando llama-server para as 3 plataformas (bin/mac, bin/win, bin/linux)...")
 
-    # Write INICIAR.sh
-    iniciar_sh = output_dir / "INICIAR.sh"
-    iniciar_sh.write_text(_INICIAR_SH, encoding="utf-8")
-    info("INICIAR.sh")
+    for platform_name, llama_url in LLAMA_CPP_URLS.items():
+        bin_subdir = app_dest / LLAMA_BIN_DIRS[platform_name]
+        bin_subdir.mkdir(parents=True, exist_ok=True)
 
-    # Write portable config marker
-    (output_dir / ".portable").write_text("bunker-ai-portable\n")
+        # Nome do binario esperado
+        bin_name = "llama-server.exe" if platform_name == "windows" else "llama-server"
+        bin_dest = bin_subdir / bin_name
+
+        if bin_dest.exists():
+            info(f"llama-server {platform_name} ja existe")
+            continue
+
+        llama_zip = tmp_dir / f"llama-cpp-{platform_name}.zip"
+        if download(llama_url, llama_zip, f"llama.cpp {LLAMA_CPP_VERSION} ({platform_name})"):
+            # Extrai para temp e procura o binario
+            extract_tmp = tmp_dir / f"llama_extract_{platform_name}"
+            extract_zip(llama_zip, extract_tmp)
+
+            # Procura o binario llama-server dentro do zip extraido
+            server_names = [bin_name, "llama-server.exe", "llama-server", "server.exe", "server"]
+            found_bin = None
+            for root_dir, dirs, files in os.walk(str(extract_tmp)):
+                for sn in server_names:
+                    if sn in files:
+                        found_bin = Path(root_dir) / sn
+                        break
+                if found_bin:
+                    break
+
+            if found_bin:
+                shutil.copy2(found_bin, bin_dest)
+                if platform_name != "windows":
+                    bin_dest.chmod(0o755)
+                info(f"llama-server {platform_name} -> {LLAMA_BIN_DIRS[platform_name]}/")
+            else:
+                warn(f"llama-server nao encontrado no zip de {platform_name}")
+
+            shutil.rmtree(extract_tmp, ignore_errors=True)
+        else:
+            warn(f"Falha ao baixar llama.cpp para {platform_name}")
+
+    # ─── 7. Criar launchers ─────────────────────────────────────────────────
+    step("7/8 — Criando launchers inteligentes")
+
+    # Copiar launchers do projeto para a raiz do pacote
+    launcher_files = [
+        ("INICIAR.command", False),   # (nome, is_bat)
+        ("INICIAR.bat", True),
+        ("INICIAR.sh", False),
+        ("LEIA-ME.txt", False),
+    ]
+    for fname, is_bat in launcher_files:
+        src = ROOT / fname
+        dst = output_dir / fname
+        if src.exists():
+            shutil.copy2(src, dst)
+            # Tornar scripts executaveis em sistemas Unix
+            if not is_bat and fname.endswith((".command", ".sh")):
+                dst.chmod(0o755)
+            info(fname)
+        else:
+            warn(f"{fname} nao encontrado em {ROOT} — pulando")
 
     # ─── 8. Run setup (download content) ────────────────────────────────────
     step("8/8 — Conteúdo offline (livros, músicas, guias)")
@@ -435,15 +553,20 @@ def build_portable(output_dir: Path, skip_model: bool = False, cpu_only: bool = 
     print(f"  Tamanho:  {total_mb:.0f} MB")
     print()
     has_chrome = (chrome_dir / "chrome.exe").exists() or (chrome_dir / "chrome").exists()
-    print(f"  Browser:  {'Chromium portátil embutido' if has_chrome else 'Usa browser do sistema'}")
+    print(f"  Browser:  {'Chromium portatil embutido' if has_chrome else 'Usa browser do sistema'}")
+    has_mac_bin = (output_dir / "app" / "bin" / "mac" / "llama-server").exists()
+    has_win_bin = (output_dir / "app" / "bin" / "win" / "llama-server.exe").exists()
+    has_lin_bin = (output_dir / "app" / "bin" / "linux" / "llama-server").exists()
+    bin_ok = [p for p, ok in [("Mac", has_mac_bin), ("Win", has_win_bin), ("Linux", has_lin_bin)] if ok]
+    print(f"  llama.cpp: {', '.join(bin_ok) if bin_ok else 'nenhum baixado'}")
     print()
     print(f"  Para usar:")
     print(f"    1. Copie a pasta '{output_dir.name}' para o pendrive")
-    print(f"    2. No PC destino, double-click em {bold('INICIAR.bat')}")
-    if has_chrome:
-        print(f"    3. O Chromium abre automaticamente (modo app, sem barra)")
-    else:
-        print(f"    3. Abra o navegador em http://localhost:8888")
+    print(f"    2. Mac:     double-click em {bold('INICIAR.command')}")
+    print(f"       Windows: double-click em {bold('INICIAR.bat')}")
+    print(f"       Linux:   bash {bold('INICIAR.sh')}")
+    print(f"    3. O launcher detecta hardware e inicia automaticamente")
+    print(f"    4. Acesse http://localhost:8888 no navegador")
     print()
     dp = "DON'T PANIC"
     print(f"  {bold(dp)}")
@@ -819,19 +942,42 @@ $PYTHON_EXE -m uvicorn server:app --host 0.0.0.0 --port 8888
 # ── CLI ───────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Bunker AI — Build Portátil para Pendrive")
+    parser = argparse.ArgumentParser(
+        description="Bunker AI — Build Portátil para Pendrive",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Presets rapidos:
+  --light   So o modelo CPU 1B (~0.8 GB). Pendrive de 2 GB.
+  --full    3 modelos + Kokoro TTS (~7 GB). Pacote completo.
+
+Exemplos:
+  python build_portable.py --light
+  python build_portable.py --full --output BunkerAI-USB
+  python build_portable.py --skip-model --skip-chrome
+        """,
+    )
     parser.add_argument("--output", "-o", default="BunkerAI-Portable",
-                       help="Pasta de saída (default: BunkerAI-Portable)")
+                       help="Pasta de saida (default: BunkerAI-Portable)")
     parser.add_argument("--skip-model", action="store_true",
                        help="Pular download dos modelos (coloque manualmente depois)")
     parser.add_argument("--cpu-only", action="store_true",
                        help="Baixar apenas o modelo CPU (pendrive menor, ~1 GB)")
     parser.add_argument("--skip-chrome", action="store_true",
-                       help="Pular download do Chromium portátil (usa browser do sistema)")
+                       help="Pular download do Chromium portatil (usa browser do sistema)")
     parser.add_argument("--skip-sd", action="store_true",
                        help="Pular download do sd-server (gerador de imagens)")
+    # Novos presets v2
+    parser.add_argument("--light", action="store_true",
+                       help="Preset leve: so modelo CPU 1B (~0.8 GB) + skip-chrome + skip-sd")
+    parser.add_argument("--full", action="store_true",
+                       help="Preset completo: 3 modelos + Kokoro TTS (~7 GB)")
     args = parser.parse_args()
+
+    # Preset --light implica skip-chrome e skip-sd
+    skip_chrome = args.skip_chrome or args.light
+    skip_sd = args.skip_sd or args.light
 
     output = Path(args.output)
     build_portable(output, skip_model=args.skip_model, cpu_only=args.cpu_only,
-                   skip_chrome=args.skip_chrome, skip_sd=args.skip_sd)
+                   skip_chrome=skip_chrome, skip_sd=skip_sd,
+                   light=args.light, full=args.full)

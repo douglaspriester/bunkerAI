@@ -1,60 +1,74 @@
 ═══════════════════════════════════════════════════════════════
-  BUNKER AI — Sistema Operacional de Sobrevivencia com IA Local
+  BUNKER AI — Sistema de Sobrevivencia com IA Local
   100% Offline · DON'T PANIC
 ═══════════════════════════════════════════════════════════════
 
 ESTRUTURA DA PASTA:
 ═══════════════════
   BunkerAI/
-  ├── INICIAR.command    ← Mac: duplo-clique aqui
-  ├── INICIAR.bat        ← Windows: duplo-clique aqui
-  ├── LEIA-ME.txt        ← Voce esta aqui
-  └── app/               ← Arquivos do sistema
+  ├── INICIAR.command    <- Mac: duplo-clique aqui
+  ├── INICIAR.bat        <- Windows: duplo-clique aqui
+  ├── INICIAR.sh         <- Linux: bash INICIAR.sh no terminal
+  ├── LEIA-ME.txt        <- Voce esta aqui
+  └── app/               <- Arquivos do sistema
       ├── server.py
+      ├── models/        <- Modelos LLM (.gguf)
+      ├── bin/
+      │   ├── mac/       <- llama-server para macOS
+      │   ├── win/       <- llama-server.exe para Windows
+      │   └── linux/     <- llama-server para Linux
       ├── static/
       ├── data/
       └── venv/
 
-REQUISITOS (instalar UMA VEZ com internet):
-═══════════════════════════════════════════
-  1. Python 3.10+       → https://python.org
-  2. Ollama             → https://ollama.ai
-  3. Modelo de IA       → No terminal: ollama pull dolphin3
-
-  Apos isso, tudo funciona 100% offline para sempre.
-
-COMO USAR:
-══════════
+COMO USAR (ZERO configuracao):
+═══════════════════════════════
   Mac:     Duplo-clique em INICIAR.command
   Windows: Duplo-clique em INICIAR.bat
-  Linux:   No terminal: cd app && bash start.sh
+  Linux:   No terminal: bash INICIAR.sh
+
+  O launcher detecta automaticamente:
+    - Quantidade de RAM disponivel
+    - Presenca de GPU (Apple Silicon, NVIDIA)
+    - Melhor modelo LLM para o hardware
+    - Inicia llama-server + BunkerAI
 
   O browser abre automaticamente em http://localhost:8888
 
-PARA DISTRIBUIR (pendrive/HD externo):
-══════════════════════════════════════
-  1. Copie esta pasta inteira para o pendrive
-  2. No computador destino, instale Python + Ollama
-  3. Rode: ollama pull dolphin3
-  4. Duplo-clique em INICIAR
+MODELOS INCLUIDOS:
+══════════════════
+  Pacote Light (~1 GB total):
+    - dolphin-1b-q4.gguf  — CPU leve, roda em qualquer PC
 
-  A primeira execucao cria o ambiente virtual automaticamente.
-  Depois disso, tudo roda sem internet.
+  Pacote Full (~7 GB total):
+    - dolphin-1b-q4.gguf  — CPU leve (fallback)
+    - dolphin-8b-q4.gguf  — GPU uncensored (principal)
+    - kokoro TTS          — Sintetizador de voz
 
-MODELOS RECOMENDADOS:
-════════════════════
-  ollama pull dolphin3           Chat principal (uncensored, ~5GB)
-  ollama pull gemma3:4b          Visao + webcam (compacto, ~3GB)
-  ollama pull qwen2.5-coder:7b  Gerador de apps (~5GB)
+  Selecao automatica pelo launcher:
+    - RAM < 8GB ou sem GPU  -> modelo 1B (CPU)
+    - RAM >= 16GB ou GPU    -> modelo 8B (uncensored)
 
-ATALHOS NO APP:
-══════════════
-  Ctrl+K     Busca rapida (Spotlight)
-  Alt+Tab    Alternar janelas
-  F1         Atalhos
-  F2         Menu Iniciar
+REQUISITOS:
+═══════════
+  - Python 3.10+ instalado no sistema
+    (Windows: baixe em https://python.org)
+    (Mac/Linux: geralmente ja esta instalado)
+
+  - Nenhuma internet necessaria apos primeira instalacao
+
+PARA GERAR ESTE PACOTE (desenvolvedores):
+══════════════════════════════════════════
+  # Pacote leve (~1 GB, so modelo CPU)
+  python build_portable.py --light
+
+  # Pacote completo (~7 GB, 3 modelos + TTS)
+  python build_portable.py --full
+
+  # Opcoes avancadas
+  python build_portable.py --output MinhaPasta --skip-model
 
 SUPORTE:
-═══════
+════════
   GitHub: github.com/douglaspriester/bunkerAI
 ═══════════════════════════════════════════════════════════════
