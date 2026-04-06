@@ -265,4 +265,13 @@ app.mount("/", StaticFiles(directory="static", html=True), name="static")
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8888)
+    print("""
+╔══════════════════════════════════════╗
+║   BunkerAI — Servidor Iniciado       ║
+║   http://localhost:8888              ║
+╚══════════════════════════════════════╝
+""")
+    try:
+        uvicorn.run(app, host="0.0.0.0", port=8888)
+    except KeyboardInterrupt:
+        print("\n[BunkerAI] Servidor encerrado. DON'T PANIC.")

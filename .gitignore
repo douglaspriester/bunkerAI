@@ -1,14 +1,20 @@
 venv/
+.venv/
 __pycache__/
 *.pyc
 *.pyo
+*.egg-info/
 .env
 tts_cache/
 generated_apps/
 static/maps/*.pmtiles
 !static/maps/world_basic.pmtiles
+static/img/icon-*.png
 .claude/
 data/db/
+data/rag.db
+data/bunker.db
+data/supplies.db
 models/*.gguf
 !models/qwen2.5-0.5b-instruct-q4_k_m.gguf
 bin/
@@ -17,3 +23,19 @@ voice_models/
 *.wav
 *.mp3
 tools/pmtiles.exe
+
+# Build output
+dist/
+build/
+BunkerAI-portable/
+*.tmp
+
+# System
+.DS_Store
+*.swp
+*.swo
+Thumbs.db
+
+# Logs
+*.log
+/tmp/bunker_*.log

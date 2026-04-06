@@ -148,9 +148,23 @@ function _loadScriptTag(src) {
 
 async function loadAppsScript() {
   for (const src of APP_SCRIPTS) {
-    await _loadScriptTag(src);
+    try {
+      await _loadScriptTag(src);
+    } catch (err) {
+      console.error('[BunkerOS] Failed to load app script:', src, err);
+      // Continue loading remaining scripts even if one fails
+    }
   }
 }
+
+// ─── Global error handlers ───────────────────────────────────────────────────
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('[BunkerOS] Unhandled promise rejection:', {
+    reason: event.reason,
+    message: event.reason?.message || String(event.reason),
+    stack: event.reason?.stack || '(no stack)',
+  });
+});
 
 async function boot() {
   // 1. Load persisted data

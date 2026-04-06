@@ -13,6 +13,7 @@
 
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' http://localhost:* ws://localhost:*;">
   <title>Bunker OS — DON'T PANIC</title>
   <link rel="stylesheet" href="./lib/leaflet.css" />
   <link rel="stylesheet" href="./fonts/fonts.css" />
@@ -26,6 +27,13 @@
   <link rel="apple-touch-icon" href="/img/icon-192.png">
 </head>
 <body>
+
+  <noscript>
+    <div style="background:#0a0a0a;color:#00ff88;font-family:monospace;padding:2rem;text-align:center;position:fixed;inset:0;z-index:99999">
+      <h2>Bunker OS — JavaScript Requerido</h2>
+      <p>Este aplicativo requer JavaScript para funcionar. Por favor, ative o JavaScript no seu navegador.</p>
+    </div>
+  </noscript>
 
   <!-- Animated sweep line -->
   <div class="sweep-line" aria-hidden="true"></div>
