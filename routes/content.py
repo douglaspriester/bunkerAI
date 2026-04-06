@@ -130,11 +130,21 @@ async def supplies_summary():
 @router.post("/api/supplies")
 async def create_supply(request: Request):
     body = await request.json()
+    name = str(body.get("name", "")).strip()
+    if not name:
+        return JSONResponse({"error": "Nome obrigatorio"}, status_code=400)
+    quantity = body.get("quantity", 0)
+    try:
+        quantity = float(quantity)
+    except (TypeError, ValueError):
+        quantity = 0.0
+    if quantity < 0:
+        return JSONResponse({"error": "Quantidade nao pode ser negativa"}, status_code=400)
     def _query():
         conn = _db()
         cur = conn.execute(
             "INSERT INTO supplies (name, category, quantity, unit, expiry, notes) VALUES (?, ?, ?, ?, ?, ?)",
-            (body.get("name", ""), body.get("category", "outros"), body.get("quantity", 0),
+            (name, body.get("category", "outros"), quantity,
              body.get("unit", "un"), body.get("expiry", ""), body.get("notes", "")),
         )
         conn.commit()
@@ -148,6 +158,15 @@ async def create_supply(request: Request):
 @router.put("/api/supplies/{item_id}")
 async def update_supply(item_id: int, request: Request):
     body = await request.json()
+    if "quantity" in body:
+        try:
+            qty = float(body["quantity"])
+        except (TypeError, ValueError):
+            return JSONResponse({"error": "Quantidade invalida"}, status_code=400)
+        if qty < 0:
+            return JSONResponse({"error": "Quantidade nao pode ser negativa"}, status_code=400)
+        body = dict(body)
+        body["quantity"] = qty
     fields = []
     values = []
     for key in ("name", "category", "quantity", "unit", "expiry", "notes"):
@@ -329,6 +348,14 @@ async def upsert_journal(request: Request):
     """Create or update journal entry for a date."""
     body = await request.json()
     entry_date = body.get("date", date.today().isoformat())
+    # Validate date format YYYY-MM-DD
+    import re as _re
+    if not _re.match(r'^\d{4}-\d{2}-\d{2}$', str(entry_date)):
+        return JSONResponse({"error": "Formato de data invalido (use YYYY-MM-DD)"}, status_code=400)
+    try:
+        datetime.strptime(str(entry_date), "%Y-%m-%d")
+    except ValueError:
+        return JSONResponse({"error": "Data invalida"}, status_code=400)
     content = body.get("content", "")
     mood = body.get("mood", "neutral")
     def _query():
