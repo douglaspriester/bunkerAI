@@ -4,6 +4,7 @@ import asyncio
 import json
 import os
 import platform
+import re
 import shutil
 import socket
 import sqlite3
@@ -434,10 +435,20 @@ async def health():
 
 # ─── Model management ─────────────────────────────────────────────────────────
 
+_MODEL_NAME_RE = re.compile(r'^[a-zA-Z0-9_.:\-/]+$')
+_MODEL_NAME_TRAVERSAL_RE = re.compile(r'\.\.')
+
 @router.post("/api/models/pull")
 async def pull_model(request: Request):
     body = await request.json()
-    model = body.get("model", "")
+    model = body.get("model", "").strip()
+
+    if not model:
+        return JSONResponse({"error": "model name required"}, status_code=400)
+    if not _MODEL_NAME_RE.match(model) or _MODEL_NAME_TRAVERSAL_RE.search(model):
+        return JSONResponse({"error": "Invalid model name. Only letters, numbers, :._-/ allowed (no ..)."}, status_code=400)
+    if len(model) > 200:
+        return JSONResponse({"error": "Model name too long"}, status_code=400)
 
     async def generate():
         async with httpx.AsyncClient(timeout=httpx.Timeout(3600.0)) as c:
@@ -770,6 +781,14 @@ async def terminal_exec(request: Request):
 
     if base_cmd not in cfg.TERMINAL_ALLOWED_CMDS:
         return {"output": f"bunker-sh: {base_cmd}: comando nao permitido\nComandos permitidos: {', '.join(sorted(cfg.TERMINAL_ALLOWED_CMDS))}", "exit_code": 1}
+
+    # Reject any argument containing shell metacharacters.
+    # Even with shell=False these chars can confuse some programs or indicate
+    # an injection attempt; rejecting them early is the safest approach.
+    _SHELL_META_RE = re.compile(r'[;|&$`<>(){}\\]')
+    for arg in args[1:]:
+        if _SHELL_META_RE.search(arg):
+            return {"output": f"bunker-sh: argumento invalido contendo metacaracter de shell", "exit_code": 1}
 
     # Resolve the actual binary path to prevent path-traversal bypasses
     binary = shutil.which(args[0]) or args[0]
