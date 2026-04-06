@@ -570,6 +570,8 @@ function compassOnOrientation(e) {
     if (statusEl) statusEl.textContent = 'Sensor ativo';
   }
 }
+// Expose for removal in close callback
+window.compassOnOrientation = compassOnOrientation;
 
 function compassSetManual(deg) {
   _compassHeading = parseFloat(deg) || 0;
@@ -644,18 +646,22 @@ function morseTranslate() {
   const input = (document.getElementById('morseInput')?.value || '').toUpperCase();
   const output = document.getElementById('morseOutput');
   if (!output) return;
-  const morse = input.split('').map(ch => MORSE_MAP[ch] || '').join(' ');
-  output.textContent = morse || '...';
+  // Skip characters with no Morse mapping (emoji, unknown chars) instead of
+  // leaving empty tokens that produce extra spaces
+  const tokens = input.split('').map(ch => MORSE_MAP[ch] ?? null).filter(t => t !== null);
+  output.textContent = tokens.join(' ') || '...';
 }
 
 function morseDecodeInput() {
   const input = document.getElementById('morseDecodeIn')?.value || '';
   const output = document.getElementById('morseDecodeOut');
   if (!output) return;
+  if (!input.trim()) { output.textContent = '...'; return; }
   // Split by ' / ' for spaces between words, ' ' for spaces between letters
-  const words = input.split(' / ').map(word =>
-    word.trim().split(/\s+/).map(code => MORSE_REV[code] || '?').join('')
-  );
+  const words = input.split(' / ').map(word => {
+    const codes = word.trim().split(/\s+/).filter(c => c.length > 0);
+    return codes.map(code => MORSE_REV[code] || '?').join('');
+  }).filter(w => w.length > 0);
   output.textContent = words.join(' ') || '...';
 }
 
@@ -1295,6 +1301,8 @@ function terminalExec() {
 }
 window.terminalExec = terminalExec;
 
+const _TERM_MAX_LINES = 500;
+
 function termAddLine(text, cls = '') {
   const output = document.getElementById('terminalOutput');
   if (!output) return;
@@ -1302,6 +1310,10 @@ function termAddLine(text, cls = '') {
   line.className = 'terminal-line' + (cls ? ' ' + cls : '');
   line.textContent = text;
   output.appendChild(line);
+  // Enforce scrollback limit to prevent unbounded memory growth
+  while (output.children.length > _TERM_MAX_LINES) {
+    output.removeChild(output.firstChild);
+  }
 }
 
 // ─── File Manager ────────────────────────────────────────────────────────────

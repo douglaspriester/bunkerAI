@@ -191,7 +191,7 @@ async function openGuide(guideId) {
       </div>`;
     content.scrollTop = 0;
   } catch(e) {
-    content.innerHTML = `<div class="guide-error">Erro ao carregar guia: ${e.message}</div>`;
+    content.innerHTML = `<div class="guide-error">Erro ao carregar guia: ${escapeHtml(e.message)}</div>`;
   }
 
   updateGuideFavBtn();
@@ -670,15 +670,29 @@ async function startBgDownload(modelId) {
             if (txtEl) txtEl.textContent = msg;
             _toastUpdateItem(modelId, 0, msg, false, true);
             state._bgDownloads[modelId].error = evt.error;
-            if (actionEl) actionEl.innerHTML = `<button class="btn-sm btn-accent" onclick="startBgDownload('${modelId}')">Tentar novamente</button>`;
+            if (actionEl) {
+              const btn = document.createElement('button');
+              btn.className = 'btn-sm btn-accent';
+              btn.textContent = 'Tentar novamente';
+              btn.onclick = () => startBgDownload(modelId);
+              actionEl.innerHTML = '';
+              actionEl.appendChild(btn);
+            }
           }
         } catch (_) {}
       }
     }
   } catch (e) {
-    if (txtEl) txtEl.textContent = `Erro: ${e.message}`;
-    _toastUpdateItem(modelId, 0, `Erro: ${e.message}`, false, true);
-    if (actionEl) actionEl.innerHTML = `<button class="btn-sm btn-accent" onclick="startBgDownload('${modelId}')">Tentar novamente</button>`;
+    if (txtEl) txtEl.textContent = `Erro: ${escapeHtml(e.message)}`;
+    _toastUpdateItem(modelId, 0, `Erro: ${escapeHtml(e.message)}`, false, true);
+    if (actionEl) {
+      const btn = document.createElement('button');
+      btn.className = 'btn-sm btn-accent';
+      btn.textContent = 'Tentar novamente';
+      btn.onclick = () => startBgDownload(modelId);
+      actionEl.innerHTML = '';
+      actionEl.appendChild(btn);
+    }
   }
 }
 
@@ -833,7 +847,7 @@ function populateModels() {
     const sorted = autoModel
       ? [autoModel, ...list.filter(m => m !== autoModel)]
       : [...list];
-    el.innerHTML = sorted.map(m => `<option value="${m}">${m}</option>`).join("");
+    el.innerHTML = sorted.map(m => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join("");
   };
   fill("chatModel", state.models, auto.chat);
   fill("visionModel", state.visionModels.length ? state.visionModels : state.models, auto.vision);
@@ -1449,7 +1463,7 @@ async function _loadPiperModelCards() {
     state.piperModels = d.models || {};
     _renderPiperCards(state.piperModels);
   } catch (e) {
-    container.innerHTML = `<div class="piper-error">Erro ao carregar: ${e.message}</div>`;
+    container.innerHTML = `<div class="piper-error">Erro ao carregar: ${escapeHtml(e.message)}</div>`;
   }
 }
 

@@ -117,7 +117,13 @@ async function notepadDelete() {
   }
 }
 
-function notepadMarkDirty() { _notepadDirty = true; }
+let _notepadSaveTimer = null;
+function notepadMarkDirty() {
+  _notepadDirty = true;
+  // Debounce auto-save: wait 1.5 s of inactivity before saving
+  clearTimeout(_notepadSaveTimer);
+  _notepadSaveTimer = setTimeout(() => { if (_notepadDirty && _notepadActiveId) notepadSave(); }, 1500);
+}
 
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -129,6 +135,26 @@ let _wordDirty = false;
 
 async function wordInit() {
   await wordLoadList();
+  // Intercept paste to strip unsafe HTML — only keep whitelisted tags
+  const editor = document.getElementById('wordContent');
+  if (editor && !editor._pasteHandled) {
+    editor._pasteHandled = true;
+    editor.addEventListener('paste', (e) => {
+      e.preventDefault();
+      // Prefer plain text from clipboard; fall back to stripping HTML
+      const plain = e.clipboardData?.getData('text/plain');
+      if (plain) {
+        document.execCommand('insertText', false, plain);
+        return;
+      }
+      const html = e.clipboardData?.getData('text/html') || '';
+      // Strip all tags except basic formatting
+      const stripped = html.replace(/<script[\s\S]*?<\/script>/gi, '')
+                           .replace(/<style[\s\S]*?<\/style>/gi, '')
+                           .replace(/<(?!\/?(?:b|i|u|strong|em|p|br|ul|ol|li|h[1-6])\b)[^>]+>/gi, '');
+      document.execCommand('insertHTML', false, stripped);
+    });
+  }
 }
 
 async function wordLoadList() {
@@ -235,7 +261,12 @@ async function wordDelete() {
   }
 }
 
-function wordMarkDirty() { _wordDirty = true; }
+let _wordSaveTimer = null;
+function wordMarkDirty() {
+  _wordDirty = true;
+  clearTimeout(_wordSaveTimer);
+  _wordSaveTimer = setTimeout(() => { if (_wordDirty && _wordActiveId) wordSave(); }, 1500);
+}
 
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -349,7 +380,13 @@ function excelRecalc() {
 }
 
 function excelCellValue(ref) {
-  const raw = _excelData[ref.toUpperCase()];
+  const upper = ref.toUpperCase();
+  // Validate that the ref is within the grid bounds (cols A-J, rows 1-30)
+  const col = upper.charCodeAt(0);
+  const row = parseInt(upper.slice(1));
+  if (col < 65 || col > 64 + EXCEL_COLS) return 0;
+  if (!row || row < 1 || row > EXCEL_ROWS) return 0;
+  const raw = _excelData[upper];
   if (!raw) return 0;
   if (typeof raw === 'string' && raw.startsWith('=')) {
     return excelEvalFormula(raw.slice(1));
@@ -408,14 +445,53 @@ function excelEvalFormula(expr) {
     const vals = refs.map(r => excelCellValue(r));
     return vals.length ? Math.max(...vals) : 0;
   }
-  // IF(cond, then, else) — simple
-  m = upper.match(/^IF\((.+),(.+),(.+)\)$/);
-  if (m) {
-    const cond = excelEvalSimple(m[1].trim());
-    return cond ? excelEvalSimple(m[2].trim()) : excelEvalSimple(m[3].trim());
+  // IF(cond, then, else) — split on commas not inside parentheses
+  if (upper.startsWith('IF(') && upper.endsWith(')')) {
+    const inner = upper.slice(3, -1);
+    const parts = _excelSplitArgs(inner);
+    if (parts.length === 3) {
+      const cond = excelEvalCondition(parts[0].trim());
+      return cond ? excelEvalSimple(parts[1].trim()) : excelEvalSimple(parts[2].trim());
+    }
   }
   // Simple arithmetic: cell refs + numbers + operators
   return excelEvalSimple(upper);
+}
+
+// Split comma-separated arguments respecting parentheses depth
+function _excelSplitArgs(str) {
+  const parts = [];
+  let depth = 0, start = 0;
+  for (let i = 0; i < str.length; i++) {
+    if (str[i] === '(') depth++;
+    else if (str[i] === ')') depth--;
+    else if (str[i] === ',' && depth === 0) {
+      parts.push(str.slice(start, i));
+      start = i + 1;
+    }
+  }
+  parts.push(str.slice(start));
+  return parts;
+}
+
+// Evaluate simple comparison expressions for IF conditions (e.g. "A1>5", "1=1")
+function excelEvalCondition(expr) {
+  // Try to split on a comparison operator
+  const m = expr.match(/^(.+?)(>=|<=|<>|!=|>|<|=)(.+)$/);
+  if (!m) return !!excelEvalSimple(expr); // treat as numeric truth
+  const left = excelEvalSimple(m[1].trim());
+  const right = excelEvalSimple(m[3].trim());
+  switch (m[2]) {
+    case '>':  return left > right;
+    case '<':  return left < right;
+    case '>=': return left >= right;
+    case '<=': return left <= right;
+    case '=':
+    case '==': return left === right;
+    case '<>':
+    case '!=': return left !== right;
+    default:   return false;
+  }
 }
 
 function excelEvalSimple(expr) {

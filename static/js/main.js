@@ -281,6 +281,12 @@ function wireAppCallbacks() {
   registerAppClose('companion', () => {
     destroyCompanion();
   });
+  registerAppClose('compass', () => {
+    // Remove device orientation listener to prevent memory/battery leak
+    if (typeof window.compassOnOrientation === 'function') {
+      window.removeEventListener('deviceorientation', window.compassOnOrientation);
+    }
+  });
 }
 
 // Global helper for companion chat input
