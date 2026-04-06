@@ -26,16 +26,23 @@ app = FastAPI(title="Bunker AI")
 
 # ─── Request body size limit (50 MB) ─────────────────────────────────────────
 _MAX_BODY_BYTES = 50 * 1024 * 1024  # 50 MB
+_BODY_SKIP_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
 
 class BodySizeLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
+        if request.method in _BODY_SKIP_METHODS:
+            return await call_next(request)
         content_length = request.headers.get("content-length")
-        if content_length and int(content_length) > _MAX_BODY_BYTES:
-            return JSONResponse(
-                {"error": "Requisicao muito grande (max 50 MB)"},
-                status_code=413,
-            )
+        if content_length:
+            try:
+                if int(content_length) > _MAX_BODY_BYTES:
+                    return JSONResponse(
+                        {"error": "Requisicao muito grande (max 50 MB)"},
+                        status_code=413,
+                    )
+            except ValueError:
+                pass
         return await call_next(request)
 
 
@@ -49,6 +56,8 @@ _RATE_LIMITED_PREFIXES = (
     "/api/chat",
     "/api/rag/index",
 )
+# Paths excluded from rate limiting (readiness/liveness probes)
+_RATE_LIMIT_EXCLUDED = frozenset({"/api/ping", "/api/health"})
 _RATE_LIMIT_MAX = 10      # requests
 _RATE_LIMIT_WINDOW = 60   # seconds
 
@@ -56,12 +65,20 @@ _RATE_LIMIT_WINDOW = 60   # seconds
 class RateLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
+        if path in _RATE_LIMIT_EXCLUDED:
+            return await call_next(request)
         if any(path.startswith(p) for p in _RATE_LIMITED_PREFIXES):
-            client_ip = request.client.host if request.client else "local"
+            # Prefer X-Forwarded-For for clients behind a reverse proxy
+            forwarded_for = request.headers.get("x-forwarded-for")
+            if forwarded_for:
+                client_ip = forwarded_for.split(",")[0].strip()
+            else:
+                client_ip = request.client.host if request.client else "local"
             if cfg._check_rate_limit_mw(path, client_ip):
                 return JSONResponse(
                     {"error": "Limite de requisicoes excedido. Aguarde um momento."},
                     status_code=429,
+                    headers={"Retry-After": str(_RATE_LIMIT_WINDOW)},
                 )
         return await call_next(request)
 

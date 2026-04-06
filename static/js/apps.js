@@ -2689,6 +2689,7 @@ function renderJournal(entries) {
   renderJournalEditor();
   renderJournalCalendar();
   loadJournalStatus();
+  _startClock();
 }
 
 function _journalNavDates() {

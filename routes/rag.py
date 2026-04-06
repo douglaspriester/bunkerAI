@@ -126,7 +126,7 @@ async def rag_index_document(file: UploadFile = File(...)):
 
     if len(content) > _MAX_RAG_FILE_BYTES:
         return JSONResponse(
-            {"status": "error", "message": f"Arquivo muito grande (max {_MAX_RAG_FILE_BYTES // (1024*1024)} MB)"},
+            {"error": f"Arquivo muito grande (max {_MAX_RAG_FILE_BYTES // (1024*1024)} MB)"},
             status_code=400,
         )
 
@@ -146,12 +146,12 @@ async def rag_index_document(file: UploadFile = File(...)):
     text = _rag_extract_text(content, filename)
     if not text.strip():
         con.close()
-        return JSONResponse({"status": "error", "message": "Nenhum texto extraido do arquivo"}, status_code=400)
+        return JSONResponse({"error": "Nenhum texto extraido do arquivo"}, status_code=400)
 
     chunks = _rag_chunk_text(text)
     if not chunks:
         con.close()
-        return JSONResponse({"status": "error", "message": "Nenhum chunk gerado"}, status_code=400)
+        return JSONResponse({"error": "Nenhum chunk gerado"}, status_code=400)
 
     truncated = False
     if len(chunks) > _MAX_RAG_CHUNKS:
@@ -212,7 +212,7 @@ async def rag_delete_doc(doc_id: str):
     existing = con.execute("SELECT id FROM rag_docs WHERE id = ?", (doc_id,)).fetchone()
     if not existing:
         con.close()
-        return JSONResponse({"status": "error", "message": "Document not found"}, status_code=404)
+        return JSONResponse({"error": "Document not found"}, status_code=404)
     con.execute("DELETE FROM rag_chunks WHERE doc_id = ?", (doc_id,))
     con.execute("DELETE FROM rag_docs WHERE id = ?", (doc_id,))
     con.commit()

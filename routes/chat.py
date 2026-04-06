@@ -324,7 +324,7 @@ async def save_app(request: Request):
     app_dir.mkdir(parents=True, exist_ok=True)
     (app_dir / "index.html").write_text(html, encoding="utf-8")
 
-    # Persist metadata alongside the HTML
+    # Persist metadata alongside the HTML (non-fatal if write fails)
     import json as _json
     meta = {
         "name": safe_name,
@@ -332,7 +332,10 @@ async def save_app(request: Request):
         "prompt": body.get("prompt", "")[:500],
         "created_at": datetime.now().isoformat(),
     }
-    (app_dir / "meta.json").write_text(_json.dumps(meta, ensure_ascii=False), encoding="utf-8")
+    try:
+        (app_dir / "meta.json").write_text(_json.dumps(meta, ensure_ascii=False), encoding="utf-8")
+    except Exception as _meta_err:
+        print(f"[BUILD] Warning: could not write meta.json for '{safe_name}': {_meta_err}")
 
     return {"saved": True, "path": str(app_dir), "name": safe_name, "title": title}
 

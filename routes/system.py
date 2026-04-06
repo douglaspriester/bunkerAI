@@ -2,7 +2,6 @@
 
 import asyncio
 import json
-import os
 import platform
 import re
 import shutil
@@ -12,10 +11,9 @@ import subprocess
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import httpx
-from fastapi import APIRouter, BackgroundTasks, File, Request
+from fastapi import APIRouter, BackgroundTasks, Request
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 
 import routes.config as cfg
