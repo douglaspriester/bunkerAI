@@ -8,6 +8,7 @@ import { state } from './state.js';
 
 let _activeRecorder = null;
 let _activeChunks = [];
+let _recordingTimeout = null;
 
 /**
  * Start recording voice. Returns a promise that resolves with the transcribed text.
@@ -31,6 +32,10 @@ export function recordVoice(btn, opts = {}) {
  * Stop active recording (if any).
  */
 export function stopRecording() {
+  if (_recordingTimeout) {
+    clearTimeout(_recordingTimeout);
+    _recordingTimeout = null;
+  }
   if (_activeRecorder && _activeRecorder.state === 'recording') {
     _activeRecorder.stop();
   }
@@ -75,9 +80,18 @@ export function recordAudio(btn) {
       const blob = new Blob(chunks, { type: recorder.mimeType });
       resolvePromise(blob);
     };
+    recorder.onerror = () => {
+      stream.getTracks().forEach(t => t.stop());
+      if (btn) btn.classList.remove('recording');
+      _activeRecorder = null;
+      resolvePromise(null);
+    };
     recorder.start();
-  }).catch(() => {
+  }).catch((err) => {
     if (btn) btn.classList.remove('recording');
+    if (err && (err.name === 'NotAllowedError' || err.name === 'NotFoundError')) {
+      console.warn('Audio recording:', err.name, err.message);
+    }
     resolvePromise(null);
   });
 
@@ -105,11 +119,15 @@ function _recordWhisper(btn, lang, resolve, reject) {
   navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
     _activeRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
 
+    // 60-second recording timeout
+    _recordingTimeout = setTimeout(() => stopRecording(), 60000);
+
     _activeRecorder.ondataavailable = (e) => {
       if (e.data.size > 0) _activeChunks.push(e.data);
     };
 
     _activeRecorder.onstop = async () => {
+      if (_recordingTimeout) { clearTimeout(_recordingTimeout); _recordingTimeout = null; }
       stream.getTracks().forEach(t => t.stop());
       if (btn) btn.classList.remove('recording');
       _activeRecorder = null;
@@ -138,9 +156,16 @@ function _recordWhisper(btn, lang, resolve, reject) {
     };
 
     _activeRecorder.start();
-  }).catch(() => {
+  }).catch((err) => {
+    if (_recordingTimeout) { clearTimeout(_recordingTimeout); _recordingTimeout = null; }
     if (btn) btn.classList.remove('recording');
-    reject(new Error('Microfone negado'));
+    if (err && err.name === 'NotAllowedError') {
+      reject(new Error('Permissao de microfone negada. Permita o acesso ao microfone nas configuracoes do navegador.'));
+    } else if (err && err.name === 'NotFoundError') {
+      reject(new Error('Nenhum microfone encontrado. Conecte um microfone e tente novamente.'));
+    } else {
+      reject(new Error('Microfone negado'));
+    }
   });
 }
 
@@ -172,18 +197,29 @@ function _recordBrowser(btn, lang, onInterim, resolve, reject) {
     if (onInterim) onInterim(finalTranscript + interim);
   };
 
+  // 60-second recording timeout
+  _recordingTimeout = setTimeout(() => stopRecording(), 60000);
+
   recognition.onend = () => {
+    if (_recordingTimeout) { clearTimeout(_recordingTimeout); _recordingTimeout = null; }
     if (btn) btn.classList.remove('recording');
     state.isListening = false;
     state.recognition = null;
     resolve(finalTranscript.trim());
   };
 
-  recognition.onerror = () => {
+  recognition.onerror = (event) => {
+    if (_recordingTimeout) { clearTimeout(_recordingTimeout); _recordingTimeout = null; }
     if (btn) btn.classList.remove('recording');
     state.isListening = false;
     state.recognition = null;
-    resolve('');
+    if (event.error === 'not-allowed') {
+      reject(new Error('Permissao de microfone negada. Permita o acesso ao microfone nas configuracoes do navegador.'));
+    } else if (event.error === 'no-speech' || event.error === 'audio-capture') {
+      resolve('');
+    } else {
+      resolve('');
+    }
   };
 
   recognition.start();
