@@ -13,6 +13,7 @@ import tempfile
 import subprocess
 import shutil
 import sqlite3
+import hashlib
 import time
 import platform
 import socket
@@ -1418,6 +1419,32 @@ async def chat(request: Request):
     messages = body.get("messages", [])
     system = body.get("system", "")
 
+    # ─── RAG context injection ────────────────────────────────────────────────
+    # Find last user message and search for relevant document chunks
+    last_user_msg = ""
+    for m in reversed(messages):
+        if m.get("role") == "user":
+            content = m.get("content", "")
+            last_user_msg = content if isinstance(content, str) else ""
+            break
+
+    if last_user_msg:
+        try:
+            con = sqlite3.connect("data/rag.db")
+            has_docs = con.execute("SELECT COUNT(*) FROM rag_docs").fetchone()[0]
+            con.close()
+            if has_docs > 0:
+                rag_results = _rag_bm25_search(last_user_msg, top_k=3)
+                if rag_results:
+                    rag_context = "\n\n---\n\n".join(
+                        f"[{r['filename']}]\n{r['chunk_text']}" for r in rag_results
+                    )
+                    rag_prefix = f"[Contexto de documentos relevantes:]\n{rag_context}\n---\n\n"
+                    system = rag_prefix + system if system else rag_prefix.rstrip()
+        except Exception:
+            pass
+    # ─────────────────────────────────────────────────────────────────────────
+
     msgs = list(messages)
     if system:
         msgs = [{"role": "system", "content": system}] + msgs
@@ -2090,6 +2117,38 @@ def _init_db():
     conn.close()
 
 _init_db()
+
+
+# ─── RAG: create table if not exists ────────────────────────────────────────
+def _init_rag_db():
+    import sqlite3 as _sq
+    db_path = Path("data/rag.db")
+    db_path.parent.mkdir(exist_ok=True)
+    con = _sq.connect(str(db_path))
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS rag_chunks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            doc_id TEXT NOT NULL,
+            filename TEXT NOT NULL,
+            chunk_index INTEGER NOT NULL,
+            chunk_text TEXT NOT NULL,
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+    """)
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS rag_docs (
+            id TEXT PRIMARY KEY,
+            filename TEXT NOT NULL,
+            file_type TEXT NOT NULL,
+            chunk_count INTEGER NOT NULL,
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+    """)
+    con.execute("CREATE INDEX IF NOT EXISTS idx_rag_doc ON rag_chunks(doc_id)")
+    con.commit()
+    con.close()
+
+_init_rag_db()
 
 
 def _db():
@@ -2914,6 +2973,184 @@ async def imagine_history():
                 "size_kb": f.stat().st_size // 1024,
             })
     return {"images": images[:50]}  # limit to 50
+
+
+# ─── RAG Local ────────────────────────────────────────────────────────────────
+
+def _rag_extract_text(content: bytes, filename: str) -> str:
+    """Extract plain text from PDF, TXT, or MD files."""
+    ext = filename.lower().rsplit(".", 1)[-1] if "." in filename else "txt"
+    if ext == "pdf":
+        try:
+            from pypdf import PdfReader
+            import io
+            reader = PdfReader(io.BytesIO(content))
+            return "\n\n".join(
+                page.extract_text() or "" for page in reader.pages
+            )
+        except Exception as e:
+            return f"[Erro ao extrair PDF: {e}]"
+    else:
+        # TXT, MD, and others — assume UTF-8
+        try:
+            return content.decode("utf-8", errors="replace")
+        except Exception:
+            return content.decode("latin-1", errors="replace")
+
+
+def _rag_chunk_text(text: str, chunk_size: int = 500, overlap: int = 50) -> list[str]:
+    """Split text into overlapping chunks by words."""
+    words = text.split()
+    if not words:
+        return []
+    chunks = []
+    i = 0
+    while i < len(words):
+        chunk = " ".join(words[i:i + chunk_size])
+        chunks.append(chunk)
+        i += chunk_size - overlap
+    return [c for c in chunks if len(c.strip()) > 20]
+
+
+def _rag_bm25_search(query: str, top_k: int = 5) -> list[dict]:
+    """BM25 search over all indexed chunks."""
+    try:
+        from rank_bm25 import BM25Okapi
+    except ImportError:
+        return []
+
+    con = sqlite3.connect("data/rag.db")
+    con.row_factory = sqlite3.Row
+    rows = con.execute("SELECT id, doc_id, filename, chunk_index, chunk_text FROM rag_chunks").fetchall()
+    con.close()
+
+    if not rows:
+        return []
+
+    tokenized_corpus = [row["chunk_text"].lower().split() for row in rows]
+    bm25 = BM25Okapi(tokenized_corpus)
+    tokenized_query = query.lower().split()
+    scores = bm25.get_scores(tokenized_query)
+
+    top_indices = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:top_k]
+
+    results = []
+    for idx in top_indices:
+        if scores[idx] > 0:
+            row = rows[idx]
+            results.append({
+                "chunk_id": row["id"],
+                "doc_id": row["doc_id"],
+                "filename": row["filename"],
+                "chunk_index": row["chunk_index"],
+                "chunk_text": row["chunk_text"],
+                "score": round(float(scores[idx]), 4),
+            })
+    return results
+
+
+@app.post("/api/rag/index")
+async def rag_index_document(file: UploadFile = File(...)):
+    """Index a document (PDF, TXT, MD) for RAG search."""
+    content = await file.read()
+    filename = file.filename or "document.txt"
+
+    doc_id = hashlib.md5(content).hexdigest()
+
+    # Check if already indexed
+    con = sqlite3.connect("data/rag.db")
+    existing = con.execute("SELECT id FROM rag_docs WHERE id = ?", (doc_id,)).fetchone()
+    if existing:
+        con.close()
+        return JSONResponse({"status": "already_indexed", "doc_id": doc_id, "filename": filename})
+
+    # Extract text
+    text = _rag_extract_text(content, filename)
+    if not text.strip():
+        con.close()
+        return JSONResponse({"status": "error", "message": "Nenhum texto extraido do arquivo"}, status_code=400)
+
+    # Chunk
+    chunks = _rag_chunk_text(text)
+    if not chunks:
+        con.close()
+        return JSONResponse({"status": "error", "message": "Nenhum chunk gerado"}, status_code=400)
+
+    # Store in SQLite
+    ext = filename.lower().rsplit(".", 1)[-1] if "." in filename else "txt"
+    con.execute(
+        "INSERT INTO rag_docs (id, filename, file_type, chunk_count) VALUES (?, ?, ?, ?)",
+        (doc_id, filename, ext, len(chunks))
+    )
+    for i, chunk in enumerate(chunks):
+        con.execute(
+            "INSERT INTO rag_chunks (doc_id, filename, chunk_index, chunk_text) VALUES (?, ?, ?, ?)",
+            (doc_id, filename, i, chunk)
+        )
+    con.commit()
+    con.close()
+
+    return JSONResponse({
+        "status": "indexed",
+        "doc_id": doc_id,
+        "filename": filename,
+        "chunks": len(chunks),
+    })
+
+
+@app.get("/api/rag/search")
+async def rag_search(q: str, top_k: int = 5):
+    """Search indexed documents using BM25."""
+    if not q.strip():
+        return JSONResponse({"results": []})
+
+    results = _rag_bm25_search(q.strip(), top_k=min(top_k, 20))
+    return JSONResponse({"query": q, "results": results})
+
+
+@app.get("/api/rag/docs")
+async def rag_list_docs():
+    """List all indexed documents."""
+    con = sqlite3.connect("data/rag.db")
+    con.row_factory = sqlite3.Row
+    rows = con.execute(
+        "SELECT id, filename, file_type, chunk_count, created_at FROM rag_docs ORDER BY created_at DESC"
+    ).fetchall()
+    con.close()
+    return JSONResponse({"docs": [dict(r) for r in rows]})
+
+
+@app.delete("/api/rag/docs/{doc_id}")
+async def rag_delete_doc(doc_id: str):
+    """Delete an indexed document and all its chunks."""
+    con = sqlite3.connect("data/rag.db")
+    con.execute("DELETE FROM rag_chunks WHERE doc_id = ?", (doc_id,))
+    con.execute("DELETE FROM rag_docs WHERE id = ?", (doc_id,))
+    con.commit()
+    con.close()
+    return JSONResponse({"status": "deleted", "doc_id": doc_id})
+
+
+@app.post("/api/rag/context")
+async def rag_get_context(request: Request):
+    """Given a query, return the most relevant chunks as context string."""
+    body = await request.json()
+    query = body.get("query", "")
+    top_k = body.get("top_k", 3)
+
+    if not query.strip():
+        return JSONResponse({"context": ""})
+
+    results = _rag_bm25_search(query, top_k=top_k)
+    if not results:
+        return JSONResponse({"context": ""})
+
+    context_parts = []
+    for r in results:
+        context_parts.append(f"[{r['filename']}]\n{r['chunk_text']}")
+
+    context = "\n\n---\n\n".join(context_parts)
+    return JSONResponse({"context": context, "sources": [r["filename"] for r in results]})
 
 
 # ─── Static (with no-cache for JS/CSS to avoid stale code) ──────────────────

@@ -39,6 +39,7 @@ export const OS_APPS = [
   { id: 'survRef',    name: 'Refer\u00EAncia', icon: '\u{1F4D6}', width: 650, height: 520, viewId: 'survRefView' },
   { id: 'modelMgr',  name: 'Modelos IA', icon: '\u{1F9E0}', width: 600, height: 520, viewId: 'modelMgrView' },
   { id: 'companion', name: 'Companheiro', icon: '\u{1F9D1}\u200D\u{1F680}', width: 480, height: 620, viewId: 'companionView' },
+  { id: 'rag',       name: 'RAG Local',  icon: '\u{1F4DA}', width: 680, height: 560, viewId: 'ragView' },
   { id: 'settings',   name: 'Configura\u00E7\u00F5es', icon: '\u2699\uFE0F', width: 560, height: 520, viewId: null },
 ];
 

@@ -44,6 +44,8 @@ import {
   initCompanion, companionSend, resizeCompanion, destroyCompanion,
 } from './companion.js';
 
+import { createRagApp, initRagApp } from './rag-app.js';
+
 // ─── Expose everything to window for onclick handlers ───────────────────────
 // This is the bridge between ES modules and inline HTML onclick attributes.
 // As we incrementally refactor HTML to use addEventListener, these can be removed.
@@ -86,6 +88,9 @@ const globals = {
 
   // 3D Companion
   initCompanion, companionSend, resizeCompanion, destroyCompanion,
+
+  // RAG Local
+  createRagApp, initRagApp,
 
   // AI Modes
   AI_MODES, getActiveMode, setAIMode, renderModeSelector, initModeSelector,
@@ -197,6 +202,14 @@ function wireAppCallbacks() {
     survRef:    () => window.survRefInit?.(),
     modelMgr:   () => window.modelMgrInit?.(),
     companion:  () => initCompanion(),
+    rag:        () => {
+      const view = document.getElementById('ragView');
+      if (view && !view.dataset.ragInit) {
+        view.innerHTML = createRagApp();
+        view.dataset.ragInit = '1';
+      }
+      initRagApp();
+    },
   };
   Object.entries(openMap).forEach(([appId, fn]) => registerAppOpen(appId, fn));
 
