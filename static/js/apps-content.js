@@ -77,11 +77,15 @@ async function openProtocol(protocolId) {
 
   try {
     const r = await fetch(`/api/protocols/${protocolId}`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const protocol = await r.json();
+    if (!protocol || !Array.isArray(protocol.steps) || protocol.steps.length === 0) {
+      throw new Error('Protocolo sem passos definidos');
+    }
     state.currentProtocol = protocol;
     renderProtocolStep(protocol, protocol.steps[0].id);
   } catch(e) {
-    content.innerHTML = `<div class="guide-error">Erro ao carregar protocolo: ${e.message}</div>`;
+    content.innerHTML = `<div class="guide-error">Erro ao carregar protocolo: ${escapeHtml(e.message)}</div>`;
   }
 }
 
