@@ -171,8 +171,8 @@ async def chat(request: Request):
                     )
                     rag_prefix = f"[Contexto de documentos relevantes:]\n{rag_context}\n---\n\n"
                     system = rag_prefix + system if system else rag_prefix.rstrip()
-        except Exception:
-            pass
+        except Exception as _rag_err:
+            print(f"[RAG] DB access error during chat context injection: {_rag_err}")
 
     msgs = list(messages)
     if system:
