@@ -177,6 +177,11 @@ RATE_LIMITS: dict = {
     "tts": (20, 60),
 }
 
+# Middleware-level rate limiter buckets (keyed by path prefix + client IP)
+_mw_rate_buckets: dict = defaultdict(list)
+_MW_RATE_MAX = 10    # requests per window
+_MW_RATE_WINDOW = 60  # seconds
+
 
 def _check_rate_limit(key: str, client_ip: str = "local") -> bool:
     """Returns True if rate limited (should block)."""
@@ -190,6 +195,21 @@ def _check_rate_limit(key: str, client_ip: str = "local") -> bool:
     if len(_rate_buckets[bucket_key]) >= max_req:
         return True
     _rate_buckets[bucket_key].append(now)
+    return False
+
+
+def _check_rate_limit_mw(path_prefix: str, client_ip: str = "local") -> bool:
+    """Middleware-level rate limiter: 10 req/min per path-prefix per client IP.
+    Returns True if the request should be blocked."""
+    import time as _t
+    bucket_key = f"{path_prefix}:{client_ip}"
+    now = _t.time()
+    _mw_rate_buckets[bucket_key] = [
+        t for t in _mw_rate_buckets[bucket_key] if t > now - _MW_RATE_WINDOW
+    ]
+    if len(_mw_rate_buckets[bucket_key]) >= _MW_RATE_MAX:
+        return True
+    _mw_rate_buckets[bucket_key].append(now)
     return False
 
 
@@ -300,6 +320,13 @@ MAP_REGIONS: dict = {
         "est_mb": 350,
     },
 }
+
+# ── Chat / build limits ───────────────────────────────────────────────────────
+MAX_CHAT_HISTORY: int = 200        # maximum number of messages accepted per request
+MAX_CHAT_MSG_CHARS: int = 32_000   # maximum characters per individual chat message
+MAX_APP_HTML_BYTES: int = 5 * 1024 * 1024  # 5 MB — maximum size for a saved app HTML
+MAX_BUILD_LIST: int = 100          # maximum apps returned by /api/build/list
+MAX_VISION_IMG_B64_CHARS: int = 14_000_000  # ~10 MB image as base64 (~10MB * 4/3)
 
 # ── Terminal allowlist ────────────────────────────────────────────────────────
 # SECURITY: Only read-only / informational commands are permitted.

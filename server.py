@@ -10,8 +10,8 @@ import shutil
 import sqlite3
 from pathlib import Path
 
-from fastapi import FastAPI
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -22,6 +22,51 @@ import routes.config as cfg  # noqa: F401 — initialises dirs, shared globals
 from routes import chat, content, maps, rag, system, tts_stt
 
 app = FastAPI(title="Bunker AI")
+
+
+# ─── Request body size limit (50 MB) ─────────────────────────────────────────
+_MAX_BODY_BYTES = 50 * 1024 * 1024  # 50 MB
+
+
+class BodySizeLimitMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        content_length = request.headers.get("content-length")
+        if content_length and int(content_length) > _MAX_BODY_BYTES:
+            return JSONResponse(
+                {"error": "Requisicao muito grande (max 50 MB)"},
+                status_code=413,
+            )
+        return await call_next(request)
+
+
+app.add_middleware(BodySizeLimitMiddleware)
+
+
+# ─── Rate limiting for expensive endpoints ────────────────────────────────────
+_RATE_LIMITED_PREFIXES = (
+    "/api/tts",
+    "/api/stt",
+    "/api/chat",
+    "/api/rag/index",
+)
+_RATE_LIMIT_MAX = 10      # requests
+_RATE_LIMIT_WINDOW = 60   # seconds
+
+
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        path = request.url.path
+        if any(path.startswith(p) for p in _RATE_LIMITED_PREFIXES):
+            client_ip = request.client.host if request.client else "local"
+            if cfg._check_rate_limit_mw(path, client_ip):
+                return JSONResponse(
+                    {"error": "Limite de requisicoes excedido. Aguarde um momento."},
+                    status_code=429,
+                )
+        return await call_next(request)
+
+
+app.add_middleware(RateLimitMiddleware)
 
 
 # ─── No-cache middleware for JS/CSS/HTML ──────────────────────────────────────
