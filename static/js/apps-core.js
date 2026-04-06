@@ -876,7 +876,7 @@ async function activateWebcam() {
     state.webcamActive = true;
     updateModeTag();
   } catch (e) {
-    alert("Erro ao acessar webcam: " + e.message);
+    osToast("Webcam: " + e.message, "error");
   }
 }
 
@@ -996,7 +996,7 @@ function startListeningWhisper() {
   }).catch(() => {
     btn.classList.remove("recording");
     state.isListening = false;
-    alert("Acesso ao microfone negado.");
+    osToast("Acesso ao microfone negado. Verifique as permissões do navegador.", "error");
   });
 }
 
@@ -1010,7 +1010,7 @@ function stopListeningWhisper() {
 // --- Browser Web Speech API (Chrome only, needs internet) ---
 function startListeningBrowser() {
   if (!("webkitSpeechRecognition" in window) && !("SpeechRecognition" in window)) {
-    alert("Speech Recognition nao suportado. Use Chrome ou instale faster-whisper.");
+    osToast("Reconhecimento de voz não suportado. Use Chrome ou instale faster-whisper para STT offline.", "warn");
     return;
   }
 
@@ -1117,7 +1117,10 @@ function saveApp() {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ html: state.generatedHtml, name }),
-  }).then(r => r.json()).then(d => { if (d.saved) alert(`"${name}" salvo!`); });
+  })
+    .then(r => r.ok ? r.json() : r.json().then(d => Promise.reject(d.error || `HTTP ${r.status}`)))
+    .then(d => { if (d.saved) osToast(`App "${name}" salvo!`, "success"); })
+    .catch(err => { console.error("[saveApp] erro:", err); osToast("Erro ao salvar app. Verifique os logs.", "error"); });
 }
 
 function downloadApp() {
@@ -1440,7 +1443,7 @@ async function speakTTSPanel() {
     };
     audio.play();
   } catch (e) {
-    alert("Erro TTS: " + e.message);
+    osToast("Erro TTS: " + e.message, "error");
     document.getElementById("btnTTSSpeak").style.display = "";
     document.getElementById("btnTTSStop").style.display = "none";
   }
