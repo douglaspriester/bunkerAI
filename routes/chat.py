@@ -5,6 +5,7 @@ import re
 import shutil
 import sqlite3
 import uuid
+from datetime import datetime
 from pathlib import Path
 
 import httpx
@@ -139,8 +140,10 @@ def _chat_stream_llamacpp(payload: dict, timeout: float) -> StreamingResponse:
 
 # ─── Chat endpoints ───────────────────────────────────────────────────────────
 
-_MAX_CHAT_MSG_CHARS = 32_000   # per message content
-_MAX_CHAT_HISTORY  = 200       # maximum messages in a single request
+# These limits are defined in config.py (cfg.MAX_CHAT_HISTORY / cfg.MAX_CHAT_MSG_CHARS)
+# and kept as local aliases for readability within this module.
+_MAX_CHAT_MSG_CHARS = cfg.MAX_CHAT_MSG_CHARS
+_MAX_CHAT_HISTORY  = cfg.MAX_CHAT_HISTORY
 
 @router.post("/api/chat")
 async def chat(request: Request):
@@ -157,11 +160,11 @@ async def chat(request: Request):
 
     # Guard: reject oversized inputs to prevent memory / prompt-injection abuse
     if len(messages) > _MAX_CHAT_HISTORY:
-        return JSONResponse({"error": "Muitas mensagens no histórico (max 200)."}, status_code=400)
+        return JSONResponse({"error": f"Muitas mensagens no histórico (max {_MAX_CHAT_HISTORY})."}, status_code=400)
     for m in messages:
         content = m.get("content", "")
         if isinstance(content, str) and len(content) > _MAX_CHAT_MSG_CHARS:
-            return JSONResponse({"error": "Mensagem muito longa (max 32000 caracteres)."}, status_code=400)
+            return JSONResponse({"error": f"Mensagem muito longa (max {_MAX_CHAT_MSG_CHARS} caracteres)."}, status_code=400)
 
     # RAG context injection
     last_user_msg = ""
@@ -194,7 +197,7 @@ async def chat(request: Request):
     return _chat_stream({"model": model, "messages": msgs, "stream": True})
 
 
-_MAX_VISION_IMG_B64_CHARS = 14_000_000  # ~10 MB of raw bytes as base64 (ceil(10MB * 4/3))
+_MAX_VISION_IMG_B64_CHARS = cfg.MAX_VISION_IMG_B64_CHARS
 
 @router.post("/api/vision")
 async def vision(request: Request):
@@ -282,7 +285,17 @@ REGRAS OBRIGATORIAS:
 
 
 _HTML_DETECT_RE = re.compile(r'<\s*(!DOCTYPE\s+html|html[\s>])', re.IGNORECASE)
-_MAX_APP_HTML_BYTES = 5 * 1024 * 1024  # 5 MB
+_MAX_APP_HTML_BYTES = cfg.MAX_APP_HTML_BYTES
+_MAX_TITLE_WORDS = 5                    # words used to auto-generate a title slug
+
+
+def _auto_title_from_prompt(prompt: str) -> str:
+    """Generate a slug-safe title from the first few words of a prompt."""
+    words = re.findall(r'[a-zA-Z0-9\u00C0-\u024F]+', prompt)[:_MAX_TITLE_WORDS]
+    if words:
+        return "-".join(w.lower() for w in words)
+    return f"app-{uuid.uuid4().hex[:8]}"
+
 
 @router.post("/api/build/save")
 async def save_app(request: Request):
@@ -295,26 +308,107 @@ async def save_app(request: Request):
     # Require at least a recognisable HTML document tag
     if not _HTML_DETECT_RE.search(html[:2048]):
         return JSONResponse({"error": "Response does not appear to be valid HTML"}, status_code=400)
-    raw_name = body.get("name", f"app-{uuid.uuid4().hex[:8]}")
+
+    # Accept an explicit name, or auto-generate one from the prompt / a UUID
+    raw_name = body.get("name", "")
+    if not raw_name:
+        prompt = body.get("prompt", "")
+        raw_name = _auto_title_from_prompt(prompt) if prompt else f"app-{uuid.uuid4().hex[:8]}"
+
     safe_name = re.sub(r"[^a-zA-Z0-9_\-]", "_", raw_name)[:64] or f"app-{uuid.uuid4().hex[:8]}"
+
+    # Preserve a human-readable title (raw_name before slugification, capped at 120 chars)
+    title = body.get("title", raw_name)[:120]
+
     app_dir = cfg.GENERATED_DIR / safe_name
     app_dir.mkdir(parents=True, exist_ok=True)
     (app_dir / "index.html").write_text(html, encoding="utf-8")
-    return {"saved": True, "path": str(app_dir), "name": safe_name}
+
+    # Persist metadata alongside the HTML
+    import json as _json
+    meta = {
+        "name": safe_name,
+        "title": title,
+        "prompt": body.get("prompt", "")[:500],
+        "created_at": datetime.now().isoformat(),
+    }
+    (app_dir / "meta.json").write_text(_json.dumps(meta, ensure_ascii=False), encoding="utf-8")
+
+    return {"saved": True, "path": str(app_dir), "name": safe_name, "title": title}
 
 
-_MAX_BUILD_LIST = 100  # cap to avoid returning thousands of entries
+_MAX_BUILD_LIST = cfg.MAX_BUILD_LIST
 
 @router.get("/api/build/list")
 async def list_apps():
+    import json as _json
     apps = []
     if cfg.GENERATED_DIR.exists():
         for d in sorted(cfg.GENERATED_DIR.iterdir()):
-            if d.is_dir() and (d / "index.html").exists():
-                apps.append({"name": d.name, "path": str(d), "size": (d / "index.html").stat().st_size})
-                if len(apps) >= _MAX_BUILD_LIST:
-                    break
+            if not d.is_dir():
+                continue
+            html_file = d / "index.html"
+            if not html_file.exists():
+                continue
+
+            # Load persisted metadata if available
+            meta_file = d / "meta.json"
+            meta: dict = {}
+            if meta_file.exists():
+                try:
+                    meta = _json.loads(meta_file.read_text(encoding="utf-8"))
+                except Exception:
+                    pass
+
+            stat = html_file.stat()
+            # created_at: prefer meta.json value, fall back to filesystem mtime
+            created_at = meta.get("created_at") or datetime.fromtimestamp(stat.st_mtime).isoformat()
+
+            # Preview: first 200 non-whitespace chars of the HTML
+            try:
+                preview = " ".join(html_file.read_text(encoding="utf-8", errors="replace").split())[:200]
+            except Exception:
+                preview = ""
+
+            apps.append({
+                "name": d.name,
+                "title": meta.get("title", d.name),
+                "prompt": meta.get("prompt", ""),
+                "path": str(d),
+                "size": stat.st_size,
+                "created_at": created_at,
+                "preview": preview,
+            })
+            if len(apps) >= _MAX_BUILD_LIST:
+                break
     return {"apps": apps, "total": len(apps), "limit": _MAX_BUILD_LIST}
+
+
+@router.get("/api/build/{name}")
+async def get_app(name: str):
+    """Return the full HTML of a saved app."""
+    safe_name = Path(name).name
+    if not safe_name or safe_name != name:
+        return JSONResponse({"error": "Invalid name"}, status_code=400)
+    filepath = cfg.GENERATED_DIR / safe_name / "index.html"
+    if not filepath.exists():
+        return JSONResponse({"error": "App not found"}, status_code=404)
+    import json as _json
+    meta: dict = {}
+    meta_file = cfg.GENERATED_DIR / safe_name / "meta.json"
+    if meta_file.exists():
+        try:
+            meta = _json.loads(meta_file.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    return {
+        "name": safe_name,
+        "title": meta.get("title", safe_name),
+        "prompt": meta.get("prompt", ""),
+        "created_at": meta.get("created_at", ""),
+        "html": filepath.read_text(encoding="utf-8"),
+        "size": filepath.stat().st_size,
+    }
 
 
 @router.delete("/api/build/{name}")

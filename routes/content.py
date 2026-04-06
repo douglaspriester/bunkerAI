@@ -229,7 +229,11 @@ async def delete_supply(item_id: int):
 
 @router.get("/api/books")
 async def list_books(q: str = None):
-    """List books, optionally search by title/author."""
+    """List books, optionally search by title/author.
+
+    Each entry includes ``size_bytes`` and ``modified`` (ISO-8601) derived from
+    the actual EPUB file on disk so the UI can display file metadata.
+    """
     def _query():
         conn = _db()
         if q:
@@ -240,7 +244,28 @@ async def list_books(q: str = None):
         else:
             rows = conn.execute("SELECT * FROM books ORDER BY title").fetchall()
         conn.close()
-        return [dict(r) for r in rows]
+        books = []
+        for r in rows:
+            book = dict(r)
+            # Enrich with filesystem metadata when the file is available
+            if book.get("file"):
+                fp = cfg.BOOKS_DIR / book["file"]
+                if not fp.exists():
+                    # Try a recursive search in subdirectories
+                    candidates = list(cfg.BOOKS_DIR.rglob(book["file"]))
+                    fp = candidates[0] if candidates else fp
+                try:
+                    st = fp.stat()
+                    book["size_bytes"] = st.st_size
+                    book["modified"] = datetime.fromtimestamp(st.st_mtime).isoformat()
+                except OSError:
+                    book["size_bytes"] = None
+                    book["modified"] = None
+            else:
+                book["size_bytes"] = None
+                book["modified"] = None
+            books.append(book)
+        return books
     return await _db_run(_query)
 
 
