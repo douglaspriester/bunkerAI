@@ -24,10 +24,15 @@ async function loadBooks(q = '') {
   try {
     const url = q ? `/api/books?q=${encodeURIComponent(q)}` : '/api/books';
     const r = await fetch(url);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const d = await r.json();
     renderBooks(Array.isArray(d) ? d : (d.books || []));
   } catch(e) {
-    grid.innerHTML = `<div class="guide-error">Erro: ${e.message}</div>`;
+    grid.textContent = '';
+    const err = document.createElement('div');
+    err.className = 'guide-error';
+    err.textContent = 'Erro: ' + e.message;
+    grid.appendChild(err);
   }
 }
 
@@ -110,7 +115,24 @@ async function openBook(id) {
 
   } catch (e) {
     console.error('Epub reader error:', e);
-    if (area) area.innerHTML = `<div class="guide-error">Erro ao abrir livro: ${e.message}<br><br><button class="btn-sm" onclick="window.open('/api/books/${id}/file','_blank')">Abrir em nova aba</button></div>`;
+    // Destroy partially-initialized instances on failure
+    if (_currentRendition) { try { _currentRendition.destroy(); } catch(_) {} _currentRendition = null; }
+    if (_currentBook) { try { _currentBook.destroy(); } catch(_) {} _currentBook = null; }
+    if (area) {
+      area.textContent = '';
+      const errDiv = document.createElement('div');
+      errDiv.className = 'guide-error';
+      errDiv.textContent = 'Erro ao abrir livro: ' + e.message;
+      const openBtn = document.createElement('button');
+      openBtn.className = 'btn-sm';
+      openBtn.style.marginTop = '8px';
+      openBtn.textContent = 'Abrir em nova aba';
+      openBtn.onclick = () => window.open('/api/books/' + encodeURIComponent(id) + '/file', '_blank');
+      errDiv.appendChild(document.createElement('br'));
+      errDiv.appendChild(document.createElement('br'));
+      errDiv.appendChild(openBtn);
+      area.appendChild(errDiv);
+    }
   }
 }
 
@@ -167,11 +189,16 @@ async function loadJournal() {
   content.innerHTML = '<div class="guide-loading">Carregando diário...</div>';
   try {
     const r = await fetch('/api/journal');
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const d = await r.json();
     _journalEntries = Array.isArray(d) ? d : (d.entries || []);
     renderJournal(_journalEntries);
   } catch(e) {
-    content.innerHTML = `<div class="guide-error">Erro: ${e.message}</div>`;
+    content.textContent = '';
+    const err = document.createElement('div');
+    err.className = 'guide-error';
+    err.textContent = 'Erro: ' + e.message;
+    content.appendChild(err);
   }
 }
 
@@ -333,41 +360,53 @@ function renderJournalStatus(d) {
   const el = document.getElementById('journalStatus');
   if (!el) return;
 
+  // Escape all server-supplied strings before building HTML
+  const esc = escapeHtml;
   const hasPsutil = d.cpu_pct != null;
+  // Numeric values: coerce to numbers and fallback to 0 to prevent injection
+  const cpuPct   = parseFloat(d.cpu_pct)  || 0;
+  const ramPct   = parseFloat(d.ram_pct)  || 0;
+  const diskPct  = parseFloat(d.disk_pct) || 0;
+  const ramUsedMb  = parseFloat(d.ram_used_mb)  || 0;
+  const ramTotalMb = parseFloat(d.ram_total_mb) || 0;
+  const diskFreeGb  = parseFloat(d.disk_free_gb)  || 0;
+  const diskTotalGb = parseFloat(d.disk_total_gb) || 0;
+
+  const ramUsed  = ramUsedMb  >= 1024 ? `${(ramUsedMb/1024).toFixed(1)} GB`  : `${ramUsedMb} MB`;
+  const ramTotal = ramTotalMb >= 1024 ? `${(ramTotalMb/1024).toFixed(1)} GB` : `${ramTotalMb} MB`;
+
   let html = '<div class="status-card-title">📡 Status do Servidor</div>';
   html += '<div class="status-grid">';
 
-  // IP + Port
-  html += `<div class="status-item"><span class="status-label">IP</span><span class="status-val">${d.ip}:${d.port}</span></div>`;
-  // Uptime
-  html += `<div class="status-item"><span class="status-label">Uptime</span><span class="status-val">${_uptimeStr(d.uptime_sec)}</span></div>`;
-  // OS
-  html += `<div class="status-item"><span class="status-label">SO</span><span class="status-val">${d.os}</span></div>`;
-  // Python
-  html += `<div class="status-item"><span class="status-label">Python</span><span class="status-val">${d.python}</span></div>`;
+  // IP + Port — escaped server strings
+  html += `<div class="status-item"><span class="status-label">IP</span><span class="status-val">${esc(String(d.ip || ''))}:${esc(String(d.port || ''))}</span></div>`;
+  // Uptime — computed from numeric value, safe
+  html += `<div class="status-item"><span class="status-label">Uptime</span><span class="status-val">${_uptimeStr(parseInt(d.uptime_sec) || 0)}</span></div>`;
+  // OS — escaped
+  html += `<div class="status-item"><span class="status-label">SO</span><span class="status-val">${esc(String(d.os || ''))}</span></div>`;
+  // Python — escaped
+  html += `<div class="status-item"><span class="status-label">Python</span><span class="status-val">${esc(String(d.python || ''))}</span></div>`;
 
   if (hasPsutil) {
-    // CPU
-    html += `<div class="status-item full"><span class="status-label">CPU</span><span class="status-val">${d.cpu_pct}%</span>${_statusBar(d.cpu_pct)}</div>`;
-    // RAM
-    const ramUsed = d.ram_used_mb >= 1024 ? `${(d.ram_used_mb/1024).toFixed(1)} GB` : `${d.ram_used_mb} MB`;
-    const ramTotal = d.ram_total_mb >= 1024 ? `${(d.ram_total_mb/1024).toFixed(1)} GB` : `${d.ram_total_mb} MB`;
-    html += `<div class="status-item full"><span class="status-label">RAM</span><span class="status-val">${ramUsed} / ${ramTotal} (${d.ram_pct}%)</span>${_statusBar(d.ram_pct)}</div>`;
-    // Disk
-    html += `<div class="status-item full"><span class="status-label">Disco livre</span><span class="status-val">${d.disk_free_gb} GB / ${d.disk_total_gb} GB (${d.disk_pct}%)</span>${_statusBar(d.disk_pct)}</div>`;
+    // CPU — numeric only
+    html += `<div class="status-item full"><span class="status-label">CPU</span><span class="status-val">${cpuPct}%</span>${_statusBar(cpuPct)}</div>`;
+    // RAM — numeric only
+    html += `<div class="status-item full"><span class="status-label">RAM</span><span class="status-val">${ramUsed} / ${ramTotal} (${ramPct}%)</span>${_statusBar(ramPct)}</div>`;
+    // Disk — numeric only
+    html += `<div class="status-item full"><span class="status-label">Disco livre</span><span class="status-val">${diskFreeGb} GB / ${diskTotalGb} GB (${diskPct}%)</span>${_statusBar(diskPct)}</div>`;
   } else {
     html += `<div class="status-item full"><span class="status-label">Métricas</span><span class="status-val status-dim">Instale psutil para detalhes</span></div>`;
   }
 
-  // Content summary
+  // Content summary — numeric counts only
   if (d.content) {
     const c = d.content;
     html += `<div class="status-item full status-content">`;
     html += `<span class="status-label">Conteúdo offline</span>`;
     html += `<div class="status-content-grid">`;
-    html += `<span>📋 ${c.guides} guias</span><span>🚨 ${c.protocols} protocolos</span>`;
-    html += `<span>📚 ${c.books} livros</span><span>🎮 ${c.games} jogos</span>`;
-    html += `<span>🗺️ ${c.maps} mapas</span><span>🌐 ${c.zim_files} ZIM</span>`;
+    html += `<span>📋 ${parseInt(c.guides) || 0} guias</span><span>🚨 ${parseInt(c.protocols) || 0} protocolos</span>`;
+    html += `<span>📚 ${parseInt(c.books) || 0} livros</span><span>🎮 ${parseInt(c.games) || 0} jogos</span>`;
+    html += `<span>🗺️ ${parseInt(c.maps) || 0} mapas</span><span>🌐 ${parseInt(c.zim_files) || 0} ZIM</span>`;
     html += `</div></div>`;
   }
 
@@ -654,6 +693,7 @@ async function transcribeJournalAudio(idx) {
 // Voice-to-text dictation (speak directly into journal textarea)
 let _journalDictating = false;
 let _journalDictateRecorder = null;
+let _journalDictateTimeout = null; // auto-stop after max duration
 
 function toggleJournalDictate() {
   if (_journalDictating) {
