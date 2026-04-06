@@ -1,7 +1,7 @@
 // static/sw.js — BunkerAI Service Worker
 // Caches static assets for offline operation
 
-const CACHE_NAME = 'bunkerai-v1';
+const CACHE_NAME = 'bunkerai-v2';
 
 // Assets to pre-cache on install
 const PRECACHE_URLS = [
@@ -9,7 +9,17 @@ const PRECACHE_URLS = [
   '/static/index.html',
   '/static/style.css',
   '/static/js/main.js',
-  '/static/js/apps.js',
+  '/static/js/apps-core.js',
+  '/static/js/apps-map.js',
+  '/static/js/apps-content.js',
+  '/static/js/apps-books-journal.js',
+  '/static/js/apps-search.js',
+  '/static/js/apps-sysmon.js',
+  '/static/js/apps-office.js',
+  '/static/js/apps-tools.js',
+  '/static/js/apps-creative.js',
+  '/static/js/apps-ref.js',
+  '/static/js/apps-modelmgr.js',
   '/static/js/chat.js',
   '/static/js/state.js',
   '/static/js/windowManager.js',

@@ -117,28 +117,49 @@ window._windows = _windows;
 window.LOADING_PHRASES = LOADING_PHRASES;
 window.guidesCache = guidesCache;
 
-// ─── Init: load apps.js then boot ───────────────────────────────────────────
-// apps.js contains all app-specific code that hasn't been extracted into ES modules yet.
-// It's loaded dynamically AFTER globals are set up on window.
+// ─── Init: load app modules then boot ────────────────────────────────────────
+// App code is split into per-category plain scripts loaded in sequence.
+// Each file is a plain script (not ES module) that reads globals from window.
+// Load order matters: apps-core must come first (declares aliases).
 
-function loadAppsScript() {
+const APP_SCRIPTS = [
+  './js/apps-core.js',          // Boot, Guides, Config, Health, Voice, Builder, Characters, TTS
+  './js/apps-map.js',           // Offline map (Leaflet + PMTiles)
+  './js/apps-content.js',       // Protocols, Games, Supplies
+  './js/apps-books-journal.js', // Books (epub.js), Wiki, Journal, Companion Voice
+  './js/apps-search.js',        // MiniSearch, indexContent, globalSearch
+  './js/apps-sysmon.js',        // System Monitor
+  './js/apps-office.js',        // Notepad, Word, Excel
+  './js/apps-tools.js',         // Calculator, Timer, Converter, Checklist, Morse, Sun, Water, Tasks, Media, Terminal, FileManager
+  './js/apps-creative.js',      // Paint, Imagine (image gen)
+  './js/apps-ref.js',           // Survival Reference, SOS, Radio + state exposes
+  './js/apps-modelmgr.js',      // Model Manager
+];
+
+function _loadScriptTag(src) {
   return new Promise((resolve, reject) => {
     const s = document.createElement('script');
-    s.src = './js/apps.js?v=' + Date.now();
+    s.src = src + '?v=' + Date.now();
     s.onload = resolve;
-    s.onerror = () => reject(new Error('Failed to load apps.js'));
+    s.onerror = () => reject(new Error('Failed to load ' + src));
     document.head.appendChild(s);
   });
+}
+
+async function loadAppsScript() {
+  for (const src of APP_SCRIPTS) {
+    await _loadScriptTag(src);
+  }
 }
 
 async function boot() {
   // 1. Load persisted data
   loadPersistedData();
 
-  // 2. Load apps.js (needs window globals to be set first)
+  // 2. Load app modules (needs window globals to be set first)
   await loadAppsScript();
 
-  // 3. Wire app open/close callbacks from apps.js into window manager
+  // 3. Wire app open/close callbacks from app modules into window manager
   wireAppCallbacks();
 
   // 4. Init window manager events
