@@ -265,3 +265,23 @@ if (document.readyState === 'loading') {
 } else {
   boot();
 }
+
+// Register Service Worker for offline caching
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js', { scope: '/' })
+      .then(reg => {
+        console.log('[SW] Registrado:', reg.scope);
+        // Check for updates
+        reg.addEventListener('updatefound', () => {
+          const newSW = reg.installing;
+          newSW?.addEventListener('statechange', () => {
+            if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+              console.log('[SW] Nova versão disponível');
+            }
+          });
+        });
+      })
+      .catch(err => console.warn('[SW] Registro falhou:', err));
+  });
+}

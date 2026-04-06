@@ -3153,6 +3153,53 @@ async def rag_get_context(request: Request):
     return JSONResponse({"context": context, "sources": [r["filename"] for r in results]})
 
 
+# ─── PWA icons ───────────────────────────────────────────────────────────────
+
+def _ensure_pwa_icons():
+    """Create minimal PWA icon placeholders if they don't exist."""
+    import struct, zlib
+    img_dir = Path("static/img")
+    img_dir.mkdir(exist_ok=True)
+
+    def make_png(size: int) -> bytes:
+        """Create a minimal solid-color PNG (#0a0a0a opaque)."""
+        width = height = size
+        color = (10, 10, 10, 255)  # #0a0a0a opaque
+        raw = b''
+        for y in range(height):
+            raw += b'\x00'  # filter type: none
+            for x in range(width):
+                raw += bytes(color)
+
+        compressed = zlib.compress(raw)
+
+        def chunk(name: bytes, data: bytes) -> bytes:
+            c = name + data
+            return struct.pack('>I', len(data)) + c + struct.pack('>I', zlib.crc32(c) & 0xffffffff)
+
+        png = b'\x89PNG\r\n\x1a\n'
+        png += chunk(b'IHDR', struct.pack('>IIBBBBB', width, height, 8, 6, 0, 0, 0))
+        png += chunk(b'IDAT', compressed)
+        png += chunk(b'IEND', b'')
+        return png
+
+    for size in [192, 512]:
+        icon_path = img_dir / f"icon-{size}.png"
+        if not icon_path.exists():
+            try:
+                icon_path.write_bytes(make_png(size))
+                print(f"[PWA] Icone criado: {icon_path}")
+            except Exception as e:
+                print(f"[PWA] Erro ao criar icone {size}: {e}")
+
+_ensure_pwa_icons()
+
+
+@app.get("/manifest.json")
+async def pwa_manifest():
+    return FileResponse("static/manifest.json", media_type="application/manifest+json")
+
+
 # ─── Static (with no-cache for JS/CSS to avoid stale code) ──────────────────
 
 from starlette.middleware.base import BaseHTTPMiddleware
