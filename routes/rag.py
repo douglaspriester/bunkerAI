@@ -73,7 +73,13 @@ def _rag_chunk_text(text: str, chunk_size: int = 500, overlap: int = 50) -> list
 
 
 def _rag_bm25_search(query: str, top_k: int = 5) -> list:
-    """BM25 search over all indexed chunks."""
+    """BM25 search over all indexed chunks.
+
+    NOTE/TODO: The BM25 index is rebuilt from all chunks on every search call.
+    For large corpora (thousands of chunks) this is slow O(N) at query time.
+    A future improvement would be to cache/persist the BM25 index and
+    invalidate it only when documents are added or removed.
+    """
     try:
         from rank_bm25 import BM25Okapi
     except ImportError:
@@ -126,8 +132,13 @@ async def rag_index_document(file: UploadFile = File(...)):
     doc_id = hashlib.md5(content).hexdigest()
 
     con = sqlite3.connect(RAG_DB)
-    existing = con.execute("SELECT id FROM rag_docs WHERE id = ?", (doc_id,)).fetchone()
+    existing = con.execute("SELECT id, filename FROM rag_docs WHERE id = ?", (doc_id,)).fetchone()
     if existing:
+        # Update the stored filename if it has changed (same content, renamed file)
+        if existing[1] != filename:
+            con.execute("UPDATE rag_docs SET filename = ? WHERE id = ?", (filename, doc_id))
+            con.execute("UPDATE rag_chunks SET filename = ? WHERE doc_id = ?", (filename, doc_id))
+            con.commit()
         con.close()
         return JSONResponse({"status": "already_indexed", "doc_id": doc_id, "filename": filename})
 
@@ -177,7 +188,7 @@ async def rag_search(q: str, top_k: int = 5):
     if not q.strip():
         return JSONResponse({"results": []})
 
-    results = _rag_bm25_search(q.strip(), top_k=min(top_k, 20))
+    results = _rag_bm25_search(q.strip(), top_k=max(1, min(top_k, 20)))
     return JSONResponse({"query": q, "results": results})
 
 
@@ -197,6 +208,10 @@ async def rag_list_docs():
 async def rag_delete_doc(doc_id: str):
     """Delete an indexed document and all its chunks."""
     con = sqlite3.connect(RAG_DB)
+    existing = con.execute("SELECT id FROM rag_docs WHERE id = ?", (doc_id,)).fetchone()
+    if not existing:
+        con.close()
+        return JSONResponse({"status": "error", "message": "Document not found"}, status_code=404)
     con.execute("DELETE FROM rag_chunks WHERE doc_id = ?", (doc_id,))
     con.execute("DELETE FROM rag_docs WHERE id = ?", (doc_id,))
     con.commit()
@@ -213,6 +228,9 @@ async def rag_get_context(request: Request):
 
     if not query.strip():
         return JSONResponse({"context": ""})
+
+    # Clamp top_k to a sane range (0 or negative → default 3)
+    top_k = max(1, min(int(top_k), 20)) if top_k and int(top_k) > 0 else 3
 
     results = _rag_bm25_search(query, top_k=top_k)
     if not results:

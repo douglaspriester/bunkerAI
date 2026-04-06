@@ -13,6 +13,9 @@ import routes.config as cfg
 
 router = APIRouter(tags=["maps"])
 
+# Track in-progress downloads to prevent duplicate concurrent extractions
+_active_map_downloads: set = set()
+
 
 @router.get("/api/maps")
 async def list_maps():
@@ -111,6 +114,9 @@ async def download_map(request: Request):
     if output_path.exists():
         return JSONResponse({"status": "already_installed", "size_mb": round(output_path.stat().st_size / 1048576, 1)})
 
+    if region_id in _active_map_downloads:
+        return JSONResponse({"status": "already_downloading", "region": region_id})
+
     cfg.MAPS_DIR.mkdir(parents=True, exist_ok=True)
 
     pmtiles_bin = shutil.which("pmtiles")
@@ -121,41 +127,45 @@ async def download_map(request: Request):
                 break
 
     async def stream_download():
-        if pmtiles_bin:
-            cmd = [
-                pmtiles_bin, "extract",
-                cfg.PROTOMAPS_BUILD,
-                str(output_path),
-                f"--maxzoom={region['maxzoom']}",
-                f"--bbox={region['bbox']}",
-            ]
-            try:
-                proc = await asyncio.create_subprocess_exec(
-                    *cmd,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.STDOUT,
-                )
-                yield f"data: {json.dumps({'status': 'extracting', 'region': region_id, 'est_mb': region['est_mb']})}\n\n"
-                async for line in proc.stdout:
-                    text = line.decode().strip()
-                    if text:
-                        yield f"data: {json.dumps({'status': 'progress', 'message': text})}\n\n"
-                await proc.wait()
-                if proc.returncode == 0 and output_path.exists():
-                    size_mb = round(output_path.stat().st_size / 1048576, 1)
-                    yield f"data: {json.dumps({'status': 'done', 'size_mb': size_mb})}\n\n"
-                else:
-                    yield f"data: {json.dumps({'status': 'error', 'message': 'Falha na extracao'})}\n\n"
-            except (NotImplementedError, OSError):
-                yield f"data: {json.dumps({'status': 'extracting', 'region': region_id})}\n\n"
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
-                if result.returncode == 0 and output_path.exists():
-                    size_mb = round(output_path.stat().st_size / 1048576, 1)
-                    yield f"data: {json.dumps({'status': 'done', 'size_mb': size_mb})}\n\n"
-                else:
-                    yield f"data: {json.dumps({'status': 'error', 'message': result.stderr[:200]})}\n\n"
-        else:
-            yield f"data: {json.dumps({'status': 'error', 'message': 'pmtiles CLI nao encontrado. Coloque pmtiles.exe em tools/'})}\n\n"
+        _active_map_downloads.add(region_id)
+        try:
+            if pmtiles_bin:
+                cmd = [
+                    pmtiles_bin, "extract",
+                    cfg.PROTOMAPS_BUILD,
+                    str(output_path),
+                    f"--maxzoom={region['maxzoom']}",
+                    f"--bbox={region['bbox']}",
+                ]
+                try:
+                    proc = await asyncio.create_subprocess_exec(
+                        *cmd,
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.STDOUT,
+                    )
+                    yield f"data: {json.dumps({'status': 'extracting', 'region': region_id, 'est_mb': region['est_mb']})}\n\n"
+                    async for line in proc.stdout:
+                        text = line.decode().strip()
+                        if text:
+                            yield f"data: {json.dumps({'status': 'progress', 'message': text})}\n\n"
+                    await proc.wait()
+                    if proc.returncode == 0 and output_path.exists():
+                        size_mb = round(output_path.stat().st_size / 1048576, 1)
+                        yield f"data: {json.dumps({'status': 'done', 'size_mb': size_mb})}\n\n"
+                    else:
+                        yield f"data: {json.dumps({'status': 'error', 'message': 'Falha na extracao'})}\n\n"
+                except (NotImplementedError, OSError):
+                    yield f"data: {json.dumps({'status': 'extracting', 'region': region_id})}\n\n"
+                    result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+                    if result.returncode == 0 and output_path.exists():
+                        size_mb = round(output_path.stat().st_size / 1048576, 1)
+                        yield f"data: {json.dumps({'status': 'done', 'size_mb': size_mb})}\n\n"
+                    else:
+                        yield f"data: {json.dumps({'status': 'error', 'message': result.stderr[:200]})}\n\n"
+            else:
+                yield f"data: {json.dumps({'status': 'error', 'message': 'pmtiles CLI nao encontrado. Coloque pmtiles.exe em tools/'})}\n\n"
+        finally:
+            _active_map_downloads.discard(region_id)
 
     return StreamingResponse(stream_download(), media_type="text/event-stream")
 
