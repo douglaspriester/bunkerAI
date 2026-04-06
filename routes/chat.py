@@ -130,6 +130,9 @@ def _chat_stream_llamacpp(payload: dict, timeout: float) -> StreamingResponse:
 
 # ─── Chat endpoints ───────────────────────────────────────────────────────────
 
+_MAX_CHAT_MSG_CHARS = 32_000   # per message content
+_MAX_CHAT_HISTORY  = 200       # maximum messages in a single request
+
 @router.post("/api/chat")
 async def chat(request: Request):
     if cfg._check_rate_limit("chat", request.client.host if request.client else "local"):
@@ -138,6 +141,14 @@ async def chat(request: Request):
     model = cfg.get_model("chat", body.get("model", ""))
     messages = body.get("messages", [])
     system = body.get("system", "")
+
+    # Guard: reject oversized inputs to prevent memory / prompt-injection abuse
+    if len(messages) > _MAX_CHAT_HISTORY:
+        return JSONResponse({"error": "Muitas mensagens no histórico (max 200)."}, status_code=400)
+    for m in messages:
+        content = m.get("content", "")
+        if isinstance(content, str) and len(content) > _MAX_CHAT_MSG_CHARS:
+            return JSONResponse({"error": "Mensagem muito longa (max 32000 caracteres)."}, status_code=400)
 
     # RAG context injection
     last_user_msg = ""
@@ -249,10 +260,20 @@ REGRAS OBRIGATORIAS:
     }, timeout=600.0)
 
 
+_HTML_DETECT_RE = re.compile(r'<\s*(!DOCTYPE\s+html|html[\s>])', re.IGNORECASE)
+_MAX_APP_HTML_BYTES = 5 * 1024 * 1024  # 5 MB
+
 @router.post("/api/build/save")
 async def save_app(request: Request):
     body = await request.json()
     html = body.get("html", "")
+    if not html or not isinstance(html, str):
+        return JSONResponse({"error": "No HTML content provided"}, status_code=400)
+    if len(html.encode("utf-8")) > _MAX_APP_HTML_BYTES:
+        return JSONResponse({"error": "HTML too large (max 5 MB)"}, status_code=400)
+    # Require at least a recognisable HTML document tag
+    if not _HTML_DETECT_RE.search(html[:2048]):
+        return JSONResponse({"error": "Response does not appear to be valid HTML"}, status_code=400)
     raw_name = body.get("name", f"app-{uuid.uuid4().hex[:8]}")
     safe_name = re.sub(r"[^a-zA-Z0-9_\-]", "_", raw_name)[:64] or f"app-{uuid.uuid4().hex[:8]}"
     app_dir = cfg.GENERATED_DIR / safe_name
