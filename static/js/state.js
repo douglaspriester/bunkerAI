@@ -32,12 +32,31 @@ export const state = {
   currentProtocol: null,
 };
 
-// ─── Persistence (with fallback) ────────────────────────────────────────────
-const _ls = () => { try { return window['local' + 'Storage']; } catch { return null; } };
+// ─── Persistence (with in-memory fallback for private-browsing / blocked storage) ─
+const _memStore = {};
+
+function _getLS() {
+  try {
+    const ls = window['local' + 'Storage'];
+    // Verify it actually works (Safari private mode exposes the object but throws on write)
+    ls.setItem('__bunker_test__', '1');
+    ls.removeItem('__bunker_test__');
+    return ls;
+  } catch {
+    return null;
+  }
+}
+
+let _lsCache = undefined; // undefined = not yet probed
+function _ls() {
+  if (_lsCache === undefined) _lsCache = _getLS();
+  return _lsCache;
+}
+
 export const storage = {
-  get(key) { const s = _ls(); return s ? s.getItem(key) : null; },
-  set(key, val) { const s = _ls(); if (s) s.setItem(key, val); },
-  del(key) { const s = _ls(); if (s) s.removeItem(key); }
+  get(key)      { const s = _ls(); return s ? s.getItem(key) : (_memStore[key] ?? null); },
+  set(key, val) { const s = _ls(); if (s) { s.setItem(key, val); } else { _memStore[key] = val; } },
+  del(key)      { const s = _ls(); if (s) { s.removeItem(key); } else { delete _memStore[key]; } },
 };
 
 // ─── Guide/Protocol/Game Data (loaded from API) ─────────────────────────────
