@@ -385,7 +385,7 @@ function clearAllMarkers() {
 }
 
 function saveMapMarkers() {
-  const data = mapState.markers.map(m => ({ id: m.id, lat: m.lat, lng: m.lng, label: m.label }));
+  const data = mapState.markers.map(m => ({ id: m.id, lat: m.lat, lng: m.lng, label: m.label, category: m.category || 'general' }));
   storage.set("bunker_map_markers", JSON.stringify(data));
 }
 
@@ -395,7 +395,10 @@ function loadSavedMarkers() {
     if (!data) return;
     const markers = JSON.parse(data);
     for (const m of markers) {
-      addMapMarker(m.lat, m.lng, m.label);
+      const lat = parseFloat(m.lat);
+      const lng = parseFloat(m.lng);
+      if (!isFinite(lat) || !isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) continue;
+      addMapMarker(lat, lng, m.label || '', m.category || 'general');
     }
   } catch {}
 }
