@@ -41,10 +41,22 @@ function indexContent() {
   idx.addAll(docs);
 }
 
+function safeSearch(index, query) {
+  try {
+    if (!query || query.trim().length < 2) return [];
+    // Escape regex special chars that MiniSearch might choke on
+    const safe = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return index.search(safe, { fuzzy: 0.2, prefix: true });
+  } catch (e) {
+    console.warn('Search error:', e);
+    return [];
+  }
+}
+
 function globalSearch(query) {
   const si = window.searchIndex;
   if (!si || !query.trim()) return [];
-  return si.search(query).slice(0, 10);
+  return safeSearch(si, query).slice(0, 10);
 }
 
 function onSearchInput(query) {
