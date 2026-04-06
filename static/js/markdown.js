@@ -68,8 +68,14 @@ export function markdownToHtml(md) {
   s = s.replace(/\*([^\s*](?:[^*\n]*[^\s*])?)\*/g, "<em>$1</em>");
   s = s.replace(/\*([^\s*])\*/g, "<em>$1</em>");
   s = s.replace(/~~(.+?)~~/g, "<del>$1</del>");
-  s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g,
-    '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+  s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, linkText, rawUrl) => {
+    // Decode HTML entities in URL (from step 3 escaping) then re-validate
+    const url = rawUrl.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+    // Strip dangerous URL schemes (javascript:, data:, vbscript:, etc.)
+    const safePrefixes = /^(https?:|mailto:|#|\/)/i;
+    const safeUrl = safePrefixes.test(url.trim()) ? rawUrl : '#';
+    return `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${linkText}</a>`;
+  });
 
   // 7. Paragraphs — split on double newlines, wrap non-block content
   const BLOCK_RE = /^<(?:h[1-6]|ul|ol|pre|blockquote|hr|div)[^>]*>/;
