@@ -84,19 +84,34 @@ elif command -v python3 &>/dev/null; then
     echo "[PY] Usando python3 do sistema"
 fi
 
+# Verificar se porta 8888 ja esta em uso
+if ss -tlnp 2>/dev/null | grep -q ':8888 ' || netstat -tlnp 2>/dev/null | grep -q ':8888 '; then
+    echo "[AVISO] Porta 8888 ja esta em uso. Encerrando processo anterior..."
+    fuser -k 8888/tcp 2>/dev/null || true
+    sleep 1
+fi
+
 # Iniciar backend FastAPI
 echo "[WEB] Iniciando servidor BunkerAI..."
 python3 server.py > /tmp/bunker_server.log 2>&1 &
 SERVER_PID=$!
-sleep 3
 
-# Verificar se o servidor subiu
-if ! kill -0 $SERVER_PID 2>/dev/null; then
-    echo "[ERRO] Servidor falhou ao iniciar. Log:"
-    tail -20 /tmp/bunker_server.log
-    read -p "Pressione Enter para sair..."
-    exit 1
-fi
+# Aguardar o servidor responder (ate 20 segundos)
+WAIT=0
+until curl -sf http://localhost:8888/api/ping >/dev/null 2>&1; do
+    sleep 1
+    WAIT=$((WAIT+1))
+    if ! kill -0 $SERVER_PID 2>/dev/null; then
+        echo "[ERRO] Servidor falhou ao iniciar. Log:"
+        tail -20 /tmp/bunker_server.log
+        read -p "Pressione Enter para sair..."
+        exit 1
+    fi
+    if [ $WAIT -ge 20 ]; then
+        echo "[AVISO] Servidor demorou mais de 20s — abrindo navegador mesmo assim"
+        break
+    fi
+done
 
 # Abrir navegador
 echo "[OK] Abrindo http://localhost:8888"

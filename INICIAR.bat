@@ -97,10 +97,33 @@ if exist "python\python.exe" (
     echo [PY] venv ativado
 )
 
+:: Verificar se porta 8888 ja esta em uso e encerrar processo anterior
+netstat -ano | findstr ":8888 " | findstr "LISTENING" >nul 2>&1
+if !errorlevel!==0 (
+    echo [AVISO] Porta 8888 em uso. Encerrando processo anterior...
+    for /f "tokens=5" %%p in ('netstat -ano ^| findstr ":8888 " ^| findstr "LISTENING"') do (
+        taskkill /pid %%p /f >nul 2>&1
+    )
+    timeout /t 1 /nobreak >nul
+)
+
 :: Iniciar servidor BunkerAI
 echo [WEB] Iniciando BunkerAI...
 start /b "" !PYTHON! server.py
-timeout /t 3 /nobreak >nul
+
+:: Aguardar o servidor responder (ate 20 segundos)
+set WAIT=0
+:wait_loop
+timeout /t 1 /nobreak >nul
+curl -sf http://localhost:8888/api/ping >nul 2>&1
+if !errorlevel!==0 goto :server_ready
+set /a WAIT=!WAIT!+1
+if !WAIT! GEQ 20 (
+    echo [AVISO] Servidor demorou mais de 20s — abrindo navegador mesmo assim
+    goto :server_ready
+)
+goto :wait_loop
+:server_ready
 
 :: Abrir navegador
 echo [OK] Abrindo http://localhost:8888
