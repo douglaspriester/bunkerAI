@@ -89,6 +89,18 @@ def _init_db():
             created_at TEXT DEFAULT (datetime('now','localtime')),
             updated_at TEXT DEFAULT (datetime('now','localtime'))
         );
+
+        CREATE INDEX IF NOT EXISTS idx_supplies_category ON supplies(category);
+        CREATE INDEX IF NOT EXISTS idx_supplies_name     ON supplies(name);
+        CREATE INDEX IF NOT EXISTS idx_supplies_expiry   ON supplies(expiry);
+        CREATE INDEX IF NOT EXISTS idx_journal_date      ON journal(date);
+        CREATE INDEX IF NOT EXISTS idx_notes_title       ON notes(title);
+        CREATE INDEX IF NOT EXISTS idx_notes_updated     ON notes(updated_at);
+        CREATE INDEX IF NOT EXISTS idx_tasks_status      ON tasks(status);
+        CREATE INDEX IF NOT EXISTS idx_tasks_category    ON tasks(category);
+        CREATE INDEX IF NOT EXISTS idx_tasks_priority    ON tasks(priority);
+        CREATE INDEX IF NOT EXISTS idx_tasks_due_date    ON tasks(due_date);
+        CREATE INDEX IF NOT EXISTS idx_books_title       ON books(title);
     """)
     conn.close()
 
@@ -117,7 +129,8 @@ def _init_rag_db():
             created_at TEXT DEFAULT (datetime('now'))
         )
     """)
-    con.execute("CREATE INDEX IF NOT EXISTS idx_rag_doc ON rag_chunks(doc_id)")
+    con.execute("CREATE INDEX IF NOT EXISTS idx_rag_doc      ON rag_chunks(doc_id)")
+    con.execute("CREATE INDEX IF NOT EXISTS idx_rag_filename ON rag_chunks(filename)")
     con.commit()
     con.close()
 
