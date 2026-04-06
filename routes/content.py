@@ -1,9 +1,11 @@
 """Content endpoints: guides, protocols, supplies, books, games, journal, notes, tasks."""
 
+import asyncio
 import json
 import sqlite3
 from datetime import date, datetime
 from pathlib import Path
+from typing import Any, Callable
 
 import httpx
 from fastapi import APIRouter, Request
@@ -14,13 +16,18 @@ import routes.config as cfg
 router = APIRouter(tags=["content"])
 
 
-# ─── DB helper ────────────────────────────────────────────────────────────────
+# ─── DB helpers ───────────────────────────────────────────────────────────────
 
 def _db():
     """Get a SQLite connection with row factory."""
     conn = sqlite3.connect(str(cfg.DB_PATH))
     conn.row_factory = sqlite3.Row
     return conn
+
+
+async def _db_run(fn: Callable[[], Any]) -> Any:
+    """Run a synchronous SQLite function in a thread pool to avoid blocking the event loop."""
+    return await asyncio.to_thread(fn)
 
 
 # ─── Guides ──────────────────────────────────────────────────────────────────
@@ -83,59 +90,64 @@ async def get_protocol(proto_id: str):
 @router.get("/api/supplies")
 async def list_supplies(category: str = None):
     """List supplies, optionally filtered by category."""
-    conn = _db()
-    if category:
-        rows = conn.execute("SELECT * FROM supplies WHERE category = ? ORDER BY expiry", (category,)).fetchall()
-    else:
-        rows = conn.execute("SELECT * FROM supplies ORDER BY category, expiry").fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
+    def _query():
+        conn = _db()
+        if category:
+            rows = conn.execute("SELECT * FROM supplies WHERE category = ? ORDER BY expiry", (category,)).fetchall()
+        else:
+            rows = conn.execute("SELECT * FROM supplies ORDER BY category, expiry").fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
+    return await _db_run(_query)
 
 
 @router.get("/api/supplies/summary")
 async def supplies_summary():
     """Aggregated supply dashboard."""
-    conn = _db()
-    total = conn.execute("SELECT COUNT(*) as c FROM supplies").fetchone()["c"]
-    today = date.today().isoformat()
-    expiring_7 = conn.execute(
-        "SELECT COUNT(*) as c FROM supplies WHERE expiry IS NOT NULL AND expiry != '' AND expiry <= date(?, '+7 days')", (today,)
-    ).fetchone()["c"]
-    expiring_30 = conn.execute(
-        "SELECT COUNT(*) as c FROM supplies WHERE expiry IS NOT NULL AND expiry != '' AND expiry <= date(?, '+30 days')", (today,)
-    ).fetchone()["c"]
-    categories = conn.execute(
-        "SELECT category, COUNT(*) as count, SUM(quantity) as total_qty FROM supplies GROUP BY category ORDER BY count DESC"
-    ).fetchall()
-    conn.close()
-    return {
-        "total": total,
-        "expiring_7d": expiring_7,
-        "expiring_30d": expiring_30,
-        "categories": [dict(r) for r in categories],
-    }
+    def _query():
+        conn = _db()
+        total = conn.execute("SELECT COUNT(*) as c FROM supplies").fetchone()["c"]
+        today = date.today().isoformat()
+        expiring_7 = conn.execute(
+            "SELECT COUNT(*) as c FROM supplies WHERE expiry IS NOT NULL AND expiry != '' AND expiry <= date(?, '+7 days')", (today,)
+        ).fetchone()["c"]
+        expiring_30 = conn.execute(
+            "SELECT COUNT(*) as c FROM supplies WHERE expiry IS NOT NULL AND expiry != '' AND expiry <= date(?, '+30 days')", (today,)
+        ).fetchone()["c"]
+        categories = conn.execute(
+            "SELECT category, COUNT(*) as count, SUM(quantity) as total_qty FROM supplies GROUP BY category ORDER BY count DESC"
+        ).fetchall()
+        conn.close()
+        return {
+            "total": total,
+            "expiring_7d": expiring_7,
+            "expiring_30d": expiring_30,
+            "categories": [dict(r) for r in categories],
+        }
+    return await _db_run(_query)
 
 
 @router.post("/api/supplies")
 async def create_supply(request: Request):
     body = await request.json()
-    conn = _db()
-    cur = conn.execute(
-        "INSERT INTO supplies (name, category, quantity, unit, expiry, notes) VALUES (?, ?, ?, ?, ?, ?)",
-        (body.get("name", ""), body.get("category", "outros"), body.get("quantity", 0),
-         body.get("unit", "un"), body.get("expiry", ""), body.get("notes", "")),
-    )
-    conn.commit()
-    item_id = cur.lastrowid
-    row = conn.execute("SELECT * FROM supplies WHERE id = ?", (item_id,)).fetchone()
-    conn.close()
-    return dict(row)
+    def _query():
+        conn = _db()
+        cur = conn.execute(
+            "INSERT INTO supplies (name, category, quantity, unit, expiry, notes) VALUES (?, ?, ?, ?, ?, ?)",
+            (body.get("name", ""), body.get("category", "outros"), body.get("quantity", 0),
+             body.get("unit", "un"), body.get("expiry", ""), body.get("notes", "")),
+        )
+        conn.commit()
+        item_id = cur.lastrowid
+        row = conn.execute("SELECT * FROM supplies WHERE id = ?", (item_id,)).fetchone()
+        conn.close()
+        return dict(row)
+    return await _db_run(_query)
 
 
 @router.put("/api/supplies/{item_id}")
 async def update_supply(item_id: int, request: Request):
     body = await request.json()
-    conn = _db()
     fields = []
     values = []
     for key in ("name", "category", "quantity", "unit", "expiry", "notes"):
@@ -143,25 +155,30 @@ async def update_supply(item_id: int, request: Request):
             fields.append(f"{key} = ?")
             values.append(body[key])
     if not fields:
-        conn.close()
         return JSONResponse({"error": "No fields to update"}, status_code=400)
     fields.append("updated_at = datetime('now','localtime')")
     values.append(item_id)
-    conn.execute(f"UPDATE supplies SET {', '.join(fields)} WHERE id = ?", values)
-    conn.commit()
-    row = conn.execute("SELECT * FROM supplies WHERE id = ?", (item_id,)).fetchone()
-    conn.close()
+    def _query():
+        conn = _db()
+        conn.execute(f"UPDATE supplies SET {', '.join(fields)} WHERE id = ?", values)
+        conn.commit()
+        row = conn.execute("SELECT * FROM supplies WHERE id = ?", (item_id,)).fetchone()
+        conn.close()
+        return dict(row) if row else None
+    row = await _db_run(_query)
     if row:
-        return dict(row)
+        return row
     return JSONResponse({"error": "Not found"}, status_code=404)
 
 
 @router.delete("/api/supplies/{item_id}")
 async def delete_supply(item_id: int):
-    conn = _db()
-    conn.execute("DELETE FROM supplies WHERE id = ?", (item_id,))
-    conn.commit()
-    conn.close()
+    def _query():
+        conn = _db()
+        conn.execute("DELETE FROM supplies WHERE id = ?", (item_id,))
+        conn.commit()
+        conn.close()
+    await _db_run(_query)
     return {"deleted": True, "id": item_id}
 
 
@@ -170,24 +187,29 @@ async def delete_supply(item_id: int):
 @router.get("/api/books")
 async def list_books(q: str = None):
     """List books, optionally search by title/author."""
-    conn = _db()
-    if q:
-        rows = conn.execute(
-            "SELECT * FROM books WHERE title LIKE ? OR author LIKE ? ORDER BY title",
-            (f"%{q}%", f"%{q}%"),
-        ).fetchall()
-    else:
-        rows = conn.execute("SELECT * FROM books ORDER BY title").fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
+    def _query():
+        conn = _db()
+        if q:
+            rows = conn.execute(
+                "SELECT * FROM books WHERE title LIKE ? OR author LIKE ? ORDER BY title",
+                (f"%{q}%", f"%{q}%"),
+            ).fetchall()
+        else:
+            rows = conn.execute("SELECT * FROM books ORDER BY title").fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
+    return await _db_run(_query)
 
 
 @router.get("/api/books/{book_id}/file")
 async def serve_book(book_id: int):
     """Serve EPUB file."""
-    conn = _db()
-    row = conn.execute("SELECT * FROM books WHERE id = ?", (book_id,)).fetchone()
-    conn.close()
+    def _query():
+        conn = _db()
+        r = conn.execute("SELECT * FROM books WHERE id = ?", (book_id,)).fetchone()
+        conn.close()
+        return dict(r) if r else None
+    row = await _db_run(_query)
     if not row:
         return JSONResponse({"error": "Book not found"}, status_code=404)
     fp = cfg.BOOKS_DIR / row["file"]
@@ -199,10 +221,13 @@ async def serve_book(book_id: int):
 @router.put("/api/books/{book_id}/progress")
 async def update_book_progress(book_id: int, request: Request):
     body = await request.json()
-    conn = _db()
-    conn.execute("UPDATE books SET read_pct = ? WHERE id = ?", (body.get("read_pct", 0), book_id))
-    conn.commit()
-    conn.close()
+    read_pct = body.get("read_pct", 0)
+    def _query():
+        conn = _db()
+        conn.execute("UPDATE books SET read_pct = ? WHERE id = ?", (read_pct, book_id))
+        conn.commit()
+        conn.close()
+    await _db_run(_query)
     return {"updated": True, "id": book_id}
 
 
@@ -291,10 +316,12 @@ async def serve_game(name: str):
 @router.get("/api/journal")
 async def list_journal(limit: int = 30):
     """List journal entries, newest first."""
-    conn = _db()
-    rows = conn.execute("SELECT * FROM journal ORDER BY date DESC LIMIT ?", (limit,)).fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
+    def _query():
+        conn = _db()
+        rows = conn.execute("SELECT * FROM journal ORDER BY date DESC LIMIT ?", (limit,)).fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
+    return await _db_run(_query)
 
 
 @router.post("/api/journal")
@@ -304,15 +331,17 @@ async def upsert_journal(request: Request):
     entry_date = body.get("date", date.today().isoformat())
     content = body.get("content", "")
     mood = body.get("mood", "neutral")
-    conn = _db()
-    conn.execute(
-        "INSERT INTO journal (date, content, mood) VALUES (?, ?, ?) ON CONFLICT(date) DO UPDATE SET content=?, mood=?",
-        (entry_date, content, mood, content, mood),
-    )
-    conn.commit()
-    row = conn.execute("SELECT * FROM journal WHERE date = ?", (entry_date,)).fetchone()
-    conn.close()
-    return dict(row)
+    def _query():
+        conn = _db()
+        conn.execute(
+            "INSERT INTO journal (date, content, mood) VALUES (?, ?, ?) ON CONFLICT(date) DO UPDATE SET content=?, mood=?",
+            (entry_date, content, mood, content, mood),
+        )
+        conn.commit()
+        row = conn.execute("SELECT * FROM journal WHERE date = ?", (entry_date,)).fetchone()
+        conn.close()
+        return dict(row)
+    return await _db_run(_query)
 
 
 # ─── Kiwix ───────────────────────────────────────────────────────────────────
@@ -359,28 +388,33 @@ async def kiwix_proxy(path: str, request: Request):
 
 @router.get("/api/notes")
 async def list_notes(doc_type: str = None):
-    conn = _db()
-    if doc_type:
-        rows = conn.execute(
-            "SELECT id, title, doc_type, created_at, updated_at FROM notes WHERE doc_type=? ORDER BY updated_at DESC",
-            (doc_type,)
-        ).fetchall()
-    else:
-        rows = conn.execute(
-            "SELECT id, title, doc_type, created_at, updated_at FROM notes ORDER BY updated_at DESC"
-        ).fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
+    def _query():
+        conn = _db()
+        if doc_type:
+            rows = conn.execute(
+                "SELECT id, title, doc_type, created_at, updated_at FROM notes WHERE doc_type=? ORDER BY updated_at DESC",
+                (doc_type,)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT id, title, doc_type, created_at, updated_at FROM notes ORDER BY updated_at DESC"
+            ).fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
+    return await _db_run(_query)
 
 
 @router.get("/api/notes/{note_id}")
 async def get_note(note_id: int):
-    conn = _db()
-    row = conn.execute("SELECT * FROM notes WHERE id=?", (note_id,)).fetchone()
-    conn.close()
+    def _query():
+        conn = _db()
+        row = conn.execute("SELECT * FROM notes WHERE id=?", (note_id,)).fetchone()
+        conn.close()
+        return dict(row) if row else None
+    row = await _db_run(_query)
     if not row:
         return JSONResponse({"error": "not found"}, 404)
-    return dict(row)
+    return row
 
 
 @router.post("/api/notes")
@@ -389,21 +423,22 @@ async def create_note(request: Request):
     title = data.get("title", "Sem titulo")
     content = data.get("content", "")
     doc_type = data.get("doc_type", "text")
-    conn = _db()
-    cur = conn.execute(
-        "INSERT INTO notes (title, content, doc_type) VALUES (?, ?, ?)",
-        (title, content, doc_type)
-    )
-    conn.commit()
-    note_id = cur.lastrowid
-    conn.close()
-    return {"id": note_id, "title": title, "doc_type": doc_type}
+    def _query():
+        conn = _db()
+        cur = conn.execute(
+            "INSERT INTO notes (title, content, doc_type) VALUES (?, ?, ?)",
+            (title, content, doc_type)
+        )
+        conn.commit()
+        note_id = cur.lastrowid
+        conn.close()
+        return {"id": note_id, "title": title, "doc_type": doc_type}
+    return await _db_run(_query)
 
 
 @router.put("/api/notes/{note_id}")
 async def update_note(note_id: int, request: Request):
     data = await request.json()
-    conn = _db()
     fields = []
     values = []
     for key in ("title", "content", "doc_type"):
@@ -413,18 +448,23 @@ async def update_note(note_id: int, request: Request):
     if fields:
         fields.append("updated_at=datetime('now','localtime')")
         values.append(note_id)
-        conn.execute(f"UPDATE notes SET {', '.join(fields)} WHERE id=?", values)
-        conn.commit()
-    conn.close()
+        def _query():
+            conn = _db()
+            conn.execute(f"UPDATE notes SET {', '.join(fields)} WHERE id=?", values)
+            conn.commit()
+            conn.close()
+        await _db_run(_query)
     return {"ok": True}
 
 
 @router.delete("/api/notes/{note_id}")
 async def delete_note(note_id: int):
-    conn = _db()
-    conn.execute("DELETE FROM notes WHERE id=?", (note_id,))
-    conn.commit()
-    conn.close()
+    def _query():
+        conn = _db()
+        conn.execute("DELETE FROM notes WHERE id=?", (note_id,))
+        conn.commit()
+        conn.close()
+    await _db_run(_query)
     return {"ok": True}
 
 
@@ -432,22 +472,24 @@ async def delete_note(note_id: int):
 
 @router.get("/api/tasks")
 async def list_tasks(status: str = None, category: str = None):
-    conn = _db()
-    sql = "SELECT * FROM tasks"
-    params = []
-    conditions = []
-    if status:
-        conditions.append("status=?")
-        params.append(status)
-    if category:
-        conditions.append("category=?")
-        params.append(category)
-    if conditions:
-        sql += " WHERE " + " AND ".join(conditions)
-    sql += " ORDER BY CASE priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 END, due_date ASC NULLS LAST, created_at DESC"
-    rows = conn.execute(sql, params).fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
+    def _query():
+        conn = _db()
+        sql = "SELECT * FROM tasks"
+        params = []
+        conditions = []
+        if status:
+            conditions.append("status=?")
+            params.append(status)
+        if category:
+            conditions.append("category=?")
+            params.append(category)
+        if conditions:
+            sql += " WHERE " + " AND ".join(conditions)
+        sql += " ORDER BY CASE priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 END, due_date ASC NULLS LAST, created_at DESC"
+        rows = conn.execute(sql, params).fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
+    return await _db_run(_query)
 
 
 @router.post("/api/tasks")
@@ -456,23 +498,24 @@ async def create_task(request: Request):
     title = body.get("title", "").strip()
     if not title:
         return JSONResponse({"error": "Titulo obrigatorio"}, status_code=400)
-    conn = _db()
-    cur = conn.execute(
-        "INSERT INTO tasks (title, description, priority, category, due_date) VALUES (?,?,?,?,?)",
-        (title, body.get("description", ""), body.get("priority", "medium"),
-         body.get("category", "geral"), body.get("due_date")),
-    )
-    conn.commit()
-    task_id = cur.lastrowid
-    row = conn.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone()
-    conn.close()
-    return dict(row)
+    def _query():
+        conn = _db()
+        cur = conn.execute(
+            "INSERT INTO tasks (title, description, priority, category, due_date) VALUES (?,?,?,?,?)",
+            (title, body.get("description", ""), body.get("priority", "medium"),
+             body.get("category", "geral"), body.get("due_date")),
+        )
+        conn.commit()
+        task_id = cur.lastrowid
+        row = conn.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone()
+        conn.close()
+        return dict(row)
+    return await _db_run(_query)
 
 
 @router.put("/api/tasks/{task_id}")
 async def update_task(task_id: int, request: Request):
     body = await request.json()
-    conn = _db()
     fields = []
     params = []
     for key in ("title", "description", "priority", "status", "due_date", "category"):
@@ -480,23 +523,28 @@ async def update_task(task_id: int, request: Request):
             fields.append(f"{key}=?")
             params.append(body[key])
     if not fields:
-        conn.close()
         return JSONResponse({"error": "Nada para atualizar"}, status_code=400)
     fields.append("updated_at=datetime('now','localtime')")
     params.append(task_id)
-    conn.execute(f"UPDATE tasks SET {', '.join(fields)} WHERE id=?", params)
-    conn.commit()
-    row = conn.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone()
-    conn.close()
-    return dict(row) if row else {"ok": True}
+    def _query():
+        conn = _db()
+        conn.execute(f"UPDATE tasks SET {', '.join(fields)} WHERE id=?", params)
+        conn.commit()
+        row = conn.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone()
+        conn.close()
+        return dict(row) if row else None
+    result = await _db_run(_query)
+    return result if result else {"ok": True}
 
 
 @router.delete("/api/tasks/{task_id}")
 async def delete_task(task_id: int):
-    conn = _db()
-    conn.execute("DELETE FROM tasks WHERE id=?", (task_id,))
-    conn.commit()
-    conn.close()
+    def _query():
+        conn = _db()
+        conn.execute("DELETE FROM tasks WHERE id=?", (task_id,))
+        conn.commit()
+        conn.close()
+    await _db_run(_query)
     return {"ok": True}
 
 
