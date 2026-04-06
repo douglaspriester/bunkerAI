@@ -285,19 +285,35 @@ function converterCalc() {
   const cat = _convCategory;
   const cfg = CONV_CATEGORIES[cat];
   if (!cfg) return;
-  const val = parseFloat(document.getElementById('convInput')?.value || '0');
+  const raw = parseFloat(document.getElementById('convInput')?.value || '0');
   const from = document.getElementById('convFrom')?.value;
   const to = document.getElementById('convTo')?.value;
-  let result;
-  if (cfg.convert) {
-    result = cfg.convert(val, from, to);
-  } else {
-    // Factor-based conversion
-    const baseVal = val * cfg.factors[from];
-    result = baseVal / cfg.factors[to];
-  }
   const resultEl = document.getElementById('convResult');
-  if (resultEl) resultEl.textContent = isNaN(result) ? '—' : parseFloat(result.toFixed(8));
+  if (!resultEl) return;
+
+  // Validate input: reject NaN and Infinity
+  if (!isFinite(raw) || isNaN(raw)) {
+    resultEl.textContent = '—';
+    return;
+  }
+
+  let result;
+  try {
+    if (cfg.convert) {
+      result = cfg.convert(raw, from, to);
+    } else {
+      // Factor-based conversion — guard against missing/zero factors
+      const fromFactor = cfg.factors[from];
+      const toFactor = cfg.factors[to];
+      if (!fromFactor || !toFactor) { resultEl.textContent = '—'; return; }
+      result = (raw * fromFactor) / toFactor;
+    }
+  } catch {
+    resultEl.textContent = '—';
+    return;
+  }
+
+  resultEl.textContent = (!isFinite(result) || isNaN(result)) ? '—' : parseFloat(result.toFixed(8));
 }
 
 function converterSwap() {
@@ -881,11 +897,18 @@ function sunCalcCompute() {
 // ═══════════════════════════════════════════════════════════════════════════
 
 function waterCalcCompute() {
-  const liters = parseFloat(document.getElementById('waterLiters')?.value || '1');
-  const clarity = document.getElementById('waterClarity')?.value || 'clear';
-  const method = document.getElementById('waterMethod')?.value || 'bleach';
+  const rawLiters = parseFloat(document.getElementById('waterLiters')?.value || '1');
   const el = document.getElementById('waterResult');
   if (!el) return;
+
+  // Validate numeric input: reject NaN, negative, Infinity, or unreasonably large values
+  if (!isFinite(rawLiters) || isNaN(rawLiters) || rawLiters <= 0 || rawLiters > 100000) {
+    el.innerHTML = '<div class="water-result-card"><p>⚠️ Volume invalido. Informe um valor entre 0.1 e 100000 litros.</p></div>';
+    return;
+  }
+  const liters = rawLiters;
+  const clarity = document.getElementById('waterClarity')?.value || 'clear';
+  const method = document.getElementById('waterMethod')?.value || 'bleach';
 
   // Multiplier for turbid water (double dose)
   const turbidMult = clarity === 'turbid' ? 2 : 1;
@@ -1224,6 +1247,8 @@ function terminalExec() {
   if (!cmd) return;
 
   _termHistory.push(cmd);
+  // Keep history bounded to prevent unbounded memory growth
+  if (_termHistory.length > 200) _termHistory.shift();
   const cmdLine = document.createElement('div');
   cmdLine.className = 'terminal-line term-cmd';
   cmdLine.textContent = cmd;
