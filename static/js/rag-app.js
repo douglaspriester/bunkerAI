@@ -34,7 +34,8 @@ export function createRagApp() {
     <div style="display:flex;gap:8px;">
         <input id="rag-search-input" type="text" placeholder="Pesquisar nos documentos indexados..."
                style="flex:1;padding:8px 12px;background:#111;border:1px solid #333;border-radius:4px;color:#e0e0e0;font-size:12px;font-family:monospace;"
-               onkeydown="if(event.key==='Enter') window.ragSearch()">
+               onkeydown="if(event.key==='Enter') window.ragSearch()"
+               oninput="window.ragDebouncedSearch()">
         <button onclick="window.ragSearch()"
                 style="padding:8px 16px;background:#1a1a2e;border:1px solid #00ff88;color:#00ff88;border-radius:4px;cursor:pointer;font-size:12px;">
             Buscar
@@ -72,6 +73,16 @@ export function createRagApp() {
     </div>
 
 </div>`;
+}
+
+// HTML-escape helper to prevent XSS when inserting user-controlled text into innerHTML
+function _ragEsc(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
 export function initRagApp() {
@@ -122,6 +133,15 @@ export function initRagApp() {
         }
     };
 
+    // Debounced search — fires 300ms after user stops typing (min 3 chars)
+    let _ragSearchTimer = null;
+    window.ragDebouncedSearch = () => {
+        clearTimeout(_ragSearchTimer);
+        const query = document.getElementById('rag-search-input').value.trim();
+        if (query.length < 3) return;
+        _ragSearchTimer = setTimeout(() => window.ragSearch(), 300);
+    };
+
     window.ragSearch = async () => {
         const query = document.getElementById('rag-search-input').value.trim();
         if (!query) return;
@@ -139,15 +159,17 @@ export function initRagApp() {
                 return;
             }
 
-            resultsEl.innerHTML = data.results.map(r => `
+            resultsEl.innerHTML = data.results.map(r => {
+                const preview = _ragEsc(r.chunk_text.substring(0, 300)) + (r.chunk_text.length > 300 ? '...' : '');
+                return `
                 <div style="background:#111;border:1px solid #222;border-radius:6px;padding:12px;">
                     <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
-                        <span style="font-size:11px;color:#00ff88;font-weight:bold;">${r.filename}</span>
-                        <span style="font-size:10px;color:#555;">score: ${r.score} | chunk #${r.chunk_index}</span>
+                        <span style="font-size:11px;color:#00ff88;font-weight:bold;">${_ragEsc(r.filename)}</span>
+                        <span style="font-size:10px;color:#555;">score: ${_ragEsc(String(r.score))} | chunk #${_ragEsc(String(r.chunk_index))}</span>
                     </div>
-                    <div style="font-size:12px;color:#ccc;line-height:1.5;">${r.chunk_text.substring(0, 300)}${r.chunk_text.length > 300 ? '...' : ''}</div>
-                </div>
-            `).join('');
+                    <div style="font-size:12px;color:#ccc;line-height:1.5;">${preview}</div>
+                </div>`;
+            }).join('');
         } catch (e) {
             resultsEl.innerHTML = `<div style="color:#ff4444;font-size:12px;">Erro: ${e.message}</div>`;
         }
@@ -164,19 +186,41 @@ export function initRagApp() {
                 return;
             }
 
-            listEl.innerHTML = data.docs.map(doc => `
-                <div style="background:#111;border:1px solid #222;border-radius:6px;padding:10px;display:flex;align-items:center;gap:10px;">
-                    <span style="font-size:18px;">${doc.file_type === 'pdf' ? '📕' : '📄'}</span>
-                    <div style="flex:1;min-width:0;">
-                        <div style="font-size:12px;color:#e0e0e0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${doc.filename}</div>
-                        <div style="font-size:10px;color:#555;margin-top:2px;">${doc.chunk_count} chunks · ${doc.created_at.split('T')[0] || doc.created_at.split(' ')[0]}</div>
-                    </div>
-                    <button onclick="window.ragDeleteDoc('${doc.id}', '${doc.filename.replace(/'/g, "\\'")}')"
-                            style="padding:4px 10px;background:transparent;border:1px solid #ff4444;color:#ff4444;border-radius:4px;cursor:pointer;font-size:11px;white-space:nowrap;">
-                        Remover
-                    </button>
-                </div>
-            `).join('');
+            // Build doc list using DOM manipulation to avoid XSS from filenames/IDs
+            listEl.innerHTML = '';
+            data.docs.forEach(doc => {
+                const outer = document.createElement('div');
+                outer.style.cssText = 'background:#111;border:1px solid #222;border-radius:6px;padding:10px;display:flex;align-items:center;gap:10px;';
+
+                const icon = document.createElement('span');
+                icon.style.fontSize = '18px';
+                icon.textContent = doc.file_type === 'pdf' ? '\uD83D\uDCD5' : '\uD83D\uDCC4';
+
+                const info = document.createElement('div');
+                info.style.cssText = 'flex:1;min-width:0;';
+
+                const nameDiv = document.createElement('div');
+                nameDiv.style.cssText = 'font-size:12px;color:#e0e0e0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+                nameDiv.textContent = doc.filename;
+
+                const metaDiv = document.createElement('div');
+                metaDiv.style.cssText = 'font-size:10px;color:#555;margin-top:2px;';
+                const dateStr = (doc.created_at || '').split('T')[0] || (doc.created_at || '').split(' ')[0];
+                metaDiv.textContent = `${doc.chunk_count} chunks · ${dateStr}`;
+
+                info.appendChild(nameDiv);
+                info.appendChild(metaDiv);
+
+                const btn = document.createElement('button');
+                btn.style.cssText = 'padding:4px 10px;background:transparent;border:1px solid #ff4444;color:#ff4444;border-radius:4px;cursor:pointer;font-size:11px;white-space:nowrap;';
+                btn.textContent = 'Remover';
+                btn.addEventListener('click', () => window.ragDeleteDoc(doc.id, doc.filename));
+
+                outer.appendChild(icon);
+                outer.appendChild(info);
+                outer.appendChild(btn);
+                listEl.appendChild(outer);
+            });
         } catch (e) {
             console.error('RAG: erro ao carregar docs', e);
         }
