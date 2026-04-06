@@ -17,12 +17,12 @@ router = APIRouter(tags=["maps"])
 @router.get("/api/maps")
 async def list_maps():
     """List .pmtiles files available in static/maps/."""
+    cfg.MAPS_DIR.mkdir(parents=True, exist_ok=True)
     maps = []
-    if cfg.MAPS_DIR.exists():
-        for f in sorted(cfg.MAPS_DIR.iterdir()):
-            if f.suffix == ".pmtiles":
-                size_mb = f.stat().st_size / (1024 * 1024)
-                maps.append({"name": f.stem, "file": f.name, "size_mb": round(size_mb, 1)})
+    for f in sorted(cfg.MAPS_DIR.iterdir()):
+        if f.suffix == ".pmtiles":
+            size_mb = f.stat().st_size / (1024 * 1024)
+            maps.append({"name": f.stem, "file": f.name, "size_mb": round(size_mb, 1)})
     return {"maps": maps, "dir": str(cfg.MAPS_DIR.resolve())}
 
 
@@ -33,7 +33,13 @@ async def serve_pmtiles(filename: str, request: Request):
     safe_name = Path(filename).name
     if not safe_name or safe_name != filename or not safe_name.endswith(".pmtiles"):
         return JSONResponse({"error": "Map not found"}, status_code=404)
-    filepath = cfg.MAPS_DIR / safe_name
+    cfg.MAPS_DIR.mkdir(parents=True, exist_ok=True)
+    filepath = (cfg.MAPS_DIR / safe_name).resolve()
+    # Guard against symlink escapes: resolved path must stay inside MAPS_DIR
+    try:
+        filepath.relative_to(cfg.MAPS_DIR.resolve())
+    except ValueError:
+        return JSONResponse({"error": "Map not found"}, status_code=404)
     if not filepath.exists():
         return JSONResponse({"error": "Map not found"}, status_code=404)
 
