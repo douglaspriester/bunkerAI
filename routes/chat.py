@@ -12,6 +12,7 @@ from fastapi import APIRouter, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 
 import routes.config as cfg
+from routes.rag import _rag_bm25_search
 
 router = APIRouter(tags=["chat"])
 
@@ -120,45 +121,6 @@ def _chat_stream_llamacpp(payload: dict, timeout: float) -> StreamingResponse:
     return StreamingResponse(generate(), media_type="text/event-stream")
 
 
-# ─── RAG helper (inline to avoid circular import) ────────────────────────────
-
-def _rag_bm25_search(query: str, top_k: int = 5) -> list:
-    """BM25 search over all indexed RAG chunks."""
-    try:
-        from rank_bm25 import BM25Okapi
-    except ImportError:
-        return []
-
-    con = sqlite3.connect("data/rag.db")
-    con.row_factory = sqlite3.Row
-    rows = con.execute("SELECT id, doc_id, filename, chunk_index, chunk_text FROM rag_chunks").fetchall()
-    con.close()
-
-    if not rows:
-        return []
-
-    tokenized_corpus = [row["chunk_text"].lower().split() for row in rows]
-    bm25 = BM25Okapi(tokenized_corpus)
-    tokenized_query = query.lower().split()
-    scores = bm25.get_scores(tokenized_query)
-
-    top_indices = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:top_k]
-
-    results = []
-    for idx in top_indices:
-        if scores[idx] > 0:
-            row = rows[idx]
-            results.append({
-                "chunk_id": row["id"],
-                "doc_id": row["doc_id"],
-                "filename": row["filename"],
-                "chunk_index": row["chunk_index"],
-                "chunk_text": row["chunk_text"],
-                "score": round(float(scores[idx]), 4),
-            })
-    return results
-
-
 # ─── Chat endpoints ───────────────────────────────────────────────────────────
 
 @router.post("/api/chat")
@@ -180,7 +142,7 @@ async def chat(request: Request):
 
     if last_user_msg:
         try:
-            con = sqlite3.connect("data/rag.db")
+            con = sqlite3.connect(str(cfg.DATA_DIR / "rag.db"))
             has_docs = con.execute("SELECT COUNT(*) FROM rag_docs").fetchone()[0]
             con.close()
             if has_docs > 0:

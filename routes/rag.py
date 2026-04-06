@@ -6,9 +6,11 @@ import sqlite3
 from fastapi import APIRouter, File, Request, UploadFile
 from fastapi.responses import JSONResponse
 
+import routes.config as cfg
+
 router = APIRouter(tags=["rag"])
 
-RAG_DB = "data/rag.db"
+RAG_DB = str(cfg.DATA_DIR / "rag.db")
 
 
 # ─── Text helpers ─────────────────────────────────────────────────────────────

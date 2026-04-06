@@ -310,6 +310,7 @@ async def detect_backend():
             return
 
     print("[LLM] Nenhum backend LLM detectado.")
+    cfg.BACKEND = "none"
     asyncio.create_task(_auto_download_gguf())
 
 
@@ -403,7 +404,8 @@ async def health():
                     "stt": "whisper" if whisper_ok else "browser",
                     "tts": tts_engine,
                     "stt_ready": whisper_ok,
-                    "tts_offline": piper_ok or pyttsx3_ok,
+                    "tts_offline": kokoro_ok or piper_ok or pyttsx3_ok,
+                    "kokoro_available": kokoro_ok,
                     "piper_available": piper_ok,
                     "pyttsx3_available": pyttsx3_ok,
                     "piper_models": piper_models_status,
