@@ -48,48 +48,91 @@ async function loadMapDownloadPanel() {
   body.innerHTML = '<div style="text-align:center;padding:12px;color:var(--text-muted)">Carregando...</div>';
   try {
     const [mapsRes, availRes] = await Promise.all([
-      fetch('/api/maps').then(r => r.json()),
-      fetch('/api/maps/available').then(r => r.json()).catch(() => ({ regions: [] })),
+      fetch('/api/maps').then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }),
+      fetch('/api/maps/available').then(r => r.ok ? r.json() : { regions: [] }).catch(() => ({ regions: [] })),
     ]);
     const maps = mapsRes.maps || [];
     const regions = availRes.regions || [];
 
-    let html = '';
+    body.textContent = '';
 
     // Installed
     if (maps.length > 0) {
-      html += '<div class="mdl-section-title">Instalados</div>';
+      const secTitle = document.createElement('div');
+      secTitle.className = 'mdl-section-title';
+      secTitle.textContent = 'Instalados';
+      body.appendChild(secTitle);
       for (const m of maps) {
-        html += `<div class="mdl-item installed"><span>${m.name || m.file}</span><span class="mdl-size">${m.size_mb} MB</span></div>`;
+        const item = document.createElement('div');
+        item.className = 'mdl-item installed';
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = m.name || m.file;
+        const sizeSpan = document.createElement('span');
+        sizeSpan.className = 'mdl-size';
+        sizeSpan.textContent = `${parseFloat(m.size_mb) || 0} MB`;
+        item.appendChild(nameSpan);
+        item.appendChild(sizeSpan);
+        body.appendChild(item);
       }
     }
 
     // Available for download
     const notInstalled = regions.filter(r => !r.installed);
     if (notInstalled.length > 0) {
-      html += '<div class="mdl-section-title" style="margin-top:8px">Disponiveis para download</div>';
+      const secTitle2 = document.createElement('div');
+      secTitle2.className = 'mdl-section-title';
+      secTitle2.style.marginTop = '8px';
+      secTitle2.textContent = 'Disponiveis para download';
+      body.appendChild(secTitle2);
       for (const r of notInstalled) {
-        html += `<div class="mdl-item" id="mdlItem_${r.id}">
-          <div class="mdl-info">
-            <div class="mdl-name">${r.name}</div>
-            <div class="mdl-desc">${r.desc} (~${r.est_mb} MB)</div>
-          </div>
-          <button class="btn-sm btn-accent" onclick="startMapDownloadInPanel('${r.id}')">Baixar</button>
-          <div class="mdl-progress hidden" id="mdlProg_${r.id}">
-            <div class="setup-bar-track"><div class="setup-bar" id="mdlBar_${r.id}" style="width:0%"></div></div>
-            <span class="mdl-status" id="mdlStat_${r.id}">Preparando...</span>
-          </div>
-        </div>`;
+        // Sanitize the region id: only allow alphanumeric, hyphens, underscores
+        const safeId = String(r.id || '').replace(/[^a-zA-Z0-9_-]/g, '');
+        if (!safeId) continue;
+
+        const item = document.createElement('div');
+        item.className = 'mdl-item';
+        item.id = 'mdlItem_' + safeId;
+
+        const info = document.createElement('div');
+        info.className = 'mdl-info';
+        const nameDiv = document.createElement('div');
+        nameDiv.className = 'mdl-name';
+        nameDiv.textContent = r.name || safeId;
+        const descDiv = document.createElement('div');
+        descDiv.className = 'mdl-desc';
+        descDiv.textContent = `${r.desc || ''} (~${parseFloat(r.est_mb) || 0} MB)`;
+        info.appendChild(nameDiv);
+        info.appendChild(descDiv);
+
+        const dlBtn = document.createElement('button');
+        dlBtn.className = 'btn-sm btn-accent';
+        dlBtn.textContent = 'Baixar';
+        dlBtn.onclick = () => startMapDownloadInPanel(safeId);
+
+        const prog = document.createElement('div');
+        prog.className = 'mdl-progress hidden';
+        prog.id = 'mdlProg_' + safeId;
+        prog.innerHTML = `<div class="setup-bar-track"><div class="setup-bar" id="mdlBar_${safeId}" style="width:0%"></div></div><span class="mdl-status" id="mdlStat_${safeId}">Preparando...</span>`;
+
+        item.appendChild(info);
+        item.appendChild(dlBtn);
+        item.appendChild(prog);
+        body.appendChild(item);
       }
     }
 
-    if (!html) {
-      html = '<div style="text-align:center;padding:12px;color:var(--accent)">Todos os mapas ja estao instalados!</div>';
+    if (!body.children.length) {
+      const empty = document.createElement('div');
+      empty.style.cssText = 'text-align:center;padding:12px;color:var(--accent)';
+      empty.textContent = 'Todos os mapas ja estao instalados!';
+      body.appendChild(empty);
     }
-
-    body.innerHTML = html;
   } catch (e) {
-    body.innerHTML = `<div style="color:var(--error);padding:12px">Erro: ${e.message}</div>`;
+    body.textContent = '';
+    const errDiv = document.createElement('div');
+    errDiv.style.cssText = 'color:var(--error);padding:12px';
+    errDiv.textContent = 'Erro: ' + e.message;
+    body.appendChild(errDiv);
   }
 }
 
@@ -176,6 +219,7 @@ async function initMap() {
   let usingOffline = false;
   try {
     const mapsResp = await fetch("/api/maps");
+    if (!mapsResp.ok) throw new Error(`HTTP ${mapsResp.status}`);
     const mapsData = await mapsResp.json();
     if (mapsData.maps && mapsData.maps.length > 0) {
       // Load PMTiles JS library dynamically if not loaded (local copies)
@@ -243,16 +287,13 @@ async function initMap() {
   const notice = document.getElementById("mapOfflineNotice");
   if (notice) {
     if (usingOffline) {
-      notice.innerHTML = `
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-        <span>Mapa offline carregado: ${mapState.offlinePmtiles} — 100% local, sem internet</span>
-      `;
+      notice.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> <span></span>`;
+      // Set the label text safely via textContent
+      notice.querySelector('span').textContent =
+        `Mapa offline carregado: ${mapState.offlinePmtiles} — 100% local, sem internet`;
       notice.style.borderColor = "rgba(66, 245, 160, 0.3)";
     } else {
-      notice.innerHTML = `
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        <span>Tiles online (CARTO). Para 100% offline: coloque um .pmtiles em static/maps/</span>
-      `;
+      notice.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> <span>Tiles online (CARTO). Para 100% offline: coloque um .pmtiles em static/maps/</span>`;
     }
   }
 

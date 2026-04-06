@@ -336,10 +336,15 @@ async function loadJournalStatus() {
   if (!el) return;
   try {
     const r = await fetch('/api/status');
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const d = await r.json();
     renderJournalStatus(d);
   } catch(e) {
-    el.innerHTML = '<div class="guide-error">Status indisponível</div>';
+    el.textContent = '';
+    const err = document.createElement('div');
+    err.className = 'guide-error';
+    err.textContent = 'Status indisponível';
+    el.appendChild(err);
   }
 }
 
@@ -530,11 +535,12 @@ function setJournalMood(emoji) {
 async function saveJournal() {
   const text = document.getElementById('journalText')?.value || '';
   try {
-    await fetch('/api/journal', {
+    const r = await fetch('/api/journal', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({ date: _journalCurrentDate, content: text, mood: _journalMood })
     });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
     // Update local cache so re-renders are accurate without a full reload
     const idx = _journalEntries.findIndex(e => e.date === _journalCurrentDate);
     if (idx >= 0) {
@@ -666,6 +672,7 @@ async function transcribeJournalAudio(idx) {
     fd.append('language', 'pt');
 
     const r = await fetch('/api/stt', { method: 'POST', body: fd });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const d = await r.json();
 
     if (d.text && d.text.trim()) {
@@ -703,10 +710,22 @@ function toggleJournalDictate() {
   }
 }
 
+const JOURNAL_DICTATE_MAX_MS = 120_000; // 2-minute max dictation
+
 function _startJournalDictate() {
   const btn = document.getElementById('journalDictateBtn');
   const status = document.getElementById('journalAudioStatus');
   _journalDictating = true;
+
+  // Auto-stop after max duration
+  if (_journalDictateTimeout) clearTimeout(_journalDictateTimeout);
+  _journalDictateTimeout = setTimeout(() => {
+    if (_journalDictating) {
+      const statusEl = document.getElementById('journalAudioStatus');
+      if (statusEl) statusEl.textContent = 'Limite de 2min atingido';
+      _stopJournalDictate();
+    }
+  }, JOURNAL_DICTATE_MAX_MS);
 
   if (state.sttEngine === 'whisper') {
     // Record with MediaRecorder → send to Whisper
@@ -723,6 +742,8 @@ function _startJournalDictate() {
       recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
       recorder.onstop = async () => {
         stream.getTracks().forEach(t => t.stop());
+        clearTimeout(_journalDictateTimeout);
+        _journalDictateTimeout = null;
         if (btn) { btn.textContent = '🗣️ Ditar'; btn.classList.remove('recording'); }
         if (status) status.textContent = 'Transcrevendo...';
         _journalDictating = false;
@@ -736,6 +757,7 @@ function _startJournalDictate() {
 
         try {
           const r = await fetch('/api/stt', { method: 'POST', body: fd });
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
           const d = await r.json();
           if (d.text && d.text.trim()) {
             const textarea = document.getElementById('journalText');
@@ -755,6 +777,8 @@ function _startJournalDictate() {
       };
       recorder.start();
     }).catch(() => {
+      clearTimeout(_journalDictateTimeout);
+      _journalDictateTimeout = null;
       if (btn) { btn.textContent = '🗣️ Ditar'; btn.classList.remove('recording'); }
       if (status) status.textContent = 'Microfone negado';
       _journalDictating = false;
@@ -814,8 +838,9 @@ function _startJournalDictate() {
 
 function _stopJournalDictate() {
   _journalDictating = false;
+  if (_journalDictateTimeout) { clearTimeout(_journalDictateTimeout); _journalDictateTimeout = null; }
   if (_journalDictateRecorder) {
-    _journalDictateRecorder.stop();
+    try { _journalDictateRecorder.stop(); } catch {}
     _journalDictateRecorder = null;
   }
 }
@@ -850,6 +875,7 @@ function companionStartVoice() {
 
         try {
           const r = await fetch('/api/stt', { method: 'POST', body: fd });
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
           const d = await r.json();
           if (d.text && d.text.trim()) {
             if (input) { input.value = d.text.trim(); input.focus(); }
