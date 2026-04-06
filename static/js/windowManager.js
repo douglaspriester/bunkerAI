@@ -58,6 +58,9 @@ export function registerAppOpen(appId, fn) { _appOpenCallbacks[appId] = fn; }
 const _appCloseCallbacks = {};
 export function registerAppClose(appId, fn) { _appCloseCallbacks[appId] = fn; }
 
+// Maximum number of simultaneously open windows (prevents memory leak / DoS)
+const MAX_OPEN_WINDOWS = 20;
+
 // ─── Open App ───────────────────────────────────────────────────────────────
 export function openApp(appId) {
   if (appId === 'settings') {
@@ -73,6 +76,12 @@ export function openApp(appId) {
   if (existing) {
     if (existing.minimized) unminimizeWindow(existing.winId);
     focusWindow(existing.winId);
+    closeStartMenu();
+    return;
+  }
+
+  if (Object.keys(_windows).length >= MAX_OPEN_WINDOWS) {
+    osToast('Limite de janelas abertas atingido. Feche algumas janelas primeiro.');
     closeStartMenu();
     return;
   }
@@ -830,6 +839,10 @@ export function closeParentWindow(viewId) {
 
 // ─── Open saved app in OS window ────────────────────────────────────────────
 export function openSavedApp(name) {
+  if (Object.keys(_windows).length >= MAX_OPEN_WINDOWS) {
+    osToast('Limite de janelas abertas atingido. Feche algumas janelas primeiro.');
+    return;
+  }
   const winId = 'win_app_' + Date.now().toString(36);
   const maxW = window.innerWidth;
   const maxH = window.innerHeight - 48;
