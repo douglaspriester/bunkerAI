@@ -109,18 +109,27 @@ const SURV_REF = [
   ]},
 ];
 
+// Local escape helper for innerHTML interpolation of data values
+function _esc(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 function survRefInit() {
   const container = document.getElementById('survRefContent');
   if (!container) return;
   let html = '';
   SURV_REF.forEach(section => {
     html += `<div class="surv-section">
-      <h3 class="surv-cat-title">${section.cat}</h3>
+      <h3 class="surv-cat-title">${_esc(section.cat)}</h3>
       <div class="surv-cards">`;
     section.items.forEach(item => {
       html += `<div class="surv-card">
-        <div class="surv-card-title">${item.title}</div>
-        <div class="surv-card-text">${item.text}</div>
+        <div class="surv-card-title">${_esc(item.title)}</div>
+        <div class="surv-card-text">${_esc(item.text)}</div>
       </div>`;
     });
     html += '</div></div>';
