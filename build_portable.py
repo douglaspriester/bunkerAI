@@ -150,6 +150,8 @@ def download(url: str, dest: Path, desc: str = ""):
     print(f"  [DL] {label}...", end="", flush=True)
 
     req = urllib.request.Request(url, headers={"User-Agent": "BunkerAI-Builder/1.0"})
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    tmp_dest = dest.with_suffix(dest.suffix + ".tmp")
     try:
         with urllib.request.urlopen(req, timeout=60) as resp:
             total = int(resp.headers.get("Content-Length", 0))
@@ -165,12 +167,13 @@ def download(url: str, dest: Path, desc: str = ""):
                     mb = len(data) / 1048576
                     print(f"\r  [DL] {label}... {pct}% ({mb:.1f} MB)", end="", flush=True)
 
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            dest.write_bytes(data)
+            tmp_dest.write_bytes(data)
+            tmp_dest.replace(dest)
             mb = len(data) / 1048576
             print(f"\r  {green('[OK]')}  {label} ({mb:.1f} MB)")
             return True
     except Exception as e:
+        tmp_dest.unlink(missing_ok=True)
         print(f"\r  {yellow('[!!]')}  {label} — erro: {e}")
         return False
 
