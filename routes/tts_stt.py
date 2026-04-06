@@ -309,6 +309,10 @@ async def speech_to_text(audio: UploadFile = File(...), language: str = Form("pt
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
     try:
         content = await audio.read()
+        if not content or len(content) < 100:
+            tmp.close()
+            os.unlink(tmp.name)
+            return JSONResponse({"error": "Audio vazio ou muito curto", "use_browser": True}, status_code=400)
         tmp.write(content)
         tmp.close()
 

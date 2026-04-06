@@ -229,6 +229,13 @@ app.include_router(maps.router)
 app.include_router(rag.router)
 
 
+# ─── Ping (used by launchers for readiness checks) ────────────────────────────
+
+@app.get("/api/ping")
+async def ping():
+    return {"ok": True}
+
+
 # ─── PWA manifest ─────────────────────────────────────────────────────────────
 
 @app.get("/manifest.json")
