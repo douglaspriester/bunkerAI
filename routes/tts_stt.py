@@ -8,12 +8,35 @@ import tempfile
 import uuid
 from pathlib import Path
 from typing import Optional
+from urllib.parse import urlparse
 
 import httpx
 from fastapi import APIRouter, BackgroundTasks, File, Form, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 
 import routes.config as cfg
+
+# ─── SSRF protection ─────────────────────────────────────────────────────────
+
+ALLOWED_DOWNLOAD_HOSTS = {
+    'huggingface.co', 'cdn-lfs.huggingface.co', 'cdn-lfs-us-1.huggingface.co',
+    'github.com', 'objects.githubusercontent.com', 'raw.githubusercontent.com',
+    'github-releases.githubusercontent.com',
+}
+
+
+def _validate_download_url(url: str) -> bool:
+    """Return True only if url points to an allowed host over http(s)."""
+    try:
+        p = urlparse(url)
+        return p.scheme in ('https', 'http') and (p.hostname or '') in ALLOWED_DOWNLOAD_HOSTS
+    except Exception:
+        return False
+
+
+# ─── TTS limits ──────────────────────────────────────────────────────────────
+
+_MAX_TTS_CHARS = 5000  # prevent very long synthesis requests from hanging
 
 router = APIRouter(tags=["tts_stt"])
 
@@ -331,7 +354,8 @@ async def speech_to_text(audio: UploadFile = File(...), language: str = Form("pt
             "engine": "whisper",
         }
     except Exception as e:
-        return JSONResponse({"error": str(e), "use_browser": True}, status_code=500)
+        print(f"[STT] transcription error: {e}")
+        return JSONResponse({"error": "Erro na transcricao de audio", "use_browser": True}, status_code=500)
     finally:
         os.unlink(tmp.name)
 
@@ -346,6 +370,11 @@ async def tts(request: Request, background_tasks: BackgroundTasks):
     kokoro_voice = body.get("kokoro_voice", None)
     if not text:
         return JSONResponse({"error": "No text"}, status_code=400)
+    if len(text) > _MAX_TTS_CHARS:
+        return JSONResponse(
+            {"error": f"Texto muito longo (max {_MAX_TTS_CHARS} caracteres)"},
+            status_code=400,
+        )
 
     filename = f"{uuid.uuid4().hex}.mp3"
     filepath = cfg.TTS_DIR / filename
@@ -400,8 +429,18 @@ async def tts(request: Request, background_tasks: BackgroundTasks):
             background_tasks.add_task(os.unlink, str(filepath))
             return FileResponse(str(filepath), media_type="audio/mpeg", filename=filename)
         except Exception as e:
-            return JSONResponse({"error": str(e), "hint": "edge-tts precisa de internet"}, status_code=500)
+            print(f"[TTS] edge-tts error: {e}")
+            # Clean up any partial file that may have been created
+            if filepath.exists():
+                filepath.unlink(missing_ok=True)
+            return JSONResponse({"error": "Erro no edge-tts. Verifique a conexao com a internet.", "hint": "edge-tts precisa de internet"}, status_code=500)
 
+    # If a specific engine was requested and is not available, or all auto engines failed
+    if engine == "auto":
+        return JSONResponse(
+            {"error": "Nenhum engine TTS disponivel"},
+            status_code=503,
+        )
     return JSONResponse(
         {"error": f"Engine '{engine}' nao disponivel", "available": "kokoro, piper, pyttsx3, edge-tts"},
         status_code=503,
@@ -438,6 +477,9 @@ async def download_piper_model(request: Request):
     json_filename = f"{model_id}.onnx.json"
     onnx_url = f"{cfg.PIPER_HF_BASE}/{lang}/{lang_code}/{speaker}/{quality}/{lang_code}-{speaker}-{quality}.onnx"
     json_url = f"{cfg.PIPER_HF_BASE}/{lang}/{lang_code}/{speaker}/{quality}/{lang_code}-{speaker}-{quality}.onnx.json"
+
+    if not _validate_download_url(onnx_url) or not _validate_download_url(json_url):
+        return JSONResponse({"error": "URL nao permitida"}, status_code=400)
 
     onnx_dest = cfg.VOICE_MODELS_DIR / onnx_filename
     json_dest = cfg.VOICE_MODELS_DIR / json_filename
@@ -479,7 +521,8 @@ async def download_piper_model(request: Request):
                     yield f"data: {json.dumps({'status': 'error', 'error': 'Download incomplete'})}\n\n"
 
         except Exception as e:
-            yield f"data: {json.dumps({'status': 'error', 'error': str(e)})}\n\n"
+            print(f"[TTS] Piper download error: {e}")
+            yield f"data: {json.dumps({'status': 'error', 'error': 'Erro ao baixar modelo Piper'})}\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream")
 
@@ -505,7 +548,8 @@ async def list_pyttsx3_voices():
             voices = await loop.run_in_executor(pool, _get_voices)
         return {"voices": voices}
     except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
+        print(f"[TTS] pyttsx3 list voices error: {e}")
+        return JSONResponse({"error": "Erro ao listar vozes do sistema"}, status_code=500)
 
 
 @router.get("/api/tts/kokoro/status")
@@ -535,6 +579,9 @@ async def kokoro_status():
 @router.post("/api/tts/kokoro/download")
 async def download_kokoro_model():
     """Stream download progress of Kokoro TTS models via SSE."""
+    if not _validate_download_url(cfg.KOKORO_ONNX_URL) or not _validate_download_url(cfg.KOKORO_VOICES_URL):
+        return JSONResponse({"error": "URL nao permitida"}, status_code=400)
+
     onnx_dest = cfg.KOKORO_MODELS_DIR / "kokoro-v1.0.onnx"
     voices_dest = cfg.KOKORO_MODELS_DIR / "voices-v1.0.bin"
 
@@ -577,7 +624,8 @@ async def download_kokoro_model():
                 else:
                     yield f"data: {json.dumps({'status': 'error', 'error': 'Download incomplete'})}\n\n"
         except Exception as e:
-            yield f"data: {json.dumps({'status': 'error', 'error': str(e)})}\n\n"
+            print(f"[TTS] Kokoro download error: {e}")
+            yield f"data: {json.dumps({'status': 'error', 'error': 'Erro ao baixar modelo Kokoro'})}\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream")
 
