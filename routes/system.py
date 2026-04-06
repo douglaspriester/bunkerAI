@@ -754,24 +754,40 @@ async def terminal_exec(request: Request):
     if len(cmd) > 1000:
         return {"output": "bunker-sh: comando muito longo (max 1000 chars)", "exit_code": 1}
 
-    base_cmd = cmd.split()[0].split("/")[-1].split("\\")[-1].lower()
+    # Parse command into tokens (no shell=True to prevent injection via ;, &&, |, $(), etc.)
+    import shlex
+    try:
+        args = shlex.split(cmd)
+    except ValueError as e:
+        return {"output": f"bunker-sh: erro de parse: {e}", "exit_code": 1}
+
+    if not args:
+        return {"output": "", "exit_code": 0}
+
+    base_cmd = Path(args[0]).name.lower()
     if base_cmd.endswith(".exe"):
         base_cmd = base_cmd[:-4]
 
     if base_cmd not in cfg.TERMINAL_ALLOWED_CMDS:
         return {"output": f"bunker-sh: {base_cmd}: comando nao permitido\nComandos permitidos: {', '.join(sorted(cfg.TERMINAL_ALLOWED_CMDS))}", "exit_code": 1}
 
+    # Resolve the actual binary path to prevent path-traversal bypasses
+    binary = shutil.which(args[0]) or args[0]
+    exec_args = [binary] + args[1:]
+
     try:
         result = subprocess.run(
-            cmd, shell=True, capture_output=True, text=True,
+            exec_args, shell=False, capture_output=True, text=True,
             timeout=15, cwd=str(Path.cwd()),
         )
         output = result.stdout + result.stderr
         return {"output": output.rstrip(), "exit_code": result.returncode}
+    except FileNotFoundError:
+        return {"output": f"bunker-sh: {base_cmd}: comando nao encontrado", "exit_code": 127}
     except subprocess.TimeoutExpired:
         return {"output": "bunker-sh: tempo limite excedido (15s)", "exit_code": 124}
     except Exception as e:
-        return {"output": f"bunker-sh: erro: {e}", "exit_code": 1}
+        return {"output": f"bunker-sh: erro interno", "exit_code": 1}
 
 
 # ─── Image generation ─────────────────────────────────────────────────────────
