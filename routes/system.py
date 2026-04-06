@@ -524,7 +524,7 @@ async def list_local_models():
             "downloaded": complete,
             "partial": downloaded and not complete,
             "size_on_disk": size_on_disk,
-            "path": str(filepath) if complete else None,
+            "path": model["filename"] if complete else None,
             "downloading": model["id"] in cfg._active_downloads,
         })
 
@@ -543,11 +543,11 @@ async def list_local_models():
                 "downloaded": True,
                 "partial": False,
                 "size_on_disk": f.stat().st_size,
-                "path": str(f),
+                "path": f.name,
                 "downloading": False,
             })
 
-    return {"models": result, "models_dir": str(cfg.MODELS_DIR.resolve())}
+    return {"models": result, "models_dir": str(cfg.MODELS_DIR)}
 
 
 @router.post("/api/models/local/download")
@@ -691,16 +691,28 @@ async def system_status():
     gpu_name = None
     try:
         import psutil
-        cpu_pct = psutil.cpu_percent(interval=0.1)
-        cpu_count = psutil.cpu_count(logical=True)
-        vm = psutil.virtual_memory()
-        ram_pct = round(vm.percent, 1)
-        ram_used_mb = round(vm.used / 1024 / 1024)
-        ram_total_mb = round(vm.total / 1024 / 1024)
-        d = psutil.disk_usage(str(Path.home()))
-        disk_pct = round(d.percent, 1)
-        disk_free_gb = round(d.free / 1024 / 1024 / 1024, 1)
-        disk_total_gb = round(d.total / 1024 / 1024 / 1024, 1)
+        try:
+            cpu_pct = psutil.cpu_percent(interval=0.1)
+        except Exception:
+            pass
+        try:
+            cpu_count = psutil.cpu_count(logical=True)
+        except Exception:
+            pass
+        try:
+            vm = psutil.virtual_memory()
+            ram_pct = round(vm.percent, 1)
+            ram_used_mb = round(vm.used / 1024 / 1024)
+            ram_total_mb = round(vm.total / 1024 / 1024)
+        except Exception:
+            pass
+        try:
+            d = psutil.disk_usage(str(Path.cwd()))
+            disk_pct = round(d.percent, 1)
+            disk_free_gb = round(d.free / 1024 / 1024 / 1024, 1)
+            disk_total_gb = round(d.total / 1024 / 1024 / 1024, 1)
+        except Exception:
+            pass
     except ImportError:
         pass
 
@@ -868,7 +880,8 @@ async def imagine_generate(request: Request):
             "error": "sd-server não está rodando. Inicie com: sd-server -m modelo.gguf --listen-port 7860"
         }, status_code=503)
     except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
+        print(f"[IMAGINE] generate error: {e}")
+        return JSONResponse({"error": "Erro ao gerar imagem"}, status_code=500)
 
 
 @router.get("/api/imagine/view/{filename}")
