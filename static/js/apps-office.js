@@ -419,16 +419,76 @@ function excelEvalFormula(expr) {
 }
 
 function excelEvalSimple(expr) {
-  // Replace cell references with their values
+  // Replace cell references with their numeric values
   let replaced = expr.replace(/[A-J]\d{1,2}/g, (ref) => {
-    return excelCellValue(ref);
+    const v = excelCellValue(ref);
+    return isFinite(v) ? String(v) : '0';
   });
-  // Safe eval: only allow numbers, operators, parens
-  if (/^[\d\s\+\-\*\/\.\(\)<>=!&|]+$/.test(replaced)) {
-    try { return Function('"use strict"; return (' + replaced + ')')(); }
-    catch { return 0; }
+  // Safe arithmetic-only parser — no eval/Function, no string injection.
+  // Supported: numbers (int/float), +  -  *  /  (  )
+  // Comparison operators and logical operators are intentionally excluded.
+  try {
+    return _excelParse(replaced.replace(/\s+/g, ''));
+  } catch {
+    return 0;
   }
-  return 0;
+}
+
+// Recursive-descent arithmetic parser (no eval, no Function constructor).
+// Grammar: expr = term (('+' | '-') term)*
+//          term = factor (('*' | '/') factor)*
+//          factor = '-' factor | '(' expr ')' | number
+function _excelParse(s) {
+  let pos = 0;
+
+  function peek()  { return pos < s.length ? s[pos] : ''; }
+  function consume(c) { if (s[pos] !== c) throw new Error(); pos++; }
+
+  function parseNumber() {
+    let start = pos;
+    if (peek() === '-') pos++;            // leading minus handled by factor()
+    while (pos < s.length && /[\d.]/.test(s[pos])) pos++;
+    if (pos === start || (pos === start + 1 && s[start] === '-')) throw new Error();
+    const n = parseFloat(s.slice(start, pos));
+    if (!isFinite(n)) throw new Error();
+    return n;
+  }
+
+  function parseFactor() {
+    if (peek() === '-') { pos++; return -parseFactor(); }
+    if (peek() === '(') {
+      consume('(');
+      const v = parseExpr();
+      consume(')');
+      return v;
+    }
+    return parseNumber();
+  }
+
+  function parseTerm() {
+    let v = parseFactor();
+    while (peek() === '*' || peek() === '/') {
+      const op = s[pos++];
+      const r = parseFactor();
+      if (op === '*') v *= r;
+      else { if (r === 0) return 0; v /= r; }
+    }
+    return v;
+  }
+
+  function parseExpr() {
+    let v = parseTerm();
+    while (peek() === '+' || peek() === '-') {
+      const op = s[pos++];
+      const r = parseTerm();
+      v = op === '+' ? v + r : v - r;
+    }
+    return v;
+  }
+
+  const result = parseExpr();
+  if (pos !== s.length) throw new Error('Unexpected: ' + s.slice(pos));
+  return isFinite(result) ? result : 0;
 }
 
 async function excelLoadList() {

@@ -44,33 +44,40 @@ def _chat_stream_ollama(payload: dict, timeout: float) -> StreamingResponse:
     """Stream from Ollama /api/chat."""
 
     async def generate():
-        async with httpx.AsyncClient(timeout=httpx.Timeout(timeout)) as c:
-            async with c.stream("POST", f"{cfg.OLLAMA_BASE}/api/chat", json=payload) as resp:
-                async for line in resp.aiter_lines():
-                    if not line.strip():
-                        continue
-                    try:
-                        chunk = json.loads(line)
-                        token = chunk.get("message", {}).get("content", "")
-                        if token:
-                            yield f"data: {json.dumps({'token': token})}\n\n"
-                        if chunk.get("done"):
-                            stats = {}
-                            stats["model"] = chunk.get("model", payload.get("model", ""))
-                            eval_count = chunk.get("eval_count", 0)
-                            eval_duration = chunk.get("eval_duration", 0)
-                            prompt_eval_count = chunk.get("prompt_eval_count", 0)
-                            total_duration = chunk.get("total_duration", 0)
-                            if eval_duration > 0 and eval_count > 0:
-                                stats["tokens"] = eval_count
-                                stats["tok_s"] = round(eval_count / (eval_duration / 1e9), 1)
-                            if prompt_eval_count:
-                                stats["prompt_tokens"] = prompt_eval_count
-                            if total_duration > 0:
-                                stats["total_s"] = round(total_duration / 1e9, 1)
-                            yield f"data: {json.dumps({'done': True, 'stats': stats})}\n\n"
-                    except json.JSONDecodeError:
-                        pass
+        try:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(timeout)) as c:
+                async with c.stream("POST", f"{cfg.OLLAMA_BASE}/api/chat", json=payload) as resp:
+                    async for line in resp.aiter_lines():
+                        if not line.strip():
+                            continue
+                        try:
+                            chunk = json.loads(line)
+                            token = chunk.get("message", {}).get("content", "")
+                            if token:
+                                yield f"data: {json.dumps({'token': token})}\n\n"
+                            if chunk.get("done"):
+                                stats = {}
+                                stats["model"] = chunk.get("model", payload.get("model", ""))
+                                eval_count = chunk.get("eval_count", 0)
+                                eval_duration = chunk.get("eval_duration", 0)
+                                prompt_eval_count = chunk.get("prompt_eval_count", 0)
+                                total_duration = chunk.get("total_duration", 0)
+                                if eval_duration > 0 and eval_count > 0:
+                                    stats["tokens"] = eval_count
+                                    stats["tok_s"] = round(eval_count / (eval_duration / 1e9), 1)
+                                if prompt_eval_count:
+                                    stats["prompt_tokens"] = prompt_eval_count
+                                if total_duration > 0:
+                                    stats["total_s"] = round(total_duration / 1e9, 1)
+                                yield f"data: {json.dumps({'done': True, 'stats': stats})}\n\n"
+                        except json.JSONDecodeError:
+                            pass
+        except httpx.ConnectError:
+            yield f"data: {json.dumps({'token': '[Erro: Ollama nao conectado]'})}\n\n"
+            yield f"data: {json.dumps({'done': True})}\n\n"
+        except httpx.TimeoutException:
+            yield f"data: {json.dumps({'token': '[Erro: tempo limite excedido]'})}\n\n"
+            yield f"data: {json.dumps({'done': True})}\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream")
 
@@ -180,6 +187,9 @@ async def vision(request: Request):
     return _chat_stream({"model": model, "messages": msgs, "stream": True})
 
 
+_ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp", "image/bmp"}
+_ALLOWED_IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"}
+
 @router.post("/api/vision/upload")
 async def vision_upload(
     image: UploadFile = File(...),
@@ -187,7 +197,15 @@ async def vision_upload(
     model: str = Form(""),
 ):
     import base64
+    # Validate file type by MIME type and extension
+    content_type = (image.content_type or "").lower().split(";")[0].strip()
+    ext = Path(image.filename or "").suffix.lower() if image.filename else ""
+    if content_type not in _ALLOWED_IMAGE_TYPES and ext not in _ALLOWED_IMAGE_EXTS:
+        return JSONResponse({"error": "Tipo de arquivo nao suportado. Use JPEG, PNG, GIF ou WebP."}, status_code=400)
     img_bytes = await image.read()
+    # Validate magic bytes: check for known image file signatures
+    if len(img_bytes) < 4:
+        return JSONResponse({"error": "Arquivo de imagem invalido"}, status_code=400)
     img_b64 = base64.b64encode(img_bytes).decode()
 
     return _chat_stream({

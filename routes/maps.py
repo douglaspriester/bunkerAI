@@ -158,9 +158,14 @@ async def download_map(request: Request):
 async def delete_map(filename: str):
     """Delete a map file."""
     safe_name = Path(filename).name
-    if not safe_name.endswith(".pmtiles"):
+    if not safe_name or not safe_name.endswith(".pmtiles"):
         return JSONResponse({"error": "Arquivo invalido"}, status_code=400)
-    filepath = cfg.MAPS_DIR / safe_name
+    filepath = (cfg.MAPS_DIR / safe_name).resolve()
+    # Ensure the resolved path stays inside MAPS_DIR (path traversal guard)
+    try:
+        filepath.relative_to(cfg.MAPS_DIR.resolve())
+    except ValueError:
+        return JSONResponse({"error": "Arquivo invalido"}, status_code=400)
     if filepath.exists():
         filepath.unlink()
         return {"status": "deleted", "file": safe_name}

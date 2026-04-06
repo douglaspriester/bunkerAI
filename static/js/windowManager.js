@@ -854,7 +854,7 @@ export function openSavedApp(name) {
       </div>
     </div>
     <div class="os-window-body" style="padding:0">
-      <iframe src="/api/build/preview/${encodeURIComponent(name)}" style="width:100%;height:100%;border:none;background:#fff;border-radius:0 0 var(--radius-lg) var(--radius-lg)"></iframe>
+      <iframe src="/api/build/preview/${encodeURIComponent(name)}" sandbox="allow-scripts" style="width:100%;height:100%;border:none;background:#fff;border-radius:0 0 var(--radius-lg) var(--radius-lg)"></iframe>
     </div>
     <div class="os-window-resize" onmousedown="startResize('${winId}', event)"></div>
   `;

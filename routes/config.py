@@ -302,12 +302,14 @@ MAP_REGIONS: dict = {
 }
 
 # ── Terminal allowlist ────────────────────────────────────────────────────────
+# SECURITY: Only read-only / informational commands are permitted.
+# Removed: python, pip, node, npm, git — these can execute arbitrary code,
+# install packages, make network requests, or exfiltrate data.
 TERMINAL_ALLOWED_CMDS: set = {
     "ls", "dir", "cat", "type", "echo", "date", "whoami", "hostname",
-    "pwd", "cd", "ping", "ipconfig", "ifconfig", "netstat", "nslookup",
+    "pwd", "ping", "ipconfig", "ifconfig", "netstat", "nslookup",
     "df", "du", "free", "uptime", "uname", "env", "set", "tree",
     "head", "tail", "wc", "sort", "find", "grep", "which", "where",
-    "python", "pip", "node", "npm", "git",
 }
 
 # ── Emulator constants ────────────────────────────────────────────────────────
