@@ -5,6 +5,14 @@
   "description": "Protocolo para desobstrucao de vias aereas em adultos, criancas e bebes.",
   "steps": [
     {
+      "id": "check-self-choking",
+      "type": "decision",
+      "text": "VOCE esta sozinho e e VOCE quem esta engasgado?",
+      "detail": "Se voce e quem esta engasgado e esta sozinho, o protocolo e diferente. Se esta ajudando outra pessoa, responda NAO.",
+      "yes": "self-choking",
+      "no": "who-choking"
+    },
+    {
       "id": "who-choking",
       "type": "decision",
       "text": "A vitima e um BEBE (menor de 1 ano)?",
@@ -236,9 +244,10 @@
     },
     {
       "id": "self-choking",
-      "type": "info",
-      "text": "VOCE esta engasgado e sozinho?",
-      "detail": "Use o encosto de uma cadeira: posicione a borda logo acima do seu umbigo e jogue seu peso para frente com forca. Repita. Ou feche o punho, coloque acima do umbigo e empurre com a outra mao para dentro e para cima.",
+      "type": "action",
+      "text": "AUTOSSOCORRO — VOCE esta engasgado sozinho! Tente tossir com forca. Se nao funcionar: feche o punho, coloque ACIMA do umbigo e empurre com a outra mao para DENTRO e para CIMA em movimento de J.",
+      "detail": "Alternativa: use o encosto de uma cadeira — posicione a borda logo acima do seu umbigo e jogue seu peso para frente com forca. Repita varias vezes. Se possivel, ligue 192 (SAMU) em viva-voz AGORA.",
+      "warning": "Cada segundo conta! Nao perca tempo. Tente tossir primeiro, depois o autoheimlick ou a cadeira.",
       "next": null
     }
   ]

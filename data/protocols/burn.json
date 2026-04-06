@@ -103,7 +103,7 @@
       "text": "DURANTE o resfriamento, remova aneis, pulseiras, relogios e roupas soltas perto da queimadura.",
       "detail": "A area vai inchar. Se joias ou roupas ficarem presas depois do inchacho, sera muito pior. Remova AGORA.",
       "warning": "Se a roupa estiver GRUDADA na pele, NAO tente remover! Corte ao redor.",
-      "next": "assess-degree"
+      "next": "inhalation-check"
     },
     {
       "id": "assess-degree",
@@ -231,9 +231,9 @@
     {
       "id": "inhalation-check",
       "type": "info",
-      "text": "Suspeita de INALACAO DE FUMACA: fuligem ao redor do nariz/boca, rouquidao, tosse, queimaduras no rosto. EMERGENCIA — ligue 192 imediatamente.",
-      "detail": "As vias aereas podem inchar rapidamente. A pessoa pode piorar muito rapido. Mantenha sentada se possivel (facilita a respiracao).",
-      "next": "seek-emergency"
+      "text": "Verifique INALACAO DE FUMACA: fuligem ao redor do nariz/boca, rouquidao, tosse, queimaduras no rosto. Se presentes: EMERGENCIA — ligue 192 imediatamente e mantenha a pessoa sentada.",
+      "detail": "As vias aereas podem inchar rapidamente. A pessoa pode piorar muito rapido. Se nao houver sinais de inalacao, continue avaliando o grau da queimadura.",
+      "next": "assess-degree"
     }
   ]
 }

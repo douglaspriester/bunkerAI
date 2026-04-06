@@ -46,7 +46,7 @@
       "id": "is-breathing",
       "type": "decision",
       "text": "A pessoa esta respirando (mesmo que muito devagar)?",
-      "yes": "severe-hypothermia",
+      "yes": "moderate-severe",
       "no": "start-cpr"
     },
     {
