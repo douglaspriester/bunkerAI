@@ -93,9 +93,9 @@ async def list_supplies(category: str = None):
     def _query():
         conn = _db()
         if category:
-            rows = conn.execute("SELECT * FROM supplies WHERE category = ? ORDER BY expiry", (category,)).fetchall()
+            rows = conn.execute("SELECT * FROM supplies WHERE category = ? ORDER BY name", (category,)).fetchall()
         else:
-            rows = conn.execute("SELECT * FROM supplies ORDER BY category, expiry").fetchall()
+            rows = conn.execute("SELECT * FROM supplies ORDER BY name").fetchall()
         conn.close()
         return [dict(r) for r in rows]
     return await _db_run(_query)
@@ -213,10 +213,15 @@ async def update_supply(item_id: int, request: Request):
 async def delete_supply(item_id: int):
     def _query():
         conn = _db()
-        conn.execute("DELETE FROM supplies WHERE id = ?", (item_id,))
-        conn.commit()
+        row = conn.execute("SELECT id FROM supplies WHERE id = ?", (item_id,)).fetchone()
+        if row:
+            conn.execute("DELETE FROM supplies WHERE id = ?", (item_id,))
+            conn.commit()
         conn.close()
-    await _db_run(_query)
+        return row is not None
+    found = await _db_run(_query)
+    if not found:
+        return JSONResponse({"error": "Not found"}, status_code=404)
     return {"deleted": True, "id": item_id}
 
 
@@ -526,10 +531,15 @@ async def update_note(note_id: int, request: Request):
 async def delete_note(note_id: int):
     def _query():
         conn = _db()
-        conn.execute("DELETE FROM notes WHERE id=?", (note_id,))
-        conn.commit()
+        row = conn.execute("SELECT id FROM notes WHERE id=?", (note_id,)).fetchone()
+        if row:
+            conn.execute("DELETE FROM notes WHERE id=?", (note_id,))
+            conn.commit()
         conn.close()
-    await _db_run(_query)
+        return row is not None
+    found = await _db_run(_query)
+    if not found:
+        return JSONResponse({"error": "Not found"}, status_code=404)
     return {"ok": True}
 
 
@@ -615,10 +625,15 @@ async def update_task(task_id: int, request: Request):
 async def delete_task(task_id: int):
     def _query():
         conn = _db()
-        conn.execute("DELETE FROM tasks WHERE id=?", (task_id,))
-        conn.commit()
+        row = conn.execute("SELECT id FROM tasks WHERE id=?", (task_id,)).fetchone()
+        if row:
+            conn.execute("DELETE FROM tasks WHERE id=?", (task_id,))
+            conn.commit()
         conn.close()
-    await _db_run(_query)
+        return row is not None
+    found = await _db_run(_query)
+    if not found:
+        return JSONResponse({"error": "Not found"}, status_code=404)
     return {"ok": True}
 
 
