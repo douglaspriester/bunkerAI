@@ -22,5 +22,6 @@
     }
   ],
   "categories": ["utilities", "productivity"],
-  "lang": "pt-BR"
+  "lang": "pt-BR",
+  "scope": "/"
 }
