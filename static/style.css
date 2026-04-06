@@ -65,6 +65,95 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { -webkit-font-smoothing: antialiased; font-size: 14px; }
 
+/* ─── Global spin keyframe (used by loading spinners) ─── */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* ─── Global focus-visible styles (keyboard navigation) ─── */
+/* Suppress default outline only when we supply our own */
+:focus { outline: none; }
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+/* Buttons get a glow, not a boxy outline */
+button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
+}
+/* Skip outline on mouse-click for elements that have custom :active styles */
+a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ─── Minimum 44 × 44 px touch target for icon-only buttons ─── */
+.map-tool-btn,
+.map-cat-btn,
+.os-win-btn,
+.hint,
+.btn-sm {
+  min-height: 32px; /* at least 32 inside windows; 44 on touch handled below */
+}
+@media (pointer: coarse) {
+  .map-tool-btn,
+  .map-cat-btn,
+  .hint,
+  .btn-sm,
+  .nav-item {
+    min-height: 44px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+}
+
+/* ─── Print stylesheet: protocol and guide content readable on paper ─── */
+@media print {
+  body::before, body::after, .sweep-line,
+  .sidebar, .os-taskbar, .os-window-titlebar,
+  .os-window-controls, .os-window-resize,
+  .map-tools, .map-cat-bar, .welcome-msg,
+  .guide-actions, #btnFavGuide,
+  .protocol-buttons button, .msg-actions,
+  .start-menu, .desktop-icons-area { display: none !important; }
+
+  body {
+    background: #fff !important;
+    color: #000 !important;
+    font-size: 12pt;
+    overflow: visible;
+  }
+  .os-window {
+    position: static !important;
+    box-shadow: none !important;
+    border: none !important;
+    width: 100% !important;
+    height: auto !important;
+    transform: none !important;
+  }
+  .os-window-body {
+    overflow: visible !important;
+    height: auto !important;
+  }
+  .guide-body, .protocol-step {
+    color: #000 !important;
+    background: #fff !important;
+    max-width: 720px;
+    margin: 0 auto;
+  }
+  .protocol-urgency {
+    border: 2px solid #000 !important;
+    color: #000 !important;
+    background: #eee !important;
+  }
+  a { color: #000; text-decoration: underline; }
+  pre, code { border: 1px solid #ccc; background: #f5f5f5 !important; color: #000 !important; }
+}
+
 body {
   font-family: var(--font-body);
   background: var(--bg);

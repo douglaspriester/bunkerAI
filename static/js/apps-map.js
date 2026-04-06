@@ -204,16 +204,79 @@ function closeMap() {
 window._mapInit = initMap;
 
 async function initMap() {
+  // Guard: don't re-initialize if already running
+  if (mapState.initialized) {
+    // Just invalidate size in case window was resized while closed
+    if (mapState.leafletMap) {
+      setTimeout(() => mapState.leafletMap.invalidateSize(), 100);
+    }
+    return;
+  }
+
+  // Show loading overlay while map tiles load
+  const mapContainer = document.getElementById('leafletMap');
+  const loadingOverlay = document.createElement('div');
+  loadingOverlay.id = 'mapLoadingOverlay';
+  loadingOverlay.style.cssText = [
+    'position:absolute', 'inset:0', 'z-index:1000',
+    'display:flex', 'flex-direction:column', 'align-items:center', 'justify-content:center',
+    'background:rgba(2,6,9,0.92)', 'color:var(--accent)',
+    'font-family:var(--font-mono)', 'font-size:12px', 'gap:12px',
+    'pointer-events:none'
+  ].join(';');
+  loadingOverlay.innerHTML = `
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="animation:spin 1.2s linear infinite">
+      <circle cx="12" cy="12" r="10" stroke-opacity="0.2"/>
+      <path d="M12 2a10 10 0 0 1 10 10" stroke="var(--accent)"/>
+    </svg>
+    <span>Carregando mapa...</span>`;
+
+  // Ensure the parent is positioned
+  const parentEl = mapContainer?.parentElement;
+  if (parentEl && getComputedStyle(parentEl).position === 'static') {
+    parentEl.style.position = 'relative';
+  }
+  if (mapContainer) mapContainer.style.position = 'relative';
+  if (mapContainer) mapContainer.appendChild(loadingOverlay);
+
+  function removeLoading() {
+    document.getElementById('mapLoadingOverlay')?.remove();
+  }
+
   // Default to center of Brazil
   const defaultLat = -15.79;
   const defaultLng = -47.88;
   const defaultZoom = 4;
 
-  const map = L.map("leafletMap", {
-    center: [defaultLat, defaultLng],
-    zoom: defaultZoom,
-    zoomControl: true,
-  });
+  // Guard: Leaflet must be loaded
+  if (typeof L === 'undefined') {
+    removeLoading();
+    const errEl = document.getElementById('mapOfflineNotice');
+    if (errEl) {
+      errEl.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ff4466" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> <span>Erro: biblioteca Leaflet não carregada. Recarregue a página.</span>';
+      errEl.style.borderColor = 'rgba(255,68,102,0.4)';
+      errEl.style.color = '#ff4466';
+    }
+    return;
+  }
+
+  let map;
+  try {
+    map = L.map("leafletMap", {
+      center: [defaultLat, defaultLng],
+      zoom: defaultZoom,
+      zoomControl: true,
+    });
+  } catch (e) {
+    removeLoading();
+    const errEl = document.getElementById('mapOfflineNotice');
+    if (errEl) {
+      errEl.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ff4466" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> <span>Erro ao inicializar mapa: ${escapeHtml(e.message)}</span>`;
+      errEl.style.borderColor = 'rgba(255,68,102,0.4)';
+      errEl.style.color = '#ff4466';
+    }
+    return;
+  }
 
   // Try to load offline PMTiles first, fall back to online tiles
   let usingOffline = false;
@@ -337,6 +400,11 @@ async function initMap() {
 
   mapState.leafletMap = map;
   mapState.initialized = true;
+
+  // Remove loading overlay once map is ready
+  map.whenReady(() => removeLoading());
+  // Fallback: remove after 3s even if whenReady never fires
+  setTimeout(removeLoading, 3000);
 
   // Load saved markers
   loadSavedMarkers();

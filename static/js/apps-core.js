@@ -1303,12 +1303,14 @@ function activateCharacter(id) {
     // Restore default system prompt
     const defaultPrompt = "Voce e o Bunker AI — um assistente de sobrevivencia com humor estilo Guia do Mochileiro das Galaxias. Responda de forma util e direta, mas com pitadas de humor seco e referencias sci-fi quando couber. Seu lema: DON'T PANIC. Fale em portugues a menos que o usuario fale em outro idioma. Voce conhece: SAS Survival Handbook, Bushcraft 101, Deep Survival, The Road, e todo tipo de conhecimento util para o fim do mundo.";
     document.getElementById("systemPrompt").value = defaultPrompt;
+    osToast("Personagem desativado — voltando ao Bunker AI padrão.", "info");
   } else {
     state.activeCharacterId = id;
     storage.set("bunker_active_char", id);
     const c = state.characters[id];
     if (c?.systemPrompt) document.getElementById("systemPrompt").value = c.systemPrompt;
     if (c?.voice) document.getElementById("ttsVoice").value = c.voice;
+    osToast(`Personagem ativo: ${c?.emoji || "🤖"} ${c?.name || id}`, "success");
   }
   renderCharactersList();
   // Update chat window title to show active character
@@ -1563,9 +1565,21 @@ async function pullModel() {
   const prog = document.getElementById("pullProgress");
   const fill = document.getElementById("pullFill");
   const status = document.getElementById("pullStatus");
+  const btn = document.getElementById("btnPullModel");
   prog.classList.remove("hidden");
   fill.style.width = "0%";
+  fill.style.background = "";
   status.textContent = "Iniciando...";
+  if (btn) { btn.disabled = true; btn.textContent = "Baixando..."; }
+
+  // Check if Ollama is reachable before starting
+  if (state._lastHealth?.status !== "online") {
+    status.textContent = "Ollama offline — inicie o Ollama antes de baixar modelos.";
+    fill.style.background = "var(--danger)";
+    if (btn) { btn.disabled = false; btn.textContent = "Baixar"; }
+    osToast("Ollama não está rodando. Inicie o Ollama e tente novamente.", "warn");
+    return;
+  }
 
   try {
     const r = await fetch("/api/models/pull", {
@@ -1573,6 +1587,12 @@ async function pullModel() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ model: name }),
     });
+    if (!r.ok) {
+      const errText = r.status === 404
+        ? `Modelo "${name}" não encontrado. Verifique o nome em ollama.com/library`
+        : `Erro HTTP ${r.status}`;
+      throw new Error(errText);
+    }
     const reader = r.body.getReader();
     const decoder = new TextDecoder();
     while (true) {
@@ -1596,9 +1616,15 @@ async function pullModel() {
     }
     status.textContent = "Completo!";
     fill.style.width = "100%";
+    fill.style.background = "var(--accent)";
+    osToast(`Modelo "${name}" baixado com sucesso!`, "success");
+    if (btn) { btn.disabled = false; btn.textContent = "Baixar"; }
     checkHealth();
   } catch (e) {
     status.textContent = "Erro: " + e.message;
+    fill.style.background = "var(--danger)";
+    osToast("Falha ao baixar modelo: " + e.message, "error");
+    if (btn) { btn.disabled = false; btn.textContent = "Tentar novamente"; }
   }
 }
 

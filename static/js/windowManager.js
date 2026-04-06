@@ -646,7 +646,22 @@ export function applyWallpaper() {
 }
 
 // ─── Toast Notifications ────────────────────────────────────────────────────
-export function osToast(msg, duration = 2500, variant = '') {
+export function osToast(msg, durationOrVariant = 2500, variantArg = '') {
+  // Support both signatures:
+  //   osToast(msg, 4000)              — duration only
+  //   osToast(msg, 'success')         — variant only  (duration defaults to 2500)
+  //   osToast(msg, 4000, 'success')   — both
+  let duration = 2500;
+  let variant = '';
+  if (typeof durationOrVariant === 'number') {
+    duration = durationOrVariant;
+    variant = variantArg;
+  } else if (typeof durationOrVariant === 'string') {
+    variant = durationOrVariant;
+  }
+  // Map variant aliases
+  if (variant === 'warn') variant = 'warning';
+
   let container = document.getElementById('osToasts');
   if (!container) {
     container = document.createElement('div');

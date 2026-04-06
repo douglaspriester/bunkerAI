@@ -365,37 +365,53 @@ function _collectSupplyForm() {
 
 async function submitAddSupply() {
   const data = _collectSupplyForm();
-  if (!data.name) return;
+  if (!data.name) { osToast('Nome do item é obrigatório.', 'warn'); return; }
+  const btn = document.querySelector('#supModal .btn-accent');
+  if (btn) { btn.disabled = true; btn.textContent = 'Salvando...'; }
   try {
-    await fetch('/api/supplies', {
+    const r = await fetch('/api/supplies', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(data)
     });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
     document.getElementById('supModal')?.remove();
+    osToast('Suprimento adicionado!', 'success');
     loadSupplies();
-  } catch(e) { alert('Erro: ' + e.message); }
+  } catch(e) {
+    osToast('Erro ao salvar: ' + e.message, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'Salvar'; }
+  }
 }
 
 async function submitEditSupply(id) {
   const data = _collectSupplyForm();
-  if (!data.name) return;
+  if (!data.name) { osToast('Nome do item é obrigatório.', 'warn'); return; }
+  const btn = document.querySelector('#supModal .btn-accent');
+  if (btn) { btn.disabled = true; btn.textContent = 'Salvando...'; }
   try {
-    await fetch(`/api/supplies/${id}`, {
+    const r = await fetch(`/api/supplies/${id}`, {
       method: 'PUT',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(data)
     });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
     document.getElementById('supModal')?.remove();
+    osToast('Suprimento atualizado!', 'success');
     loadSupplies();
-  } catch(e) { alert('Erro: ' + e.message); }
+  } catch(e) {
+    osToast('Erro ao salvar: ' + e.message, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'Salvar'; }
+  }
 }
 
 async function deleteSupply(id) {
   if (!confirm('Remover item?')) return;
   try {
-    await fetch(`/api/supplies/${id}`, { method: 'DELETE' });
+    const r = await fetch(`/api/supplies/${id}`, { method: 'DELETE' });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    osToast('Item removido.', 'info');
     loadSupplies();
-  } catch(e) { alert('Erro: ' + e.message); }
+  } catch(e) { osToast('Erro ao remover: ' + e.message, 'error'); }
 }
 
