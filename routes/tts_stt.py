@@ -169,7 +169,7 @@ async def _tts_kokoro(text: str, filepath: Path, voice: str) -> Optional[Path]:
         return wav_path
 
     try:
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
             result = await loop.run_in_executor(pool, _synth)
 
@@ -237,10 +237,16 @@ async def _tts_piper(text: str, filepath: Path, voice: str) -> Optional[Path]:
 
     try:
         import piper as piper_module
-        voice_obj = piper_module.PiperVoice.load(str(model_path))
-        with open(str(wav_path), "wb") as f:
-            voice_obj.synthesize(text, f)
-        return wav_path
+
+        def _piper_synth():
+            voice_obj = piper_module.PiperVoice.load(str(model_path))
+            with open(str(wav_path), "wb") as f:
+                voice_obj.synthesize(text, f)
+            return wav_path.exists() and wav_path.stat().st_size > 100
+
+        ok = await asyncio.to_thread(_piper_synth)
+        if ok:
+            return wav_path
     except Exception:
         pass
 
@@ -290,7 +296,7 @@ async def _tts_pyttsx3(text: str, filepath: Path, voice_id: str = None) -> Optio
                 except (ImportError, Exception):
                     pass
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
             ok = await loop.run_in_executor(pool, _synth)
 
@@ -318,6 +324,9 @@ async def _tts_pyttsx3(text: str, filepath: Path, voice_id: str = None) -> Optio
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────
 
+_MAX_STT_BYTES = 8 * 1024 * 1024  # 8 MB — approx. 60 s of browser WebM at typical quality
+
+
 @router.post("/api/stt")
 async def speech_to_text(audio: UploadFile = File(...), language: str = Form("pt")):
     """Transcribe audio using faster-whisper (offline) or return error."""
@@ -328,23 +337,32 @@ async def speech_to_text(audio: UploadFile = File(...), language: str = Form("pt
             status_code=503,
         )
 
+    content = await audio.read()
+    if not content or len(content) < 100:
+        return JSONResponse({"error": "Audio vazio ou muito curto", "use_browser": True}, status_code=400)
+    if len(content) > _MAX_STT_BYTES:
+        return JSONResponse(
+            {"error": f"Audio muito longo (max ~60s / 8MB). Recebido: {len(content) // 1024}KB", "use_browser": True},
+            status_code=400,
+        )
+
     suffix = Path(audio.filename).suffix if audio.filename else ".webm"
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+    tmp_path = tmp.name
     try:
-        content = await audio.read()
-        if not content or len(content) < 100:
-            tmp.close()
-            os.unlink(tmp.name)
-            return JSONResponse({"error": "Audio vazio ou muito curto", "use_browser": True}, status_code=400)
         tmp.write(content)
         tmp.close()
 
-        segments, info = model.transcribe(
-            tmp.name,
-            language=language if language != "auto" else None,
-            beam_size=5,
-            vad_filter=True,
-        )
+        def _transcribe():
+            segs, inf = model.transcribe(
+                tmp_path,
+                language=language if language != "auto" else None,
+                beam_size=5,
+                vad_filter=True,
+            )
+            return list(segs), inf
+
+        segments, info = await asyncio.to_thread(_transcribe)
 
         text = " ".join(segment.text.strip() for segment in segments)
         return {
@@ -357,7 +375,10 @@ async def speech_to_text(audio: UploadFile = File(...), language: str = Form("pt
         print(f"[STT] transcription error: {e}")
         return JSONResponse({"error": "Erro na transcricao de audio", "use_browser": True}, status_code=500)
     finally:
-        os.unlink(tmp.name)
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
 
 
 @router.post("/api/tts")
@@ -485,6 +506,7 @@ async def download_piper_model(request: Request):
     json_dest = cfg.VOICE_MODELS_DIR / json_filename
 
     async def generate():
+        _completed = False
         try:
             async with httpx.AsyncClient(timeout=httpx.Timeout(600.0), follow_redirects=True) as client:
                 yield f"data: {json.dumps({'status': 'downloading', 'file': json_filename, 'progress': 0})}\n\n"
@@ -515,13 +537,17 @@ async def download_piper_model(request: Request):
                                 yield f"data: {json.dumps({'status': 'downloading', 'file': onnx_filename, 'progress': pct, 'mb': round(mb, 1)})}\n\n"
 
                 if onnx_dest.exists() and onnx_dest.stat().st_size > 1000:
+                    _completed = True
                     cfg._piper_available = None  # reset so check_piper() re-evaluates
                     yield f"data: {json.dumps({'status': 'done', 'model_id': model_id, 'file': onnx_filename})}\n\n"
                 else:
+                    onnx_dest.unlink(missing_ok=True)
                     yield f"data: {json.dumps({'status': 'error', 'error': 'Download incomplete'})}\n\n"
 
         except Exception as e:
             print(f"[TTS] Piper download error: {e}")
+            if not _completed:
+                onnx_dest.unlink(missing_ok=True)
             yield f"data: {json.dumps({'status': 'error', 'error': 'Erro ao baixar modelo Piper'})}\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream")
@@ -543,7 +569,7 @@ async def list_pyttsx3_voices():
             engine.stop()
             return result
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
             voices = await loop.run_in_executor(pool, _get_voices)
         return {"voices": voices}
@@ -586,6 +612,7 @@ async def download_kokoro_model():
     voices_dest = cfg.KOKORO_MODELS_DIR / "voices-v1.0.bin"
 
     async def generate():
+        _completed = False
         try:
             async with httpx.AsyncClient(timeout=httpx.Timeout(600.0), follow_redirects=True) as client:
                 yield f"data: {json.dumps({'status': 'downloading', 'file': 'voices-v1.0.bin', 'progress': 0})}\n\n"
@@ -618,13 +645,17 @@ async def download_kokoro_model():
                                 yield f"data: {json.dumps({'status': 'downloading', 'file': 'kokoro-v1.0.onnx', 'progress': pct, 'mb': round(mb, 1)})}\n\n"
 
                 if onnx_dest.exists() and onnx_dest.stat().st_size > 1000:
+                    _completed = True
                     cfg._kokoro_available = None  # reset check
                     cfg._kokoro_instance = None   # reset singleton
                     yield f"data: {json.dumps({'status': 'done', 'message': 'Kokoro TTS pronto!'})}\n\n"
                 else:
+                    onnx_dest.unlink(missing_ok=True)
                     yield f"data: {json.dumps({'status': 'error', 'error': 'Download incomplete'})}\n\n"
         except Exception as e:
             print(f"[TTS] Kokoro download error: {e}")
+            if not _completed:
+                onnx_dest.unlink(missing_ok=True)
             yield f"data: {json.dumps({'status': 'error', 'error': 'Erro ao baixar modelo Kokoro'})}\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream")

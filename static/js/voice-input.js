@@ -116,8 +116,18 @@ function _recordWhisper(btn, lang, resolve, reject) {
   if (btn) btn.classList.add('recording');
   _activeChunks = [];
 
+  // Pick a MIME type that this browser actually supports
+  const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+    ? 'audio/webm;codecs=opus'
+    : MediaRecorder.isTypeSupported('audio/webm')
+      ? 'audio/webm'
+      : MediaRecorder.isTypeSupported('audio/mp4')
+        ? 'audio/mp4'
+        : '';
+
   navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
-    _activeRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+    const recOpts = mimeType ? { mimeType } : {};
+    _activeRecorder = new MediaRecorder(stream, recOpts);
 
     // 60-second recording timeout
     _recordingTimeout = setTimeout(() => stopRecording(), 60000);
@@ -129,29 +139,46 @@ function _recordWhisper(btn, lang, resolve, reject) {
     _activeRecorder.onstop = async () => {
       if (_recordingTimeout) { clearTimeout(_recordingTimeout); _recordingTimeout = null; }
       stream.getTracks().forEach(t => t.stop());
-      if (btn) btn.classList.remove('recording');
       _activeRecorder = null;
 
-      if (_activeChunks.length === 0) { resolve(''); return; }
+      if (_activeChunks.length === 0) {
+        if (btn) btn.classList.remove('recording');
+        resolve('');
+        return;
+      }
 
-      const blob = new Blob(_activeChunks, { type: 'audio/webm' });
+      // Show processing state while server transcribes
+      if (btn) {
+        btn.classList.remove('recording');
+        btn.classList.add('processing');
+      }
+
+      const blobType = mimeType || 'audio/webm';
+      const ext = blobType.includes('mp4') ? 'mp4' : 'webm';
+      const blob = new Blob(_activeChunks, { type: blobType });
       const formData = new FormData();
-      formData.append('audio', blob, 'recording.webm');
+      formData.append('audio', blob, `recording.${ext}`);
       formData.append('language', lang);
 
       try {
         const r = await fetch('/api/stt', { method: 'POST', body: formData });
         const d = await r.json();
-        if (d.text && d.text.trim()) {
+        if (!r.ok) {
+          console.warn('[STT] server error:', d.error || r.status);
+          if (d.use_browser) state.sttEngine = 'browser';
+          resolve('');
+        } else if (d.text && d.text.trim()) {
           resolve(d.text.trim());
         } else {
-          // Fallback to browser
-          state.sttEngine = 'browser';
+          // Empty transcription — silently return empty string (don't break engine)
           resolve('');
         }
-      } catch {
+      } catch (err) {
+        console.warn('[STT] fetch error:', err);
         state.sttEngine = 'browser';
         resolve('');
+      } finally {
+        if (btn) btn.classList.remove('processing');
       }
     };
 
