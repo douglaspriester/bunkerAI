@@ -10671,16 +10671,46 @@ body.is-mobile .os-window-titlebar { cursor: default !important; }
 body.font-sm  { font-size: 12px; }
 body.font-md  { font-size: 14px; }  /* default */
 body.font-lg  { font-size: 16px; }
+body.font-xl  { font-size: 18px; } /* modo legibilidade emergencial */
 
 /* Scale relative items proportionally */
 body.font-sm .desktop-icon-label { font-size: 10px; }
 body.font-lg .desktop-icon-label { font-size: 13px; }
+body.font-xl .desktop-icon-label { font-size: 15px; }
 body.font-sm .start-menu-item-label { font-size: 12px; }
 body.font-lg .start-menu-item-label { font-size: 15px; }
+body.font-xl .start-menu-item-label { font-size: 17px; }
 body.font-sm .taskbar-clock { font-size: 10px; }
 body.font-lg .taskbar-clock { font-size: 14px; }
+body.font-xl .taskbar-clock { font-size: 15px; }
 body.font-sm .sos-card-steps li { font-size: 12px; }
 body.font-lg .sos-card-steps li { font-size: 15px; }
+body.font-xl .sos-card-steps li { font-size: 17px; line-height: 1.7; }
+
+/* font-lg: ampliar cobertura para áreas de conteúdo denso */
+body.font-lg .guide-body,
+body.font-lg .protocol-step-content,
+body.font-lg .plants-card-desc,
+body.font-lg .plants-detail-body,
+body.font-lg .task-title,
+body.font-lg .task-desc,
+body.font-lg .msg-content,
+body.font-lg .survref-body { font-size: 15px; line-height: 1.65; }
+
+/* font-xl: tudo maior, espaçamento mais folgado — condições adversas */
+body.font-xl .guide-body,
+body.font-xl .protocol-step-content,
+body.font-xl .plants-card-desc,
+body.font-xl .plants-detail-body,
+body.font-xl .task-title,
+body.font-xl .task-desc,
+body.font-xl .msg-content,
+body.font-xl .survref-body { font-size: 17px; line-height: 1.75; }
+
+body.font-xl .os-window-title { font-size: 13px; }
+body.font-xl .plants-card-name,
+body.font-xl .protocol-step-title { font-size: 16px; font-weight: 600; }
+body.font-xl .os-win-btn { width: 38px; height: 38px; }  /* touch ainda maior */
 
 /* ── 3. Focus visible — clear keyboard focus ring ── */
 *:focus-visible {
@@ -10777,6 +10807,19 @@ body.font-lg .sos-card-steps li { font-size: 15px; }
   border-color: var(--accent);
   color: var(--accent);
   font-weight: 600;
+}
+/* Botão XL: destaque levemente diferente (emergência) */
+.config-fontsize-btn[data-size="xl"].active {
+  background: rgba(255, 160, 0, 0.12);
+  border-color: var(--amber);
+  color: var(--amber);
+}
+.config-field-hint {
+  font-size: 11px;
+  color: var(--amber);
+  margin-top: 6px;
+  min-height: 16px;
+  transition: opacity 0.2s;
 }
 
 /* ── 6. Reduced motion preference ── */

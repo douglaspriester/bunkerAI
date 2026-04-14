@@ -19,7 +19,7 @@ const { state, storage, escapeHtml, markdownToHtml, guidesCache, LOADING_PHRASES
 
 // ─── Accessibility: Font Size ────────────────────────────────────────────────
 function setFontSize(size) {
-  document.body.classList.remove('font-sm', 'font-md', 'font-lg');
+  document.body.classList.remove('font-sm', 'font-md', 'font-lg', 'font-xl');
   if (size && size !== 'md') document.body.classList.add('font-' + size);
   // Persist
   try { localStorage.setItem('bunker_font_size', size); } catch {}
@@ -29,12 +29,20 @@ function setFontSize(size) {
     btn.classList.toggle('active', active);
     btn.setAttribute('aria-checked', active ? 'true' : 'false');
   });
+  // Mostrar dica contextual para modo XL
+  const hint = document.getElementById('fontsizeHint');
+  if (hint) {
+    hint.textContent = size === 'xl'
+      ? '⚡ Modo emergência ativo — fonte 18px, espaçamento amplo, alvos de toque maiores.'
+      : '';
+  }
 }
 
 function initFontSize() {
   const saved = localStorage.getItem('bunker_font_size') || 'md';
   setFontSize(saved);
 }
+window.setFontSize = setFontSize;
 
 
 // ─── Boot Sequence ───────────────────────────────────────────────────────────
@@ -6632,7 +6640,8 @@ function taskRender() {
     const isDone = t.status === 'done';
     const isOverdue = t.due_date && t.due_date < today && !isDone;
     const priClass = 'pri-' + t.priority;
-    const priLabel = { critical: 'CRITICA', high: 'ALTA', medium: 'MEDIA', low: 'BAIXA' }[t.priority] || t.priority;
+    // Prefixo de forma para acessibilidade (daltonismo): ícone + texto
+    const priLabel = { critical: '▲▲ CRÍTICA', high: '▲ ALTA', medium: '● MÉDIA', low: '▽ BAIXA' }[t.priority] || t.priority;
     const statusIcon = { pending: '', doing: '\u{1F504} ', done: '\u2705 ' }[t.status] || '';
 
     return `<div class="task-item ${isDone ? 'task-done' : ''}">
@@ -11076,10 +11085,10 @@ function plantsRenderGrid() {
   }
 
   const typeLabels = {
-    edible: { label: 'Comestível', cls: 'plants-badge-edible' },
-    medicinal: { label: 'Medicinal', cls: 'plants-badge-medicinal' },
-    toxic: { label: 'TÓXICA', cls: 'plants-badge-toxic' },
-    dual: { label: 'Comestível & Medicinal', cls: 'plants-badge-dual' },
+    edible:    { label: '✔ Comestível',          cls: 'plants-badge-edible' },
+    medicinal: { label: '✦ Medicinal',            cls: 'plants-badge-medicinal' },
+    toxic:     { label: '✕ TÓXICA',              cls: 'plants-badge-toxic' },
+    dual:      { label: '✔✦ Comest. & Medicinal', cls: 'plants-badge-dual' },
   };
 
   container.innerHTML = plants.map(p => {
@@ -11113,10 +11122,10 @@ function plantsShowDetail(id) {
   if (!detail || !inner) return;
 
   const typeLabels = {
-    edible: { label: 'Comestível', cls: 'plants-badge-edible', color: '#39ff14' },
-    medicinal: { label: 'Medicinal', cls: 'plants-badge-medicinal', color: '#bf5fff' },
-    toxic: { label: 'TÓXICA — NÃO CONSUMIR', cls: 'plants-badge-toxic', color: '#ff1a47' },
-    dual: { label: 'Comestível & Medicinal', cls: 'plants-badge-dual', color: '#00d4ff' },
+    edible:    { label: '✔ Comestível',               cls: 'plants-badge-edible',    color: '#39ff14' },
+    medicinal: { label: '✦ Medicinal',                cls: 'plants-badge-medicinal', color: '#bf5fff' },
+    toxic:     { label: '✕ TÓXICA — NÃO CONSUMIR',   cls: 'plants-badge-toxic',     color: '#ff1a47' },
+    dual:      { label: '✔✦ Comestível & Medicinal',  cls: 'plants-badge-dual',      color: '#00d4ff' },
   };
   const badge = typeLabels[p.type] || typeLabels.edible;
 
