@@ -5,10 +5,12 @@
 
 ## Status Atual
 
-**38K+ linhas de codigo** | **40+ apps** | **80+ endpoints** | **16 guias** | **10 protocolos**
+**38K+ linhas de codigo** | **43 apps** | **80+ endpoints** | **16 guias** | **10 protocolos**
 
 O Bunker AI ja e tecnicamente superior ao NOMAD em IA (RAG, voz, visao, app builder, geracao de imagem).
 O NOMAD e superior em volume de conteudo offline e visibilidade/comunidade.
+
+> **Ultima atualizacao:** Abril 2026 — Fase 17 ~70% concluida, onboarding Wi-Fi, ZIMs corrigidos, todos os 43 apps no desktop.
 
 ---
 
@@ -67,7 +69,7 @@ O NOMAD e superior em volume de conteudo offline e visibilidade/comunidade.
 - [x] Crypto — ferramentas de criptografia/encoding
 - [x] Primeiros Socorros — referencia rapida de emergencia
 
-### Fase 16: RAG + Kiwix + Documentacao (Atual)
+### Fase 16: RAG + Kiwix + Documentacao
 - [x] RAG Engine — FTS5 + Ollama embeddings, auto-indexa guias/protocolos
 - [x] RAG no chat — injeta contexto automaticamente nas respostas
 - [x] Upload de documentos do usuario (.txt, .md, .csv)
@@ -77,11 +79,23 @@ O NOMAD e superior em volume de conteudo offline e visibilidade/comunidade.
 - [x] CLAUDE.md — guia para AI agents
 - [x] docs/ARCHITECTURE.md — mapa tecnico completo
 - [x] docs/API.md — referencia de 80+ endpoints
-- [x] README.md reescrito
+- [x] README.md reescrito com badges + screenshots (8 capturas 2x DPI)
+- [x] README.pt-BR.md — versao completa em portugues
+- [x] .gitignore atualizado (tts_cache, generated_images, phase14-guide)
+- [x] Fix compatibilidade Python 3.9 (str | None → Optional[str])
+
+### Sessao Abril 2026 — UX + Bugfixes
+- [x] Todos os 43 apps visiveis no desktop (antes so 14)
+- [x] Nomes curtos para todos os icones do desktop
+- [x] Tela "Wikipedia offline" com botao direto para Download Manager
+- [x] URLs do catalogo ZIM corrigidas (2024 → 2026, novo formato maxi/nopic)
+- [x] Onboarding: novo passo Wi-Fi (Step 3) — detecta conexao e oferece downloads
+- [x] Onboarding: checkboxes com itens essenciais pre-selecionados (medicina, wikibooks, mapa)
+- [x] Onboarding: barra de progresso SSE durante downloads
 
 ---
 
-## Proximo: Fase 17 — Biblioteca de Conteudo Offline
+## Em Andamento: Fase 17 — Biblioteca de Conteudo Offline (~70% concluida)
 
 **Objetivo:** Igualar e ultrapassar o NOMAD em volume de conteudo offline.
 
@@ -89,29 +103,33 @@ O NOMAD e superior em volume de conteudo offline e visibilidade/comunidade.
 um **download manager inteligente** que permite ao usuario escolher exatamente
 o que precisa, sem desperdicar espaco.
 
-### 17.1 — ZIM Download Manager (UI)
+### 17.1 — ZIM Download Manager (UI) ✅ Concluido
 - [x] Painel "Conteudo Offline" no app com categorias
-- [x] Catalogo de ZIMs disponiveis: Wikipedia (mini/medico), Wikihow, Project Gutenberg, Wikibooks, iFixit, Wikivoyage, TED
+- [x] Catalogo de ZIMs: Wikipedia Medicina, Wikibooks, iFixit, Wikivoyage, Wikipedia Mini, Gutenberg
 - [x] Estimativa de tamanho antes do download
-- [x] Progresso de download com SSE (como ja funciona para mapas)
+- [x] Progresso de download com SSE
 - [x] Listar ZIMs instalados com tamanho e opcao de remover
-- [ ] Busca unificada que busca em TODOS os ZIMs instalados
+- [x] URLs atualizadas para versoes 2026 (corrige HTTP 404)
+- [x] Atalho no onboarding — passo Wi-Fi oferece downloads na primeira vez
+- [x] Atalho na tela de Wikipedia offline → abre Download Manager
 
-### 17.2 — Catalogo de ZIMs Curado para Sobrevivencia
-- [x] Wikipedia medicina — diagnosticos, procedimentos, farmacologia
-- [x] iFixit — manuais de reparo de tudo
-- [x] Wikibooks — engenharia, agricultura, construcao
-- [x] Project Gutenberg — literatura offline
-- [ ] Stack Overflow — programacao/engenharia
+### 17.2 — Catalogo de ZIMs Curado ✅ Concluido (parcial)
+- [x] Wikipedia Medicina (2.1 GB) — diagnosticos, procedimentos, farmacologia
+- [x] Wikibooks sem imagens (2.9 GB) — engenharia, agricultura, construcao
+- [x] iFixit (3.3 GB) — manuais de reparo de eletronica e equipamentos
+- [x] Wikivoyage (1.0 GB) — guias geograficos e culturais
+- [x] Wikipedia Mini (12 GB) — enciclopedia completa resumida
+- [x] Project Gutenberg (206 GB) — 70K+ livros de dominio publico
+- [ ] Stack Overflow — programacao/engenharia (a adicionar)
 - [ ] OpenStax — livros didaticos abertos (fisica, quimica, biologia)
-- [x] Wikivoyage — informacoes geograficas/culturais
 
-### 17.3 — Indexacao RAG dos ZIMs
+### 17.3 — Indexacao RAG dos ZIMs ⏳ Pendente
 - [ ] Indexar conteudo dos ZIMs no RAG (opcional, por ZIM)
 - [ ] Quando o usuario perguntar algo, o RAG busca nos ZIMs tambem
 - [ ] Combinar busca Kiwix nativa + RAG semantico
+- [ ] Busca unificada que busca em TODOS os ZIMs instalados
 
-**Esforco:** Medio | **Impacto:** Alto | **Vantagem vs NOMAD:** Download seletivo ao inves de tudo-ou-nada
+**Esforco restante:** Baixo (17.3) | **Impacto:** Alto | **Vantagem vs NOMAD:** Download seletivo ao inves de tudo-ou-nada
 
 ---
 
@@ -172,10 +190,12 @@ o que precisa, sem desperdicar espaco.
 **Objetivo:** Colocar o Bunker AI no mapa mundial.
 
 ### 20.1 — README Bilingue
-- [ ] README.md em ingles (principal) com link para versao PT-BR
-- [ ] Tagline: "Offline survival OS with local AI — voice, vision, RAG, 40+ apps"
-- [ ] GIF/video demo no README (boot → chat → voz → mapa → guia)
-- [ ] Badges: stars, license, last commit, Python version
+- [x] README.md reescrito com tagline, badges, screenshots, instalacao
+- [x] README.pt-BR.md — versao completa em portugues
+- [x] Badges: Python, License, Offline, LLM, Last Commit, Stars
+- [x] Screenshots: 8 capturas de tela 2x DPI no README
+- [ ] GIF/video demo no README (boot → chat → voz → mapa → guia) ← proximo impacto alto
+- [ ] Publicar no GitHub Pages uma landing page
 
 ### 20.2 — Lancamento
 - [ ] Post no r/selfhosted (maior publico de offline-first)
@@ -239,7 +259,8 @@ o que precisa, sem desperdicar espaco.
 - [ ] Splash screen personalizada por personalidade do Guide
 
 ### 22.2 — Onboarding
-- [ ] Wizard de primeiro uso melhorado
+- [x] Wizard de primeiro uso — 5 passos: idioma, modelo, status, Wi-Fi downloads, pronto
+- [x] Passo Wi-Fi: detecta conexao, oferece ZIMs + mapas com progresso SSE
 - [ ] Tour guiado pelo sistema (highlight cada area)
 - [ ] Sugestoes contextuais ("Voce ainda nao leu o guia de Agua")
 - [ ] Achievement system (badges por guias lidos, dias de diario, etc.)
@@ -260,20 +281,40 @@ o que precisa, sem desperdicar espaco.
 
 ## Resumo Estrategico
 
-```
-                    Hoje     Fase 17    Fase 18    Fase 19    Fase 20    Fase 21
-IA / RAG            ████████ ██████████ ██████████ ██████████ ██████████ ████████████
-Conteudo Offline    ████     ██████████ ██████████ ██████████ ██████████ ██████████
-Mapas               ██████   ██████     ██████████ ██████████ ██████████ ██████████
-Deploy              ██████   ██████     ██████     ██████████ ██████████ ██████████
-Visibilidade        ██       ██         ██         ██         ██████████ ██████████
-IA Avancada         ██████   ██████     ██████     ██████     ██████     ████████████
+### O que esta feito (Fases 1–17 parcial)
 
-NOMAD (referencia)  ██████   ██████     ██████     ██████     ██████     ██████
+| Area             | Progresso       | Notas |
+|------------------|-----------------|-------|
+| IA / RAG         | ██████████ 90%  | RAG, voz, visao, 6 modos, companion 3D |
+| Apps / Desktop   | ██████████ 95%  | 43 apps, todos visiveis, window manager |
+| Conteudo Offline | ███████░░░ 70%  | ZIMs OK, RAG dos ZIMs pendente |
+| Mapas            | ██████░░░░ 60%  | PMTiles OK, routing/geocoding pendente |
+| Onboarding / UX  | ████████░░ 80%  | Wizard 5 passos, Wi-Fi step, tour pendente |
+| Documentacao     | █████████░ 90%  | README, CLAUDE.md, API.md, badges, prints |
+| Deploy / Docker  | ██░░░░░░░░ 20%  | Apenas start.sh, Docker pendente |
+| Visibilidade     | ███░░░░░░░ 30%  | README pronto, lancamento pendente |
+| IA Avancada      | █████░░░░░ 50%  | RAG basico OK, agentes/Pokedex pendente |
+
+### Proximo passo recomendado (maior ROI)
+
+1. **Video demo** (Fase 20.1) — 3 min mostrando boot→chat→voz→mapa = viral potential
+2. **Lancamento Reddit** (Fase 20.2) — r/selfhosted + r/LocalLLaMA + r/preppers
+3. **RAG dos ZIMs** (Fase 17.3) — diferencial impossivel de replicar no NOMAD
+
+```
+                    Abril/26  Fase 18   Fase 19   Fase 20   Fase 21
+IA / RAG            █████████ █████████ █████████ █████████ ████████████
+Conteudo Offline    ███████   █████████ █████████ █████████ ██████████
+Mapas               ██████    █████████ █████████ █████████ ██████████
+Deploy              ██        ██        █████████ █████████ ██████████
+Visibilidade        ███       ███       ███       █████████ ██████████
+IA Avancada         █████     █████     █████     █████     ████████████
+
+NOMAD (referencia)  ██████    ██████    ██████    ██████    ██████
 ```
 
-**Fase 17** fecha o gap de conteudo. **Fase 20** fecha o gap de visibilidade.
-**Fase 21** abre vantagem impossivel de alcançar.
+**Fase 20 (lancamento)** e o maior alavanca agora — o produto ja esta pronto.
+**Fase 21 (Pokedex + agentes)** abre vantagem impossivel de alcançar.
 
 ---
 
