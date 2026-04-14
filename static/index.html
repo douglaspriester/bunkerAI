@@ -53,6 +53,7 @@
         <span class="onboarding-dot" data-step="1"></span>
         <span class="onboarding-dot" data-step="2"></span>
         <span class="onboarding-dot" data-step="3"></span>
+        <span class="onboarding-dot" data-step="4"></span>
       </div>
 
       <!-- Step 0: Welcome -->
@@ -134,8 +135,29 @@
         </div>
       </div>
 
-      <!-- Step 3: Ready -->
+      <!-- Step 3: Wi-Fi Downloads -->
       <div class="onboarding-step" data-step="3">
+        <div class="onboarding-icon-text">&#128246;</div>
+        <h1 class="onboarding-title">Aproveite o Wi-Fi!</h1>
+        <p class="onboarding-desc" id="obWifiDesc">Voce esta conectado agora. Baixe o conteudo que vai precisar quando estiver offline.</p>
+        <div id="obDownloadList" class="ob-download-list">
+          <div class="ob-download-loading">&#8987; Verificando o que esta faltando...</div>
+        </div>
+        <div id="obDownloadProgress" class="ob-download-progress hidden">
+          <div class="ob-dl-bar-track"><div class="ob-dl-bar" id="obDlBar" style="width:0%"></div></div>
+          <div class="ob-dl-status" id="obDlStatus">Iniciando downloads...</div>
+        </div>
+        <div class="onboarding-nav" id="obWifiNav">
+          <button class="onboarding-btn-secondary" onclick="onboardingPrev()">&lsaquo; Voltar</button>
+          <div style="display:flex;gap:8px">
+            <button class="onboarding-btn-secondary" onclick="onboardingNext()">Pular por agora &rsaquo;</button>
+            <button class="onboarding-btn-primary" id="obBtnDownload" onclick="onboardingStartDownloads()">&#11015; Baixar selecionados</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4: Ready -->
+      <div class="onboarding-step" data-step="4">
         <div class="onboarding-icon-text ready-pulse">&#9989;</div>
         <h1 class="onboarding-title">Tudo Pronto!</h1>
         <p class="onboarding-desc">
@@ -144,7 +166,7 @@
         </p>
         <div class="onboarding-ready-actions">
           <button class="onboarding-btn-primary large" onclick="onboardingFinish()">&#9654; Iniciar Bunker OS</button>
-          <button class="onboarding-btn-secondary" onclick="onboardingFinish(); setTimeout(()=>openApp('settings'),400);">&#9881; Ir para Configuracoes</button>
+          <button class="onboarding-btn-secondary" onclick="onboardingFinish(); setTimeout(()=>openApp('library'),400);">&#128218; Mais downloads</button>
         </div>
       </div>
     </div>

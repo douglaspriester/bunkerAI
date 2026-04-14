@@ -9661,6 +9661,89 @@ body {
   margin-top: 28px;
 }
 
+/* ─── Onboarding Step 3: Wi-Fi Downloads ─── */
+.ob-download-list {
+  width: 100%;
+  max-height: 260px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 16px 0 8px;
+}
+.ob-download-loading,
+.ob-download-offline {
+  text-align: center;
+  padding: 24px 0;
+  opacity: 0.7;
+  font-size: .95rem;
+}
+.ob-dl-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,.03);
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+  user-select: none;
+}
+.ob-dl-item:hover { background: rgba(255,255,255,.06); }
+.ob-dl-item.checked {
+  border-color: var(--accent);
+  background: rgba(0, 212, 255, .07);
+}
+.ob-dl-check { display: none; }
+.ob-dl-icon { font-size: 1.5rem; flex-shrink: 0; }
+.ob-dl-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.ob-dl-name {
+  font-size: .95rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.ob-dl-desc {
+  font-size: .78rem;
+  opacity: .6;
+  margin-top: 2px;
+}
+.ob-dl-size {
+  font-size: .8rem;
+  opacity: .5;
+  flex-shrink: 0;
+  font-family: monospace;
+}
+.ob-download-progress {
+  width: 100%;
+  margin-top: 12px;
+}
+.ob-download-progress.hidden { display: none; }
+.ob-dl-bar-track {
+  width: 100%;
+  height: 6px;
+  background: rgba(255,255,255,.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.ob-dl-bar {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width .3s ease;
+}
+.ob-dl-status {
+  font-size: .8rem;
+  opacity: .6;
+  margin-top: 6px;
+  text-align: center;
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    RESPONSIVE — MOBILE & TABLET  (Ciclo 13)
    Touch-first layout for small screens

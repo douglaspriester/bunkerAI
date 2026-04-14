@@ -10875,7 +10875,7 @@ window.plantsHideDetail = plantsHideDetail;
 // ONBOARDING WIZARD
 // ═══════════════════════════════════════════════════════════════════════════
 let _onboardingStep = 0;
-const ONBOARDING_TOTAL_STEPS = 4;
+const ONBOARDING_TOTAL_STEPS = 5;
 
 function onboardingShouldShow() {
   return !localStorage.getItem('bunkerOS_onboarded');
@@ -10913,10 +10913,8 @@ function onboardingNext() {
   if (_onboardingStep < ONBOARDING_TOTAL_STEPS - 1) {
     _onboardingStep++;
     onboardingUpdateUI();
-    // Run resource checks when entering step 2
-    if (_onboardingStep === 2) {
-      onboardingRunChecks();
-    }
+    if (_onboardingStep === 2) onboardingRunChecks();
+    if (_onboardingStep === 3) onboardingInitWifi();
   }
 }
 
@@ -11046,6 +11044,197 @@ async function onboardingRunChecks() {
   }
 }
 
+// ─── Onboarding Step 3: Wi-Fi Download Suggestions ────────────────────────────
+
+// Priority downloads shown no onboarding (do menor pro maior)
+const OB_WIFI_ITEMS = [
+  { id: 'wikipedia_medicine', label: 'Wikipedia Medicina',  desc: 'Diagnosticos, farmacos, procedimentos', size: '~700 MB', icon: '🏥', checked: true,  type: 'zim' },
+  { id: 'wikibooks',          label: 'Wikibooks',           desc: 'Engenharia, agricultura, construcao',  size: '~600 MB', icon: '📚', checked: true,  type: 'zim' },
+  { id: 'wikipedia_mini',     label: 'Wikipedia Mini',      desc: '110 mil artigos em ingles',           size: '~1.1 GB', icon: '🌐', checked: false, type: 'zim' },
+  { id: 'wikivoyage',         label: 'Wikivoyage',          desc: 'Guias geograficos e culturais',       size: '~800 MB', icon: '🗺️', checked: false, type: 'zim' },
+  { id: 'map_brazil',         label: 'Mapa do Brasil',      desc: 'Navegacao offline completa',          size: '~200 MB', icon: '🗾', checked: true,  type: 'map' },
+];
+
+async function onboardingInitWifi() {
+  const list  = document.getElementById('obDownloadList');
+  const desc  = document.getElementById('obWifiDesc');
+  if (!list) return;
+
+  list.innerHTML = '<div class="ob-download-loading">&#8987; Verificando conexao e conteudo...</div>';
+
+  // Checar se tem internet
+  let online = false;
+  try {
+    const r = await fetch('https://kiwix.org/favicon.ico', { mode: 'no-cors', signal: AbortSignal.timeout(4000) });
+    online = true;
+  } catch { online = false; }
+
+  // Checar quais ZIMs já instalados
+  let installedZims = [];
+  try {
+    const r = await fetch('/api/zim/catalog', { signal: AbortSignal.timeout(5000) });
+    const d = await r.json();
+    installedZims = (d.catalog || []).filter(z => z.installed).map(z => z.id);
+  } catch {}
+
+  // Checar quais mapas já instalados
+  let installedMaps = [];
+  try {
+    const r = await fetch('/api/maps/list', { signal: AbortSignal.timeout(5000) });
+    const d = await r.json();
+    installedMaps = (Array.isArray(d) ? d : (d.maps || [])).map(m => m.id || m.name || '');
+  } catch {}
+
+  // Filtrar itens que já estão instalados
+  const missing = OB_WIFI_ITEMS.filter(item => {
+    if (item.type === 'zim') return !installedZims.includes(item.id);
+    if (item.type === 'map') return installedMaps.length === 0;
+    return true;
+  });
+
+  if (!online) {
+    if (desc) desc.textContent = 'Voce esta offline agora. Quando tiver Wi-Fi, acesse o app Biblioteca para baixar conteudo.';
+    list.innerHTML = `<div class="ob-download-offline">
+      <div style="font-size:2.5rem;margin-bottom:8px">📵</div>
+      <div style="opacity:.7">Sem conexao detectada.</div>
+      <div style="font-size:.85rem;margin-top:6px;opacity:.5">Abra o app <strong>Biblioteca</strong> quando estiver online.</div>
+    </div>`;
+    const btn = document.getElementById('obBtnDownload');
+    if (btn) { btn.disabled = true; btn.style.opacity = '0.4'; }
+    return;
+  }
+
+  if (missing.length === 0) {
+    if (desc) desc.textContent = 'Voce ja tem todo o conteudo essencial instalado!';
+    list.innerHTML = `<div class="ob-download-offline" style="color:var(--accent)">
+      <div style="font-size:2.5rem;margin-bottom:8px">✅</div>
+      <div>Conteudo offline completo!</div>
+    </div>`;
+    const btn = document.getElementById('obBtnDownload');
+    if (btn) { btn.disabled = true; btn.style.opacity = '0.4'; }
+    return;
+  }
+
+  // Renderizar checkboxes
+  list.innerHTML = missing.map(item => `
+    <label class="ob-dl-item ${item.checked ? 'checked' : ''}" id="obItem_${item.id}" onclick="obToggleItem(this)">
+      <input type="checkbox" class="ob-dl-check" id="obChk_${item.id}" ${item.checked ? 'checked' : ''}>
+      <span class="ob-dl-icon">${item.icon}</span>
+      <span class="ob-dl-info">
+        <span class="ob-dl-name">${item.label}</span>
+        <span class="ob-dl-desc">${item.desc}</span>
+      </span>
+      <span class="ob-dl-size">${item.size}</span>
+    </label>
+  `).join('');
+}
+
+function obToggleItem(label) {
+  const chk = label.querySelector('input[type=checkbox]');
+  if (!chk) return;
+  chk.checked = !chk.checked;
+  label.classList.toggle('checked', chk.checked);
+}
+
+async function onboardingStartDownloads() {
+  const btn     = document.getElementById('obBtnDownload');
+  const nav     = document.getElementById('obWifiNav');
+  const prog    = document.getElementById('obDownloadProgress');
+  const bar     = document.getElementById('obDlBar');
+  const status  = document.getElementById('obDlStatus');
+
+  // Coletar selecionados
+  const selected = OB_WIFI_ITEMS.filter(item => {
+    const chk = document.getElementById('obChk_' + item.id);
+    return chk && chk.checked;
+  });
+
+  if (selected.length === 0) { onboardingNext(); return; }
+
+  // Mostrar progresso
+  if (btn) btn.disabled = true;
+  if (nav) nav.querySelector('.onboarding-btn-secondary').disabled = true;
+  if (prog) prog.classList.remove('hidden');
+
+  let done = 0;
+  for (const item of selected) {
+    if (status) status.textContent = `Baixando ${item.label}...`;
+    if (bar) bar.style.width = Math.round((done / selected.length) * 100) + '%';
+
+    try {
+      if (item.type === 'zim') {
+        const r = await fetch('/api/zim/download', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: item.id })
+        });
+        // Aguardar SSE de progresso
+        if (r.ok) {
+          const reader = r.body.getReader();
+          const dec = new TextDecoder();
+          while (true) {
+            const { done: d, value } = await reader.read();
+            if (d) break;
+            const text = dec.decode(value);
+            const lines = text.split('\n').filter(l => l.startsWith('data:'));
+            for (const line of lines) {
+              try {
+                const ev = JSON.parse(line.replace(/^data:\s*/, ''));
+                if (ev.progress !== undefined && bar) {
+                  const overall = ((done + ev.progress / 100) / selected.length) * 100;
+                  bar.style.width = Math.round(overall) + '%';
+                }
+                if (ev.status === 'done' || ev.done) break;
+              } catch {}
+            }
+          }
+        }
+      } else if (item.type === 'map') {
+        const r = await fetch('/api/maps/download', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ region: 'brazil' })
+        });
+        if (r.ok) {
+          const reader = r.body.getReader();
+          const dec = new TextDecoder();
+          while (true) {
+            const { done: d, value } = await reader.read();
+            if (d) break;
+            const text = dec.decode(value);
+            const lines = text.split('\n').filter(l => l.startsWith('data:'));
+            for (const line of lines) {
+              try {
+                const ev = JSON.parse(line.replace(/^data:\s*/, ''));
+                if (ev.progress !== undefined && bar) {
+                  const overall = ((done + ev.progress / 100) / selected.length) * 100;
+                  bar.style.width = Math.round(overall) + '%';
+                }
+                if (ev.status === 'done' || ev.done) break;
+              } catch {}
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Download falhou:', item.id, e);
+    }
+
+    // Marcar item como concluído
+    const itemEl = document.getElementById('obItem_' + item.id);
+    if (itemEl) {
+      itemEl.style.opacity = '0.5';
+      itemEl.innerHTML = itemEl.innerHTML.replace(item.icon, '✅');
+    }
+    done++;
+    if (bar) bar.style.width = Math.round((done / selected.length) * 100) + '%';
+  }
+
+  if (status) status.textContent = `${done} item(s) baixado(s). Avancando...`;
+  await new Promise(r => setTimeout(r, 1200));
+  onboardingNext();
+}
+
 // Expose to window for onclick handlers
 window.onboardingShouldShow = onboardingShouldShow;
 window.onboardingShow = onboardingShow;
@@ -11054,6 +11243,8 @@ window.onboardingFinish = onboardingFinish;
 window.onboardingNext = onboardingNext;
 window.onboardingPrev = onboardingPrev;
 window.onboardingSelectLang = onboardingSelectLang;
+window.obToggleItem = obToggleItem;
+window.onboardingStartDownloads = onboardingStartDownloads;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Navigation App — GPS-free orientation: stars, shadow compass, distance,
