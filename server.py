@@ -3466,7 +3466,7 @@ _TERMINAL_BLOCKED_FLAGS: dict[str, set[str]] = {
     "git":     {"clone", "fetch", "pull", "push", "submodule"},  # bloqueia acesso remoto
 }
 
-def _validate_terminal_cmd(parts: list[str]) -> str | None:
+def _validate_terminal_cmd(parts: list) -> Optional[str]:
     """Retorna mensagem de erro se o comando for bloqueado, ou None se permitido."""
     if not parts:
         return "bunker-sh: comando vazio"

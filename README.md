@@ -25,6 +25,21 @@ Bunker AI is a **fully offline survival operating system** that runs in the brow
 
 Inspired by *The Hitchhiker's Guide to the Galaxy*, *Interstellar* (TARS), *Alien* (Mother), and *2001* (HAL 9000).
 
+## Screenshots
+
+<p align="center">
+  <img src="static/img/screenshots/01-boot.png" width="48%" alt="Boot screen">
+  <img src="static/img/screenshots/03-chat.png" width="48%" alt="AI Chat">
+</p>
+<p align="center">
+  <img src="static/img/screenshots/05-map.png" width="48%" alt="Offline Map">
+  <img src="static/img/screenshots/04-guides.png" width="48%" alt="Survival Guides">
+</p>
+<p align="center">
+  <img src="static/img/screenshots/06-protocols.png" width="48%" alt="Emergency Protocols">
+  <img src="static/img/screenshots/07-supplies.png" width="48%" alt="Supply Inventory">
+</p>
+
 ## Highlights
 
 | Category | What you get |
