@@ -76,7 +76,30 @@ call venv\Scripts\activate.bat
 
 echo [..] Instalando dependencias...
 pip install -q --upgrade pip 2>nul
-pip install -q -r requirements.txt 2>nul
+
+REM ── Grupo 1: deps CRITICAS (servidor nao sobe sem elas) ──
+echo [..] Instalando nucleo do servidor...
+pip install fastapi uvicorn httpx python-multipart aiosqlite psutil
+python -c "import uvicorn, httpx, fastapi" 2>nul
+if !errorlevel! neq 0 (
+    echo [ERRO] Dependencias criticas falharam. Verifique sua conexao ou Python.
+    pause
+    exit /b 1
+)
+echo [OK] Nucleo do servidor instalado
+
+REM ── Grupo 2: deps OPCIONAIS (voz, extras) ──
+echo [..] Instalando recursos extras...
+for %%P in (edge-tts pyttsx3 soundfile aiosqlite) do (
+    pip install -q %%P 2>nul || echo [--] %%P: falhou (recurso opcional^)
+)
+
+REM ── Grupo 3: deps PESADAS (compilacao C++ — podem falhar) ──
+echo [..] Instalando modelos locais (pode demorar)...
+for %%P in (faster-whisper kokoro-onnx llama-cpp-python) do (
+    pip install -q %%P 2>nul || echo [--] %%P: falhou (ok — use Ollama^)
+)
+
 echo [OK] Dependencias instaladas
 
 call :create_dirs
@@ -130,7 +153,16 @@ call venv\Scripts\activate.bat
 
 echo [..] Instalando dependencias...
 pip install -q --upgrade pip 2>nul
-pip install -q -r requirements.txt 2>nul
+echo [..] Instalando nucleo do servidor...
+pip install fastapi uvicorn httpx python-multipart aiosqlite psutil
+echo [..] Instalando recursos extras...
+for %%P in (edge-tts pyttsx3 soundfile aiosqlite) do (
+    pip install -q %%P 2>nul || echo [--] %%P: falhou (recurso opcional^)
+)
+echo [..] Instalando modelos locais (pode demorar)...
+for %%P in (faster-whisper kokoro-onnx llama-cpp-python) do (
+    pip install -q %%P 2>nul || echo [--] %%P: falhou (ok — use Ollama^)
+)
 echo [OK] Dependencias instaladas
 
 call :create_dirs
@@ -174,6 +206,22 @@ REM ═════════════════════════�
 REM  LAUNCH — Start the server
 REM ═══════════════════════════════════════════════════════════
 :launch
+REM ── Garante que venv esta ativo ──
+if exist "venv\Scripts\activate.bat" call venv\Scripts\activate.bat
+
+REM ── Verifica deps criticas ──
+python -c "import uvicorn, httpx, fastapi" 2>nul
+if !errorlevel! neq 0 (
+    echo [!!] Dependencias do servidor incompletas. Instalando...
+    pip install fastapi uvicorn httpx python-multipart aiosqlite psutil
+    python -c "import uvicorn, httpx, fastapi" 2>nul
+    if !errorlevel! neq 0 (
+        echo [ERRO] Dependencias criticas falharam. Escolha 'Reinstalar' no menu.
+        pause
+        exit /b 1
+    )
+)
+
 REM ── Ollama check ──
 echo [..] Verificando Ollama...
 set OLLAMA_OK=0

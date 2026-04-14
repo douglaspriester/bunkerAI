@@ -310,6 +310,25 @@ function animate() {
   // Update VRMA animation mixer (idle_loop)
   if (_mixer) _mixer.update(delta);
 
+  // ── Fix head rotation after VRMA update ──
+  // The VRMA idle animation can rotate head/neck bones in ways that conflict
+  // with the scene's Math.PI rotation, causing the head to face backwards.
+  // Clamp head and neck Y rotation to a sane range after animation update.
+  if (_vrm && _vrm.humanoid) {
+    const clampBoneY = (boneName, minY, maxY) => {
+      const node = _vrm.humanoid.getNormalizedBoneNode(boneName);
+      if (node) {
+        if (Math.abs(node.rotation.y) > Math.PI * 0.5) {
+          // Head is more than 90° turned — likely animation conflict, reset
+          node.rotation.y = 0;
+        }
+        node.rotation.y = Math.max(minY, Math.min(maxY, node.rotation.y));
+      }
+    };
+    clampBoneY('head', -0.5, 0.5);
+    clampBoneY('neck', -0.3, 0.3);
+  }
+
   // Breathing (subtle Y oscillation + slight forward lean)
   const breathOffset = Math.sin(_breathTimer * 1.5) * 0.003;
 
@@ -376,12 +395,20 @@ function animate() {
       // ── Idle: VRMA handles base, we add organic overlay ──
       if (_idleAction) {
         _idleAction.weight = 1.0;
-        // Very subtle micro-movements on top of VRMA (don't fight it)
-        const head = h.getNormalizedBoneNode('head');
-        if (head) {
-          head.rotation.x += noise(_breathTimer * 0.3, 30) * 0.005;
-          head.rotation.y += noise(_breathTimer * 0.2, 31) * 0.008;
-        }
+        // Override head/neck to safe values with micro-movements
+        // (don't use += to avoid accumulation on VRMA-animated values)
+        smoothBone(h, 'head',
+          0.05 + noise(_breathTimer * 0.3, 30) * 0.01,
+          noise(_breathTimer * 0.2, 31) * 0.015,
+          noise(_breathTimer * 0.25, 32) * 0.008,
+          0.06
+        );
+        smoothBone(h, 'neck',
+          0.03 + noise(_breathTimer * 0.25, 33) * 0.005,
+          noise(_breathTimer * 0.15, 34) * 0.01,
+          0,
+          0.05
+        );
       } else {
         // No VRMA — full manual idle with organic noise
         smoothBone(h, 'head',

@@ -42,7 +42,29 @@ do_install() {
 
     echo "[..] Instalando dependencias..."
     pip install --upgrade pip 2>/dev/null
-    pip install -q -r requirements.txt 2>/dev/null
+
+    # ── Grupo 1: deps CRITICAS (servidor nao sobe sem elas) ──
+    echo "[..] Instalando nucleo do servidor..."
+    pip install fastapi uvicorn httpx python-multipart aiosqlite psutil
+    if ! python3 -c "import uvicorn, httpx, fastapi" 2>/dev/null; then
+        echo "[ERRO] Dependencias criticas falharam. Verifique sua conexao ou Python."
+        exit 1
+    fi
+    echo "[OK] Nucleo do servidor instalado"
+
+    # ── Grupo 2: deps OPCIONAIS (voz, whisper, LLM local) ──
+    # Instala uma a uma para que falha em uma nao impeca as outras
+    echo "[..] Instalando recursos extras (voz, IA local)..."
+    for PKG in edge-tts pyttsx3 "soundfile>=0.12.0" "aiosqlite>=0.20.0"; do
+        pip install -q "$PKG" 2>/dev/null || echo "[--] $PKG: falhou (recurso opcional)"
+    done
+
+    # ── Grupo 3: deps PESADAS (compilacao C++ — podem falhar) ──
+    echo "[..] Instalando modelos locais (pode demorar)..."
+    for PKG in "faster-whisper>=1.0.0" "kokoro-onnx>=0.4.0" "llama-cpp-python>=0.3.0"; do
+        pip install -q "$PKG" 2>/dev/null || echo "[--] $PKG: falhou (ok — use Ollama em vez)"
+    done
+
     echo "[OK] Dependencias instaladas"
     create_dirs
 }
@@ -76,10 +98,19 @@ do_launch() {
     GC=$(ls models/*.gguf 2>/dev/null | wc -l | tr -d ' ')
     [ "$GC" -gt 0 ] && echo "[OK] $GC modelo(s) GGUF em models/"
 
-    # Verify core dep
-    if ! python3 -c "import uvicorn" 2>/dev/null; then
-        echo "[ERRO] uvicorn nao instalado. Escolha 'Reinstalar' no menu."
-        exit 1
+    # Garante que venv esta ativo
+    if [ -f "venv/bin/activate" ]; then
+        source venv/bin/activate
+    fi
+
+    # Verify core deps
+    if ! python3 -c "import uvicorn, httpx, fastapi" 2>/dev/null; then
+        echo "[!!] Dependencias do servidor incompletas. Instalando..."
+        pip install fastapi uvicorn httpx python-multipart aiosqlite psutil 2>&1
+        if ! python3 -c "import uvicorn, httpx, fastapi" 2>/dev/null; then
+            echo "[ERRO] Dependencias criticas falharam. Escolha 'Reinstalar' no menu."
+            exit 1
+        fi
     fi
 
     # Find available port
