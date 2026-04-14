@@ -1,143 +1,154 @@
 # Bunker AI — Auditoria de Apps
 
-> Gerado em Abril 2026. 43 apps no desktop, 47 no total (4 são hidden/sub-telas).
+> Atualizado em Abril 2026. 47 apps registrados, 44 no desktop, 3 hidden/sub-telas.
 
-Legenda: ✅ Funcionando | ⚠️ Parcial | ❌ Quebrado / Não implementado
-
----
-
-## 🤖 IA & Chat
-
-| App | Função | Status | Observação |
-|-----|--------|--------|------------|
-| **AI Chat** | Chat com LLM local, 6 modos (Geral, Médico, Sobrevivência, Engenharia, Defesa, Psicológico), RAG automático, streaming SSE | ✅ | Core do sistema |
-| **Companheiro** | Avatar 3D (Three.js + VRM), lip-sync, expressões, gestos, animações idle/think/happy | ✅ | Requer WebGL. Fallback geométrico se sem GPU |
-| **Personagens** | Gerenciar personalidades do Guide Companion (Deep Thought, TARS, MOTHER, HAL, Ford, Survivor) | ✅ | |
-| **Texto p/ Voz** | TTS com 4 engines em cascata: Kokoro → Piper → pyttsx3 → edge-tts | ✅ | edge-tts requer internet |
-| **Gerador IA** | Geração de imagens via modelo local (Stable Diffusion / Ollama vision) | ⚠️ | Requer modelo de imagem instalado |
-| **Modelos** | Gerenciador de modelos Ollama: listar, baixar, remover, trocar modelo ativo | ✅ | |
-| **App Builder** | Gera mini-apps HTML com IA a partir de descrição em texto natural | ✅ | |
+Legenda: ✅ Funcionando | ⚠️ Parcial | ❌ Quebrado / Inacessível
 
 ---
 
-## 📚 Conhecimento
+## 🤖 IA & Chat (7 apps)
 
-| App | Função | Status | Observação |
-|-----|--------|--------|------------|
-| **Guias** | 16 guias de sobrevivência em Markdown com progresso, scroll tracking, leitura estimada | ✅ | |
-| **Protocolos** | 10 protocolos de emergência como árvores de decisão interativas | ✅ | |
-| **Wikipedia** | Browser embutido para arquivos ZIM via Kiwix (offline) | ✅ | Requer ZIM instalado + kiwix-serve rodando |
-| **Livros** | Leitor de EPUB (epub.js) com tema escuro, progresso, busca | ✅ | Requer .epub em data/books/ |
-| **Referência** | Referência rápida de sobrevivência: nós, knots, sinais, códigos, medidas | ✅ | |
-| **Downloads** | Download Manager de conteúdo offline: ZIMs (Wikipedia, Wikibooks, iFixit…), mapas | ✅ | URLs atualizadas Abr/2026 |
-
----
-
-## 🏥 Sobrevivência — Saúde
-
-| App | Função | Status | Observação |
-|-----|--------|--------|------------|
-| **Primeiros Socorros** | Referência rápida: RCP, hemorragia, queimaduras, fraturas, envenenamento, choque | ✅ | |
-| **Farmácia** | Inventário de medicamentos + dosagens + interações + banco de remédios offline | ✅ | |
-| **Água Segura** | Calculadora de purificação: cloro, iodo, fervura, SODIS. Volumes e tempo de contato | ✅ | |
+| App | Função | Status |
+|-----|--------|--------|
+| **AI Chat** | Chat com LLM local. 6 modos: Geral, Médico, Sobrevivência, Engenharia, Defesa, Psicológico. RAG automático, streaming SSE, anexar arquivos, webcam | ✅ |
+| **Companheiro** | Avatar 3D (Three.js + VRM). Lip-sync, expressões, gestos, idle/think/happy. Fallback geométrico sem WebGL | ✅ |
+| **Personagens** | Gerenciar personalidades do Guide Companion: Deep Thought, TARS, MOTHER, HAL 9000, Ford Prefect, Survivor | ✅ |
+| **Texto p/ Voz** | TTS com 4 engines em cascata: Kokoro (near-human) → Piper → pyttsx3 → edge-tts. Seleção de voz e velocidade | ✅ |
+| **Gerador IA** | Geração de imagens com modelo local. Histórico, enhancer, download | ⚠️ Requer modelo de imagem |
+| **Modelos IA** | Gerenciador Ollama: listar, baixar, remover, trocar modelo ativo. Registry com 5 modelos recomendados | ✅ |
+| **App Builder** | Gera mini-apps HTML completos via prompt de texto. Apps salvos e reaberráveis como janelas | ✅ |
 
 ---
 
-## 🏕️ Sobrevivência — Campo
+## 📚 Conhecimento (6 apps)
 
-| App | Função | Status | Observação |
-|-----|--------|--------|------------|
-| **Mapas** | Mapa offline (Leaflet + PMTiles), marcadores de sobrevivência, layers, busca | ✅ | Requer arquivo .pmtiles em static/maps/ |
-| **Plantas** | Banco de dados de plantas: comestíveis, medicinais, tóxicas, com fotos e uso | ✅ | |
-| **Abrigos** | Guia interativo de construção de abrigos por tipo e condição climática | ✅ | |
-| **Energia** | Geração de energia off-grid: solar, eólica, biomassa, baterias, cálculos | ✅ | |
-| **Navegação** | Orientação sem GPS: estrelas, sol, sombras, bússola, relógio, pontos cardeais | ✅ | |
-| **Rações** | Calculadora de racionamento: calorias por pessoa, dias de suprimento, déficit | ✅ | |
-| **Suprimentos** | Inventário de suprimentos com validade, categoria, alerta de estoque baixo | ✅ | |
-
----
-
-## 📡 Comunicação & Ferramentas de Campo
-
-| App | Função | Status | Observação |
-|-----|--------|--------|------------|
-| **Rádio** | Referência de frequências de emergência por região (Brasil, EUA, Internacional) | ⚠️ | View existe, conteúdo OK, mas **não está no openMap** (não abre pelo desktop) |
-| **Código Morse** | Encoder/decoder Morse + tabela + prática com áudio | ✅ | |
-| **Fonético NATO** | Alfabeto fonético NATO com pronúncia + exercício de memorização | ✅ | |
-| **Sol / Lua** | Calculadora de nascer/pôr do sol, horário dourado, fases da lua por localização | ✅ | |
-| **Criptografia** | Ferramentas de encoding/criptografia: Base64, Hex, Caesar, XOR, hashes | ✅ | |
-| **Clima** | Estação meteorológica: sensor local via API do servidor, histórico, previsão | ✅ | Requer sensor ou API meteorológica configurada |
+| App | Função | Status |
+|-----|--------|--------|
+| **Guias** | 16 guias de sobrevivência em Markdown. Scroll tracking, progresso, tempo de leitura, favoritos | ✅ |
+| **Protocolos** | 10 protocolos de emergência como árvores de decisão interativas. Navegação passo a passo | ✅ |
+| **Wikipedia** | Browser embutido para arquivos ZIM via Kiwix. Busca interna, múltiplos ZIMs | ⚠️ Requer ZIM instalado |
+| **Livros** | Leitor de EPUB (epub.js). Tema escuro, progresso de leitura, múltiplos livros | ⚠️ Requer .epub em data/books/ |
+| **Referência** | Referência rápida de sobrevivência: nós, sinais de socorro, tabelas de medidas, códigos NATO, mapas de constelações | ✅ |
+| **Downloads** | Download Manager: ZIMs (Wikipedia Medicina, Wikibooks, iFixit, Wikivoyage, Gutenberg), mapas PMTiles. Progresso SSE | ✅ |
 
 ---
 
-## 📋 Produtividade
+## 🏥 Saúde (3 apps)
 
-| App | Função | Status | Observação |
-|-----|--------|--------|------------|
-| **Diário** | Diário de sobrevivência com humor, data, categorias, busca, exportação | ✅ | |
-| **Tarefas** | Gerenciador de tarefas com prioridade, status, data, categoria | ✅ | |
-| **Bloco de Notas** | Editor de texto simples com múltiplas notas, salvo no SQLite | ✅ | |
-| **Documento** | Editor de texto rico (Word-like): títulos, listas, negrito, itálico, exportar | ✅ | |
-| **Planilha** | Planilhas com fórmulas básicas, múltiplas abas, exportar CSV | ✅ | |
-| **Checklists** | Checklists reutilizáveis por categoria (go-bag, abrigo, médico, etc.) | ✅ | |
-| **Paint** | Editor de imagem canvas: pincel, formas, cores, texto, exportar PNG | ✅ | |
+| App | Função | Status |
+|-----|--------|--------|
+| **Primeiros Socorros** | RCP com metrônomo, hemorragia, queimaduras, fraturas, choque, envenenamento, afogamento. Referência rápida por cenário | ✅ |
+| **Farmácia** | Inventário de medicamentos + banco offline de remédios, dosagens, interações, contraindicações | ✅ |
+| **Água Segura** | Calculadora de purificação: cloro, iodo, fervura, SODIS. Volumes, tempo de contato, dose por pessoa | ✅ |
 
 ---
 
-## 🔧 Ferramentas do Sistema
+## 🏕️ Campo & Sobrevivência (8 apps)
 
-| App | Função | Status | Observação |
-|-----|--------|--------|------------|
-| **Calculadora** | Calculadora científica com histórico | ✅ | |
-| **Timer** | Timer + cronômetro + alarme sonoro | ✅ | |
-| **Conversor** | Conversor de unidades: peso, distância, temperatura, volume, área, pressão | ✅ | |
-| **Arquivos** | Gerenciador de arquivos do projeto (sandboxed em FILEMGR_ROOT) | ✅ | |
-| **Mídia** | Player de áudio/vídeo para arquivos locais | ✅ | |
-| **Monitor** | Monitor de sistema: CPU, RAM, disco, backend IA, modelos carregados | ✅ | |
-
----
-
-## 🎮 Entretenimento
-
-| App | Função | Status | Observação |
-|-----|--------|--------|------------|
-| **Jogos** | 8 jogos HTML5 embutidos + emulador RetroArch (GB, GBA, NES) com ROMs incluídas | ✅ | |
+| App | Função | Status |
+|-----|--------|--------|
+| **Mapas** | Mapa offline (Leaflet + PMTiles). Marcadores de sobrevivência, layers, busca, download de regiões | ⚠️ Requer .pmtiles |
+| **Plantas** | Banco de dados de plantas: comestíveis, medicinais, tóxicas. Filtros por tipo, região, uso | ✅ |
+| **Abrigos** | Guia interativo de construção de abrigos por tipo (floresta, neve, deserto, urbano) e condição | ✅ |
+| **Energia** | Off-grid: circuitos, baterias, solar, gerador, conservação, fogo. Calculadora solar | ✅ |
+| **Navegação** | Orientação sem GPS: estrelas, bússola solar (sombras), distância a pé, leitura de mapas, relógio, cardeais pelo sol | ✅ |
+| **Rações** | Calculadora de racionamento: calorias por pessoa, dias de suprimento, déficit, ajuste por atividade e clima | ✅ |
+| **Suprimentos** | Inventário com validade, categoria, alerta de estoque baixo, exportar | ✅ |
+| **Clima** | Estação meteorológica: barômetro, nuvens, vento, sinais naturais, previsão local | ⚠️ Requer sensor/API |
 
 ---
 
-## ⚙️ Sistema
+## 📡 Comunicação (5 apps)
 
-| App | Função | Status | Observação |
-|-----|--------|--------|------------|
-| **Preparar Pendrive** | Assistente para criar pendrive de sobrevivência bootável com o Bunker AI | ✅ | |
-| **Configurações** | Tema, wallpaper, modelo IA, voz, personalidade, layout | ✅ | |
-
----
-
-## 🔴 Problemas Identificados
-
-| Problema | Impacto | Correção |
-|----------|---------|----------|
-| **Rádio** não está no `openMap` em main.js | Médio — app não abre pelo desktop/start menu | Adicionar `radio: () => window.radioInit?.()` no openMap e criar função init em apps.js |
-| **ZIM URLs** estavam com 404 (2024 → 2026) | Alto — downloads falhavam | ✅ Corrigido em Abr/2026 |
-| **Gerador IA** requer modelo de imagem | Baixo — maioria não tem | Melhorar mensagem de erro quando modelo não disponível |
-| **Clima** requer sensor/API | Baixo — fallback já existe | OK por enquanto |
+| App | Função | Status |
+|-----|--------|--------|
+| **Rádio** | Referência de frequências de emergência por região: Brasil, EUA, Internacional. Busca e filtro por banda | ✅ |
+| **Código Morse** | Encoder/decoder Morse, tabela completa, sinais de emergência, trainer com áudio | ✅ |
+| **Fonético NATO** | Alfabeto fonético NATO com pronúncia, exercício de memorização interativo | ✅ |
+| **Sol / Lua** | Nascer/pôr do sol, horário dourado, fases da lua, duração do dia. Por coordenadas ou cidade | ✅ |
+| **Criptografia** | Base64, Hex, Caesar, ROT13, XOR, hashes MD5/SHA. Encode/decode + gerador de senhas | ✅ |
 
 ---
 
-## 📊 Resumo
+## 📋 Produtividade (7 apps)
 
-| Categoria | Total | ✅ OK | ⚠️ Parcial | ❌ Quebrado |
-|-----------|-------|-------|-----------|------------|
-| IA & Chat | 7 | 6 | 1 | 0 |
-| Conhecimento | 6 | 6 | 0 | 0 |
-| Saúde | 3 | 3 | 0 | 0 |
-| Campo | 7 | 7 | 0 | 0 |
-| Comunicação | 6 | 5 | 1 | 0 |
-| Produtividade | 7 | 7 | 0 | 0 |
-| Sistema/Tools | 6 | 6 | 0 | 0 |
-| Entretenimento | 1 | 1 | 0 | 0 |
-| Sistema | 2 | 2 | 0 | 0 |
-| **TOTAL** | **45** | **43** | **2** | **0** |
+| App | Função | Status |
+|-----|--------|--------|
+| **Diário** | Diário com humor, categorias, busca, gravação de áudio, exportação | ✅ |
+| **Tarefas** | Gerenciador com prioridade (P1-P4), status, data, categoria, filtros | ✅ |
+| **Bloco de Notas** | Múltiplas notas em SQLite, auto-save, busca | ✅ |
+| **Documento** | Editor rich text (Word-like): títulos, listas, negrito, itálico, exportar | ✅ |
+| **Planilha** | Grid 10×30 com fórmulas (SUM, AVG, MIN, MAX, IF), múltiplas abas, exportar CSV | ✅ |
+| **Checklists** | Checklists reutilizáveis por categoria (go-bag, abrigo, médico, veículo). Auto-save | ✅ |
+| **Paint** | Editor canvas: pincel, formas, borracha, texto, paleta, exportar PNG | ✅ |
 
-**43/45 funcionando (96%).** Os 2 parciais são o Rádio (não abre pelo desktop) e o Gerador IA (depende de modelo extra).
+---
+
+## 🔧 Ferramentas (6 apps)
+
+| App | Função | Status |
+|-----|--------|--------|
+| **Calculadora** | Científica com histórico de operações | ✅ |
+| **Timer** | Timer regressivo + cronômetro + alarme sonoro | ✅ |
+| **Conversor** | Peso, distância, temperatura, volume, área, pressão, combustível | ✅ |
+| **Arquivos** | Gerenciador sandboxed: navegar, ler, abrir arquivos do projeto | ✅ |
+| **Mídia** | Player de áudio/vídeo para arquivos locais (MP3, MP4, etc.) | ✅ |
+| **Monitor** | CPU, RAM, disco, status do backend IA, modelo carregado, uptime | ✅ |
+
+---
+
+## 🎮 Entretenimento (1 app)
+
+| App | Função | Status |
+|-----|--------|--------|
+| **Jogos** | 8 jogos HTML5 embutidos + emulador RetroArch (GB, GBA, NES) com ROMs incluídas | ✅ |
+
+---
+
+## ⚙️ Sistema (2 apps)
+
+| App | Função | Status |
+|-----|--------|--------|
+| **Preparar Pendrive** | Assistente para criar pendrive de sobrevivência bootável. Estima espaço, prepara arquivos, valida | ✅ |
+| **Configurações** | Tema, wallpaper, modelo IA, voz, personalidade, tamanho de fonte, modo offline | ✅ |
+
+---
+
+## 🔒 Apps Ocultos / Sub-telas (não no desktop)
+
+| App | Como Acessar | Status |
+|-----|-------------|--------|
+| **Leitor de Livro** | Abre automaticamente ao clicar em um EPUB na Biblioteca | ✅ |
+| **Jogo (Tela Cheia)** | Abre ao iniciar um jogo nos Jogos | ✅ |
+| **Terminal** | Acessível via código (`openApp('terminal')`) — power user only, sandboxed | ✅ |
+| **SOS Emergência** | Widget fixo no canto. Clique longo ativa modo fullscreen de emergência | ✅ |
+
+---
+
+## 🔴 Bugs Corrigidos Nesta Auditoria
+
+| Bug | Correção |
+|-----|----------|
+| **Energia** não estava em OS_APPS — janela não abria | ✅ Adicionado ao OS_APPS, DESKTOP_APPS e categoria Sobrevivência |
+| **Rádio** não estava no openMap — ícone não abria nada | ✅ Corrigido (radioInit registrado) |
+| **ZIM URLs** 404 (formato 2024 → 2026) | ✅ Corrigido |
+
+---
+
+## 📊 Totais
+
+| Categoria | Apps | ✅ | ⚠️ |
+|-----------|------|----|----|
+| IA & Chat | 7 | 6 | 1 |
+| Conhecimento | 6 | 4 | 2 |
+| Saúde | 3 | 3 | 0 |
+| Campo | 8 | 7 | 1 |
+| Comunicação | 5 | 5 | 0 |
+| Produtividade | 7 | 7 | 0 |
+| Ferramentas | 6 | 6 | 0 |
+| Entretenimento | 1 | 1 | 0 |
+| Sistema | 2 | 2 | 0 |
+| Hidden | 4 | 4 | 0 |
+| **TOTAL** | **49** | **45** | **4** |
+
+**45/49 totalmente funcionais. Os 4 parciais dependem de conteúdo externo (modelo de imagem, ZIM, EPUB, sensor de clima) — não são bugs.**
