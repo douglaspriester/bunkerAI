@@ -20,6 +20,16 @@ voice_models/
 *.wav
 *.mp3
 tools/pmtiles.exe
+# Stable Diffusion binaries (macOS-specific, large)
+tools/sd-cli
+tools/sd-server
+tools/libstable-diffusion.dylib
+tools/*.dylib
+
+# Temp/dev artifacts in static/lib
+static/lib/phosphor.js
+static/lib/phosphor-bold.js
+static/lib/phosphor2.js
 
 # OS/editor junk
 .DS_Store
