@@ -28,16 +28,20 @@ Inspired by *The Hitchhiker's Guide to the Galaxy*, *Interstellar* (TARS), *Alie
 ## Screenshots
 
 <p align="center">
-  <img src="static/img/screenshots/01-boot.png" width="48%" alt="Boot screen">
-  <img src="static/img/screenshots/03-chat.png" width="48%" alt="AI Chat">
+  <img src="static/img/screenshots/00-boot.png" width="48%" alt="Boot screen">
+  <img src="static/img/screenshots/01-desktop.png" width="48%" alt="Desktop with apps">
 </p>
 <p align="center">
-  <img src="static/img/screenshots/05-map.png" width="48%" alt="Offline Map">
-  <img src="static/img/screenshots/04-guides.png" width="48%" alt="Survival Guides">
+  <img src="static/img/screenshots/02-chat.png" width="48%" alt="AI Chat — DON'T PANIC">
+  <img src="static/img/screenshots/04-map.png" width="48%" alt="Offline Map">
 </p>
 <p align="center">
-  <img src="static/img/screenshots/06-protocols.png" width="48%" alt="Emergency Protocols">
-  <img src="static/img/screenshots/07-supplies.png" width="48%" alt="Supply Inventory">
+  <img src="static/img/screenshots/03-guides.png" width="48%" alt="Survival Guides">
+  <img src="static/img/screenshots/05-protocols.png" width="48%" alt="Emergency Protocols">
+</p>
+<p align="center">
+  <img src="static/img/screenshots/07-plants.png" width="48%" alt="Medicinal Plants">
+  <img src="static/img/screenshots/06-multiwindow.png" width="48%" alt="Multi-window OS">
 </p>
 
 ## Highlights
