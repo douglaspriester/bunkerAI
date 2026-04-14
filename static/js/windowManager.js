@@ -877,17 +877,33 @@ function _updateDesktopWidget(now, hh, mm, ss) {
   const uptimeM = Math.floor((uptimeMs % 3600000) / 60000);
   dwUptime.textContent = uptimeH + 'h' + String(uptimeM).padStart(2, '0') + 'm';
 
-  // AI status (read from existing tray elements)
+  // AI backend name only (e.g. "Ollama", "llama.cpp", "Offline")
+  // The tray label often packs "Ollama · 2 modelos" — strip the model count.
   const aiLabel = document.getElementById('trayAILabel');
-  if (aiLabel) dwAI.textContent = aiLabel.textContent || '--';
+  if (aiLabel) {
+    const raw = (aiLabel.textContent || '--').trim();
+    // Take only the first segment before any separator (·, •, -, |)
+    const backendOnly = raw.split(/\s*[·•\-|]\s*/)[0] || raw;
+    dwAI.textContent = backendOnly;
+  }
 
-  // Model count (read from existing tray, updated every 10s)
-  if (now.getSeconds() % 10 === 0 || !dwModels.dataset.init) {
+  // Model count — pull from the real counter (never from a tooltip string)
+  if (now.getSeconds() % 5 === 0 || !dwModels.dataset.init) {
     dwModels.dataset.init = '1';
-    const trayAI = document.getElementById('trayAI');
-    if (trayAI) {
-      const title = trayAI.title || '';
-      dwModels.textContent = title || dwAI.textContent || '--';
+    let count = null;
+    // Prefer window.state cache populated by apps.js / health checks
+    if (window.state && Array.isArray(window.state.models)) {
+      count = window.state.models.length;
+    }
+    // Fallback: parse "· N" or "N modelos" out of the tray label
+    if (count == null && aiLabel) {
+      const m = (aiLabel.textContent || '').match(/(\d+)/);
+      if (m) count = parseInt(m[1], 10);
+    }
+    if (count != null) {
+      dwModels.textContent = count === 1 ? '1 modelo' : (count + ' modelos');
+    } else {
+      dwModels.textContent = '--';
     }
   }
 }
