@@ -7957,6 +7957,7 @@ function radioSwitchRegion(region, btn) {
   radioFilter(document.getElementById('radioSearch')?.value || '');
 }
 window.radioSwitchRegion = radioSwitchRegion;
+window.radioInit = function() { /* view is static HTML, no async init needed */ };
 
 Object.defineProperty(window, '_excelDirty', { get() { return _excelDirty; }, configurable: true });
 Object.defineProperty(window, '_excelActiveId', { get() { return _excelActiveId; }, configurable: true });
