@@ -428,24 +428,65 @@ function saveIconOrder() {
 
 // Desktop-pinned apps (essentials only — rest accessible via Start Menu)
 const DESKTOP_APPS = [
-  'chat', 'map', 'wiki', 'guides', 'firstaid', 'supplies',
-  'weather', 'rations', 'plants', 'crypto', 'pendrive',
-  'notepad', 'calc', 'books', 'library', 'settings'
+  // IA & Chat
+  'chat', 'companion', 'characters', 'tts', 'imagine', 'modelMgr', 'builder',
+  // Conhecimento
+  'guides', 'protocols', 'wiki', 'books', 'survRef', 'library',
+  // Sobrevivência
+  'firstaid', 'pharmacy', 'shelter', 'supplies', 'map',
+  'radio', 'morse', 'phonetic', 'sun', 'waterCalc',
+  'weather', 'crypto', 'rations', 'plants', 'navigation',
+  // Produtividade
+  'notepad', 'word', 'excel', 'tasks', 'checklist', 'journal', 'paint',
+  // Ferramentas
+  'calc', 'timer', 'converter', 'fileManager', 'media', 'sysmon',
+  // Entretenimento
+  'games',
+  // Sistema
+  'pendrive', 'settings'
 ];
 
 // Short names for desktop icons to avoid truncation
 const DESKTOP_SHORT_NAMES = {
-  'firstaid': 'Socorros',
-  'rations': 'Rações',
-  'plants': 'Plantas',
-  'weather': 'Clima',
-  'pendrive': 'Pendrive',
-  'supplies': 'Suprimentos',
-  'settings': 'Config',
-  'notepad': 'Notas',
-  'crypto': 'Cripto',
-  'books': 'Livros',
-  'library': 'Downloads',
+  'firstaid':   'Socorros',
+  'rations':    'Rações',
+  'plants':     'Plantas',
+  'weather':    'Clima',
+  'pendrive':   'Pendrive',
+  'supplies':   'Suprimentos',
+  'settings':   'Config',
+  'notepad':    'Notas',
+  'crypto':     'Cripto',
+  'books':      'Livros',
+  'library':    'Downloads',
+  'characters': 'Personagens',
+  'companion':  'Companion',
+  'modelMgr':   'Modelos',
+  'builder':    'App Builder',
+  'imagine':    'Gerador IA',
+  'protocols':  'Protocolos',
+  'survRef':    'Referência',
+  'pharmacy':   'Farmácia',
+  'shelter':    'Abrigos',
+  'radio':      'Rádio',
+  'phonetic':   'Fonético',
+  'sun':        'Sol/Lua',
+  'waterCalc':  'Água',
+  'navigation': 'Navegação',
+  'word':       'Documento',
+  'excel':      'Planilha',
+  'tasks':      'Tarefas',
+  'checklist':  'Checklists',
+  'journal':    'Diário',
+  'paint':      'Paint',
+  'timer':      'Timer',
+  'converter':  'Conversor',
+  'fileManager':'Arquivos',
+  'media':      'Mídia',
+  'sysmon':     'Monitor',
+  'games':      'Jogos',
+  'morse':      'Morse',
+  'tts':        'Voz',
 };
 
 export function renderDesktopIcons() {
