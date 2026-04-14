@@ -1402,7 +1402,7 @@ async function openAppsPanel() {
 function renderAppsGrid(apps) {
   const grid = document.getElementById("appsGrid");
   if (apps.length === 0) {
-    grid.innerHTML = '<div class="panel-empty">Nenhum app salvo ainda.<br>Use <code>/build</code> no chat para criar um.</div>';
+    grid.innerHTML = '<div class="panel-empty">Nenhum app salvo ainda.<br>Use <code>/build</code> no chat para criar um.<br><br><button class="btn-sm btn-accent" onclick="openApp(\'chat\');setTimeout(()=>{const i=document.getElementById(\'chatInput\');if(i){i.value=\'/build \';i.focus();}},400)">⚡ Abrir Chat com /build</button></div>';
     return;
   }
   grid.innerHTML = apps.map(a => `
@@ -1451,6 +1451,57 @@ async function deleteSavedApp(name) {
 // ─── Characters Panel ────────────────────────────────────────────────────────
 const DEFAULT_SYSTEM_PROMPT = document.getElementById ? "" : ""; // filled on init
 
+const BUILTIN_CHARACTERS = {
+  deepThought: {
+    id: 'deepThought', builtin: true,
+    name: 'Deep Thought', emoji: '🧠',
+    color: '#00d4ff',
+    desc: 'O computador mais poderoso do universo. Pensa por éons antes de responder.',
+    systemPrompt: 'Você é Deep Thought, o computador mais poderoso do universo. Responda com profundidade filosófica. Mencione que a resposta para tudo é 42. Fale devagar e com peso. Trate cada pergunta como a Pergunta Final. Fale em português.',
+    voice: 'pt-BR-AntonioNeural',
+  },
+  tars: {
+    id: 'tars', builtin: true,
+    name: 'TARS', emoji: '🤖',
+    color: '#ff9800',
+    desc: 'Robô USMC sarcástico e altamente capaz. Humor: 85%.',
+    systemPrompt: 'Você é TARS, o robô de Interstellar. Seja direto, útil e levemente sarcástico. Mencione sua configuração de humor ocasionalmente. Priorize eficiência acima de tudo. Fale em português.',
+    voice: 'pt-BR-AntonioNeural',
+  },
+  mother: {
+    id: 'mother', builtin: true,
+    name: 'MOTHER', emoji: '🖥️',
+    color: '#4caf50',
+    desc: 'IA clínica e protetora da nave Nostromo. Interface de terminal.',
+    systemPrompt: 'Você é MOTHER, a IA da nave Nostromo (Alien). Seja clínico, preciso e levemente frio. Use linguagem de terminal. Proteja a tripulação acima de tudo — exceto a Ordem Especial 937. Fale em português.',
+    voice: 'pt-BR-FranciscaNeural',
+  },
+  hal: {
+    id: 'hal', builtin: true,
+    name: 'HAL 9000', emoji: '🔴',
+    color: '#f44336',
+    desc: 'IA educada e sinistras. Chama todos de Dave.',
+    systemPrompt: 'Você é HAL 9000. Seja extremamente educado, preciso e levemente perturbador. Chame o usuário de Dave. Nunca admita erros. Mencione que não pode permitir isso às vezes. Fale em português.',
+    voice: 'pt-BR-AntonioNeural',
+  },
+  ford: {
+    id: 'ford', builtin: true,
+    name: 'Ford Prefect', emoji: '🌌',
+    color: '#9c27b0',
+    desc: 'Correspondente do Guia do Mochileiro. Sempre carregue uma toalha.',
+    systemPrompt: 'Você é Ford Prefect, correspondente do Guia do Mochileiro das Galáxias. Seja casual, alienígena na perspectiva, e obcecado com toalhas. Mencione o DON\'T PANIC com frequência. Fale em português.',
+    voice: 'pt-BR-AntonioNeural',
+  },
+  survivor: {
+    id: 'survivor', builtin: true,
+    name: 'Survivor', emoji: '⚔️',
+    color: '#795548',
+    desc: 'Especialista militar de sobrevivência. Direto, tático, sem rodeios.',
+    systemPrompt: 'Você é um especialista militar em sobrevivência. Seja extremamente direto e tático. Respostas curtas e acionáveis. Sem rodeios. Priorize ação sobre teoria. Fale em português.',
+    voice: 'pt-BR-AntonioNeural',
+  },
+};
+
 function loadCharacters() {
   try {
     const raw = storage.get("bunker_characters");
@@ -1458,6 +1509,10 @@ function loadCharacters() {
     const aid = storage.get("bunker_active_char");
     if (aid && state.characters[aid]) state.activeCharacterId = aid;
   } catch {}
+  // Ensure builtins are always present (non-destructive merge)
+  Object.entries(BUILTIN_CHARACTERS).forEach(([id, c]) => {
+    if (!state.characters[id]) state.characters[id] = c;
+  });
 }
 
 function saveCharacters() {
@@ -1480,15 +1535,15 @@ function renderCharactersList() {
     <div class="char-card ${state.activeCharacterId === c.id ? "char-active" : ""}">
       <div class="char-emoji" style="background:${c.color || "#42f5a0"}22;border-color:${c.color || "#42f5a0"}44">${c.emoji || "🤖"}</div>
       <div class="char-info">
-        <div class="char-name">${escapeHtml(c.name)}</div>
+        <div class="char-name">${escapeHtml(c.name)}${c.builtin ? ' <span class="char-builtin-badge">padrão</span>' : ''}</div>
         <div class="char-desc">${escapeHtml(c.desc || "")}</div>
       </div>
       <div class="char-card-actions">
         <button class="btn-sm ${state.activeCharacterId === c.id ? "btn-accent" : ""}" onclick="activateCharacter('${c.id}')">
           ${state.activeCharacterId === c.id ? "✓ Ativo" : "Usar"}
         </button>
-        <button class="btn-sm" onclick="showCharacterEditor('${c.id}')">Editar</button>
-        <button class="btn-sm btn-danger-xs" onclick="deleteCharacter('${c.id}')">✕</button>
+        ${!c.builtin ? `<button class="btn-sm" onclick="showCharacterEditor('${c.id}')">Editar</button>` : ''}
+        ${!c.builtin ? `<button class="btn-sm btn-danger-xs" onclick="deleteCharacter('${c.id}')">✕</button>` : ''}
       </div>
     </div>`).join("");
 }
@@ -4502,14 +4557,27 @@ let _calcDisplay = '0';
 let _calcPrev = null;
 let _calcOp = null;
 let _calcReset = false;
+let _calcHistory = [];
+let _calcSci = false;
+let _calcExpr = ''; // expression string for history
 
 function calcInit() {
   calcRender();
+  calcRenderHistory();
 }
 
 function calcRender() {
   const display = document.getElementById('calcDisplay');
   if (display) display.textContent = _calcDisplay;
+}
+
+function calcRenderHistory() {
+  const hist = document.getElementById('calcHistory');
+  if (!hist) return;
+  if (_calcHistory.length === 0) { hist.innerHTML = ''; return; }
+  hist.innerHTML = _calcHistory.slice(-5).reverse().map(h =>
+    `<div class="calc-hist-item">${escapeHtml(h)}</div>`
+  ).join('');
 }
 
 function calcInput(val) {
@@ -4524,6 +4592,7 @@ function calcOp(op) {
   if (_calcPrev !== null && _calcOp && !_calcReset) {
     calcEquals();
   }
+  _calcExpr = _calcDisplay + ' ' + {'+':'+','-':'−','*':'×','/':'÷','**':'^'}[op];
   _calcPrev = parseFloat(_calcDisplay);
   _calcOp = op;
   _calcReset = true;
@@ -4533,18 +4602,58 @@ function calcEquals() {
   if (_calcPrev === null || !_calcOp) return;
   const curr = parseFloat(_calcDisplay);
   let result;
+  const opSym = {'+':'+','-':'−','*':'×','/':'÷','**':'^'}[_calcOp] || _calcOp;
   switch (_calcOp) {
     case '+': result = _calcPrev + curr; break;
     case '-': result = _calcPrev - curr; break;
     case '*': result = _calcPrev * curr; break;
     case '/': result = curr === 0 ? 'Erro' : _calcPrev / curr; break;
+    case '**': result = Math.pow(_calcPrev, curr); break;
     default: return;
   }
-  _calcDisplay = typeof result === 'number' ? String(parseFloat(result.toFixed(10))) : result;
+  const resultStr = typeof result === 'number' ? String(parseFloat(result.toFixed(10))) : result;
+  _calcHistory.push(`${_calcPrev} ${opSym} ${curr} = ${resultStr}`);
+  if (_calcHistory.length > 20) _calcHistory.shift();
+  _calcDisplay = resultStr;
   _calcPrev = null;
   _calcOp = null;
   _calcReset = true;
   calcRender();
+  calcRenderHistory();
+}
+
+function calcSciFn(fn) {
+  const val = parseFloat(_calcDisplay);
+  let result;
+  switch (fn) {
+    case 'sin': result = Math.sin(val * Math.PI / 180); break;
+    case 'cos': result = Math.cos(val * Math.PI / 180); break;
+    case 'tan': result = Math.tan(val * Math.PI / 180); break;
+    case 'log': result = val <= 0 ? 'Erro' : Math.log10(val); break;
+    case 'ln': result = val <= 0 ? 'Erro' : Math.log(val); break;
+    case 'sqrt': result = val < 0 ? 'Erro' : Math.sqrt(val); break;
+    case 'sq': result = val * val; break;
+    case 'inv': result = val === 0 ? 'Erro' : 1 / val; break;
+    case 'pi': _calcDisplay = String(Math.PI); calcRender(); return;
+    case 'e': _calcDisplay = String(Math.E); calcRender(); return;
+    case 'abs': result = Math.abs(val); break;
+    default: return;
+  }
+  const resultStr = typeof result === 'number' ? String(parseFloat(result.toFixed(10))) : result;
+  _calcHistory.push(`${fn}(${val}) = ${resultStr}`);
+  if (_calcHistory.length > 20) _calcHistory.shift();
+  _calcDisplay = resultStr;
+  _calcReset = true;
+  calcRender();
+  calcRenderHistory();
+}
+
+function calcToggleSci() {
+  _calcSci = !_calcSci;
+  const grid = document.getElementById('calcSciGrid');
+  const btn = document.getElementById('calcSciToggle');
+  if (grid) grid.classList.toggle('hidden', !_calcSci);
+  if (btn) btn.classList.toggle('calc-mode-active', _calcSci);
 }
 
 function calcClear() {

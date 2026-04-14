@@ -1293,7 +1293,25 @@ Responda no idioma do usuario. Use markdown.</textarea>
     <!-- ═══ Calculator ═══ -->
     <div class="panel-view hidden" id="calcView">
       <div class="calc-body">
+        <div class="calc-history" id="calcHistory"></div>
         <div class="calc-display" id="calcDisplay">0</div>
+        <div class="calc-mode-toggle">
+          <button class="calc-mode-btn" id="calcSciToggle" onclick="calcToggleSci()">Científica</button>
+        </div>
+        <div class="calc-sci-grid hidden" id="calcSciGrid">
+          <button class="calc-btn calc-sci" onclick="calcSciFn('sin')">sin</button>
+          <button class="calc-btn calc-sci" onclick="calcSciFn('cos')">cos</button>
+          <button class="calc-btn calc-sci" onclick="calcSciFn('tan')">tan</button>
+          <button class="calc-btn calc-sci" onclick="calcSciFn('log')">log</button>
+          <button class="calc-btn calc-sci" onclick="calcSciFn('ln')">ln</button>
+          <button class="calc-btn calc-sci" onclick="calcSciFn('sqrt')">√</button>
+          <button class="calc-btn calc-sci" onclick="calcSciFn('sq')">x²</button>
+          <button class="calc-btn calc-sci" onclick="calcSciFn('inv')">1/x</button>
+          <button class="calc-btn calc-sci" onclick="calcSciFn('pi')">π</button>
+          <button class="calc-btn calc-sci" onclick="calcSciFn('e')">e</button>
+          <button class="calc-btn calc-sci" onclick="calcOp('**')">xʸ</button>
+          <button class="calc-btn calc-sci" onclick="calcSciFn('abs')">|x|</button>
+        </div>
         <div class="calc-grid">
           <button class="calc-btn calc-fn" onclick="calcClear()">C</button>
           <button class="calc-btn calc-fn" onclick="calcNegate()">±</button>
