@@ -370,6 +370,25 @@ function initOfflineToggle() {
       const desc = document.getElementById("offlineDesc");
       if (desc) desc.textContent = "ATIVO — zero conexoes externas";
     }
+    // Esconder/mostrar opção Edge TTS (requer internet) conforme modo offline
+    _syncEdgeTtsVisibility();
+    toggle.addEventListener("change", _syncEdgeTtsVisibility);
+  }
+}
+
+function _syncEdgeTtsVisibility() {
+  const offline = isOfflineMode();
+  const sel = document.getElementById("ttsPanelEngine");
+  const voiceRow = document.getElementById("ttsVoiceRow");
+  if (!sel) return;
+  // Esconder a opção edge-tts quando offline mode está ativo
+  const edgeOpt = sel.querySelector('option[value="edge-tts"]');
+  if (edgeOpt) edgeOpt.hidden = offline;
+  // Se estava selecionado edge-tts e entrou em offline, voltar para auto
+  if (offline && sel.value === "edge-tts") {
+    sel.value = "auto";
+    if (voiceRow) voiceRow.style.display = "none";
+    if (typeof onTTSEngineChange === 'function') onTTSEngineChange();
   }
 }
 
@@ -8778,7 +8797,18 @@ function weatherInit() {
   weatherCalcWindChill();
   weatherCalcHeatIndex();
   weatherBuildChillTable();
+  // Mostrar/esconder banner observacional conforme localStorage
+  const banner = document.getElementById('weatherObsBanner');
+  if (banner) {
+    banner.style.display = localStorage.getItem('weather_obs_dismissed') ? 'none' : 'flex';
+  }
 }
+
+window._weatherDismissBanner = function() {
+  localStorage.setItem('weather_obs_dismissed', '1');
+  const banner = document.getElementById('weatherObsBanner');
+  if (banner) banner.style.display = 'none';
+};
 
 function weatherSwitchTab(tab) {
   // Aba Barometro removida (sem sensor). Redirecionar para Nuvens.

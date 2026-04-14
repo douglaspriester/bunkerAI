@@ -2327,6 +2327,12 @@
     <!-- ═══ WEATHER STATION ═══ -->
     <div class="panel-view hidden" id="weatherView">
       <div class="weather-app">
+        <!-- Banner observacional — aparece uma vez, dispensável -->
+        <div class="weather-obs-banner" id="weatherObsBanner">
+          <span class="weather-obs-icon">🔭</span>
+          <span class="weather-obs-text">Sem sensor? Observe o céu e use <strong>Nuvens</strong>, <strong>Beaufort</strong> e <strong>Sinais Naturais</strong> para prever sem nenhum hardware.</span>
+          <button class="weather-obs-close" onclick="_weatherDismissBanner()" title="Dispensar">✕</button>
+        </div>
         <!-- Tabs -->
         <div class="weather-tabs">
           <button class="weather-tab active" onclick="weatherSwitchTab('clouds')" id="wtabClouds">Nuvens</button>

@@ -19,8 +19,8 @@
 
   /* ── Text ── */
   --text:        #7a9bb0;
-  --text-muted:  #445566;
-  --text-faint:  #1e2d38;
+  --text-muted:  #627d8e;   /* ↑ bumped: era #445566 (~3:1), agora ~5:1 AA */
+  --text-faint:  #2a3d4a;   /* ↑ ligeiramente mais visível */
   --text-bright: #c0dff0;
 
   /* ── Accents ── */
@@ -3880,18 +3880,29 @@ body::after {
 /* ── SOS Emergency Widget ── */
 .sos-widget {
   position: fixed; bottom: 52px; right: 12px; z-index: 9999;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
 }
 .sos-toggle {
-  width: 48px; height: 48px; border-radius: 50%;
-  background: rgba(255,40,40,0.15); border: 2px solid #ff4444;
-  font-size: 22px; cursor: pointer;
+  width: 52px; height: 52px; border-radius: 50%;
+  background: rgba(255,40,40,0.18); border: 2px solid #ff4444;
+  font-size: 24px; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  transition: all 0.2s; box-shadow: 0 0 12px rgba(255,40,40,0.3);
+  transition: all 0.2s; box-shadow: 0 0 14px rgba(255,40,40,0.35);
   animation: sos-pulse 3s ease-in-out infinite;
 }
 .sos-toggle:hover {
-  background: rgba(255,40,40,0.3); transform: scale(1.1);
-  box-shadow: 0 0 20px rgba(255,40,40,0.5);
+  background: rgba(255,40,40,0.35); transform: scale(1.1);
+  box-shadow: 0 0 24px rgba(255,40,40,0.6);
+}
+/* Micro-label abaixo do botão SOS */
+.sos-widget::after {
+  content: "SOS";
+  font-family: var(--font-hud);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #ff4444;
+  opacity: 0.75;
 }
 @keyframes sos-pulse {
   0%, 100% { box-shadow: 0 0 12px rgba(255,40,40,0.3); }
@@ -4097,9 +4108,10 @@ body::after {
 }
 .desktop-icon-label {
   font-family: var(--font-body);
-  font-size: 11px;
-  color: var(--text);
-  text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+  font-size: 12px;         /* ↑ era 11px — +1px melhora leitura em low-light */
+  font-weight: 500;        /* ↑ era normal — mais legível em fundo escuro */
+  color: var(--text-bright);
+  text-shadow: 0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.6);
   line-height: 1.3;
   max-width: 80px;
   overflow: hidden;
@@ -4120,26 +4132,27 @@ body::after {
   position: absolute;
   display: flex; flex-direction: column;
   background: rgba(4,10,16,0.94);
-  border: 1px solid var(--border-bright);
+  /* Inactive: border mais escuro para recuar visualmente */
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow:
-    0 8px 40px rgba(0,0,0,0.6),
-    0 0 1px rgba(0,212,255,0.2),
-    inset 0 1px 0 rgba(0,212,255,0.06);
+    0 4px 20px rgba(0,0,0,0.5),
+    inset 0 1px 0 rgba(0,212,255,0.03);
   overflow: hidden;
   pointer-events: auto;
-  transition: box-shadow 0.2s;
+  transition: box-shadow 0.2s, border-color 0.2s;
   min-width: 320px;
   min-height: 200px;
 }
 
+/* Active: border ciano cheio + glow mais forte */
 .os-window-focused {
   border-color: var(--accent);
   box-shadow:
     0 12px 60px rgba(0,0,0,0.7),
-    0 0 20px rgba(0,212,255,0.08),
-    0 0 1px var(--accent),
-    inset 0 1px 0 rgba(0,212,255,0.1);
+    0 0 24px rgba(0,212,255,0.12),
+    0 0 2px var(--accent),
+    inset 0 1px 0 rgba(0,212,255,0.12);
 }
 
 /* ── Window opening animation ── */
@@ -4167,15 +4180,17 @@ body::after {
   height: 36px;
   min-height: 36px;
   padding: 0 8px 0 12px;
-  background: linear-gradient(180deg, rgba(0,212,255,0.06) 0%, rgba(0,212,255,0.02) 100%);
-  border-bottom: 1px solid var(--border);
+  /* Inactive: quase invisível */
+  background: linear-gradient(180deg, rgba(0,212,255,0.03) 0%, transparent 100%);
+  border-bottom: 1px solid var(--border-subtle);
   cursor: default;
   user-select: none;
   gap: 8px;
+  transition: background 0.2s, border-color 0.2s;
 }
 
 .os-window-focused .os-window-titlebar {
-  background: linear-gradient(180deg, rgba(0,212,255,0.1) 0%, rgba(0,212,255,0.03) 100%);
+  background: linear-gradient(180deg, rgba(0,212,255,0.11) 0%, rgba(0,212,255,0.03) 100%);
   border-bottom-color: var(--border-bright);
 }
 
@@ -4206,7 +4221,9 @@ body::after {
 }
 
 .os-win-btn {
-  width: 28px; height: 24px;
+  /* Hitbox 32×32 para touch — visual interno menor */
+  width: 32px; height: 32px;
+  padding: 0;
   background: transparent;
   border: none;
   color: var(--text-muted);
@@ -4214,9 +4231,11 @@ body::after {
   font-family: var(--font-body);
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  border-radius: 3px;
+  border-radius: 4px;
   transition: background var(--t), color var(--t);
   line-height: 1;
+  /* Garantir área mínima de toque */
+  min-width: 32px; min-height: 32px;
 }
 .os-win-btn:hover {
   background: rgba(0,212,255,0.12);
@@ -4819,6 +4838,16 @@ body::after {
   .lp-search input { font-size: 14px; }
   .lp-tabs { margin-bottom: 16px; }
   .lp-footer-hint { display: none; }
+}
+
+/* 4K / HiDPI — tiles crescem para preencher tela melhor */
+@media (min-width: 2200px) {
+  .lp-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 22px 16px; }
+  .lp-tile-icon { width: 90px; height: 90px; font-size: 48px; border-radius: 22px; }
+  .lp-tile-label { font-size: 14px; }
+  .desktop-icon-img { font-size: 48px; }
+  .desktop-icon-label { font-size: 14px; }
+  .desktop-icon { width: 110px; }
 }
 
 .start-menu-header {
@@ -6944,6 +6973,34 @@ body {
   flex-direction: column;
   overflow: hidden;
 }
+
+/* Banner observacional — aparece uma vez */
+.weather-obs-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  background: rgba(0,212,255,0.07);
+  border-bottom: 1px solid rgba(0,212,255,0.18);
+  font-size: 12px;
+  color: var(--text);
+  flex-shrink: 0;
+}
+.weather-obs-icon { font-size: 16px; flex-shrink: 0; }
+.weather-obs-text { flex: 1; line-height: 1.4; }
+.weather-obs-text strong { color: var(--accent); }
+.weather-obs-close {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  transition: color var(--t);
+}
+.weather-obs-close:hover { color: var(--text-bright); }
 
 .weather-tabs {
   display: flex;
