@@ -26,6 +26,7 @@ import {
   openShortcuts, closeShortcuts,
   registerAppOpen, registerAppClose,
   initWindowManagerEvents,
+  getIconTheme, setIconTheme, renderAppIcon,
 } from './windowManager.js';
 
 import {
@@ -73,6 +74,7 @@ const globals = {
   osToast, closeParentWindow, openSavedApp,
   openSpotlight, closeSpotlight,
   openShortcuts, closeShortcuts,
+  getIconTheme, setIconTheme, renderAppIcon,
 
   // Chat
   renderChatList, switchChat, restoreChat,
@@ -127,6 +129,9 @@ function loadAppsScript() {
 }
 
 async function boot() {
+  // 0. Init icon theme (pre-load sprite if saved theme requires it)
+  setIconTheme(getIconTheme(), true);
+
   // 1. Load persisted data
   loadPersistedData();
 

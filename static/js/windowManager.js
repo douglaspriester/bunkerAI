@@ -2,6 +2,149 @@
 
 import { state, storage, escapeHtml } from './state.js';
 
+// ─── Icon Theme System ───────────────────────────────────────────────────────
+// Mapeia appId → nome do ícone em cada biblioteca.
+// 'emoji' usa o campo icon: do OS_APPS (padrão atual).
+// 'lucide' usa data-lucide="name" + lucide.createIcons().
+// 'tabler' / 'phosphor' usam SVG sprite com <use href="#id">.
+
+const _ICON_MAP = {
+  chat:        { lucide: 'bot',               tabler: 'robot',               phosphor: 'robot' },
+  guides:      { lucide: 'book-open',         tabler: 'book-2',              phosphor: 'book-open' },
+  protocols:   { lucide: 'triangle-alert',    tabler: 'alert-triangle',      phosphor: 'siren' },
+  supplies:    { lucide: 'package',           tabler: 'package',             phosphor: 'package' },
+  journal:     { lucide: 'notebook',          tabler: 'notebook',            phosphor: 'notebook' },
+  firstaid:    { lucide: 'heart-pulse',       tabler: 'heart-rate-monitor',  phosphor: 'first-aid' },
+  map:         { lucide: 'map',               tabler: 'map-2',               phosphor: 'map-trifold' },
+  notepad:     { lucide: 'file-text',         tabler: 'file-text',           phosphor: 'note' },
+  books:       { lucide: 'library',           tabler: 'books',               phosphor: 'books' },
+  games:       { lucide: 'gamepad-2',         tabler: 'device-gamepad-2',    phosphor: 'game-controller' },
+  wiki:        { lucide: 'globe',             tabler: 'world',               phosphor: 'globe' },
+  library:     { lucide: 'download',          tabler: 'download',            phosphor: 'download-simple' },
+  builder:     { lucide: 'hammer',            tabler: 'tool',                phosphor: 'wrench' },
+  characters:  { lucide: 'theater',           tabler: 'masks-theater',       phosphor: 'theater-masks' },
+  tts:         { lucide: 'volume-2',          tabler: 'volume',              phosphor: 'speaker-high' },
+  word:        { lucide: 'file-text',         tabler: 'file-description',    phosphor: 'file-text' },
+  excel:       { lucide: 'table-2',           tabler: 'table',               phosphor: 'table' },
+  sysmon:      { lucide: 'monitor',           tabler: 'cpu',                 phosphor: 'monitor' },
+  calc:        { lucide: 'calculator',        tabler: 'calculator',          phosphor: 'calculator' },
+  timer:       { lucide: 'timer',             tabler: 'timer',               phosphor: 'timer' },
+  converter:   { lucide: 'arrows-right-left', tabler: 'switch-horizontal',   phosphor: 'arrows-left-right' },
+  checklist:   { lucide: 'list-checks',       tabler: 'checklist',           phosphor: 'check-square' },
+  morse:       { lucide: 'radio',             tabler: 'radio',               phosphor: 'radio' },
+  radio:       { lucide: 'radio',             tabler: 'antenna',             phosphor: 'broadcast' },
+  phonetic:    { lucide: 'mic',               tabler: 'microphone',          phosphor: 'microphone' },
+  sun:         { lucide: 'sun',               tabler: 'sun',                 phosphor: 'sun' },
+  waterCalc:   { lucide: 'droplets',          tabler: 'droplet',             phosphor: 'drop' },
+  media:       { lucide: 'music',             tabler: 'music',               phosphor: 'music-notes' },
+  tasks:       { lucide: 'clipboard-list',    tabler: 'list-check',          phosphor: 'clipboard-text' },
+  fileManager: { lucide: 'folder-open',       tabler: 'folder-open',         phosphor: 'folder-open' },
+  paint:       { lucide: 'palette',           tabler: 'palette',             phosphor: 'paint-brush' },
+  imagine:     { lucide: 'image',             tabler: 'photo-ai',            phosphor: 'image' },
+  survRef:     { lucide: 'book-marked',       tabler: 'book-bookmark',       phosphor: 'book-bookmark' },
+  modelMgr:    { lucide: 'brain',             tabler: 'brain',               phosphor: 'brain' },
+  companion:   { lucide: 'bot',               tabler: 'robot',               phosphor: 'robot' },
+  weather:     { lucide: 'cloud-sun',         tabler: 'cloud-sun',           phosphor: 'cloud-sun' },
+  pendrive:    { lucide: 'usb',               tabler: 'usb',                 phosphor: 'usb' },
+  crypto:      { lucide: 'lock',              tabler: 'lock',                phosphor: 'lock-key' },
+  rations:     { lucide: 'utensils',          tabler: 'soup',                phosphor: 'fork-knife' },
+  plants:      { lucide: 'leaf',              tabler: 'leaf',                phosphor: 'plant' },
+  navigation:  { lucide: 'compass',           tabler: 'compass',             phosphor: 'compass' },
+  pharmacy:    { lucide: 'pill',              tabler: 'pill',                phosphor: 'pill' },
+  shelter:     { lucide: 'tent',              tabler: 'tent',                phosphor: 'tent' },
+  energy:      { lucide: 'zap',              tabler: 'bolt',                phosphor: 'lightning' },
+  settings:    { lucide: 'settings',          tabler: 'settings',            phosphor: 'gear' },
+};
+
+let _iconTheme = localStorage.getItem('bunker_icon_theme') || 'lucide';
+const _spritesLoaded = {};
+
+function _loadLucide() {
+  if (typeof lucide !== 'undefined') return Promise.resolve();
+  return new Promise(resolve => {
+    const s = document.createElement('script');
+    s.src = './lib/lucide.min.js';
+    s.onload = resolve;
+    s.onerror = resolve;
+    document.head.appendChild(s);
+  });
+}
+
+function _loadSprite(id, url) {
+  if (_spritesLoaded[id] || document.getElementById(id)) { _spritesLoaded[id] = true; return Promise.resolve(); }
+  return fetch(url)
+    .then(r => r.text())
+    .then(text => {
+      const div = document.createElement('div');
+      div.id = id;
+      div.setAttribute('aria-hidden', 'true');
+      div.style.cssText = 'display:none;position:absolute;width:0;height:0;overflow:hidden';
+      div.innerHTML = text;
+      document.body.insertAdjacentElement('afterbegin', div);
+      _spritesLoaded[id] = true;
+    })
+    .catch(() => {});
+}
+
+export function getIconTheme() { return _iconTheme; }
+
+export function setIconTheme(theme, skipSave) {
+  const _doRender = () => {
+    _iconTheme = theme;
+    if (!skipSave) localStorage.setItem('bunker_icon_theme', theme);
+    renderDesktopIcons();
+    if (document.getElementById('startMenuApps')?.style.display !== 'none') {
+      renderStartMenu();
+    }
+    document.querySelectorAll('.icon-theme-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.theme === theme);
+    });
+  };
+  if (theme === 'lucide') {
+    _loadLucide().then(_doRender);
+  } else if (theme === 'tabler') {
+    _loadSprite('bunker-tabler-sprite', './lib/tabler-sprite.svg').then(_doRender);
+  } else if (theme === 'phosphor') {
+    _loadSprite('bunker-phosphor-sprite', './lib/phosphor-sprite.svg').then(_doRender);
+  } else {
+    _doRender();
+  }
+}
+
+/** Retorna HTML do ícone para um appId no tema atual */
+export function renderAppIcon(appId, fallbackEmoji, size = 32) {
+  const map = _ICON_MAP[appId];
+  if (!map || _iconTheme === 'emoji') {
+    return `<span class="icon-emoji" style="font-size:${size}px">${fallbackEmoji}</span>`;
+  }
+  if (_iconTheme === 'lucide') {
+    const name = map.lucide;
+    return `<svg data-lucide="${name}" class="icon-svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"></svg>`;
+  }
+  if (_iconTheme === 'tabler') {
+    const name = map.tabler;
+    return `<svg class="icon-svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><use href="#ti-${name}"></use></svg>`;
+  }
+  if (_iconTheme === 'phosphor') {
+    const name = map.phosphor;
+    return `<svg class="icon-svg" width="${size}" height="${size}" viewBox="0 0 256 256" fill="currentColor"><use href="#ph-${name}"></use></svg>`;
+  }
+  return `<span class="icon-emoji" style="font-size:${size}px">${fallbackEmoji}</span>`;
+}
+
+/** Chama lucide.createIcons() no container dado, se necessário */
+function _activateIcons(container) {
+  if (_iconTheme !== 'lucide') return;
+  const _run = () => {
+    if (typeof lucide !== 'undefined') {
+      if (container) lucide.createIcons({ nodes: [container] });
+      else lucide.createIcons();
+    }
+  };
+  if (typeof lucide !== 'undefined') _run();
+  else _loadLucide().then(_run);
+}
+
 // ─── App Registry ───────────────────────────────────────────────────────────
 export const OS_APPS = [
   { id: 'chat',       name: 'AI Chat',        icon: '\u{1F916}', width: 850, height: 620, viewId: 'chatView' },
@@ -507,7 +650,7 @@ export function renderDesktopIcons() {
     icon.setAttribute('aria-label', `Abrir ${app.name}`);
     icon.title = app.name; // Full name as tooltip
     icon.innerHTML = `
-      <div class="desktop-icon-img" aria-hidden="true">${app.icon}</div>
+      <div class="desktop-icon-img" aria-hidden="true">${renderAppIcon(app.id, app.icon, 32)}</div>
       <div class="desktop-icon-label">${shortName}</div>
     `;
     icon.ondblclick = () => {
@@ -567,6 +710,7 @@ export function renderDesktopIcons() {
 
     container.appendChild(icon);
   }
+  _activateIcons(container);
 }
 
 // ─── Start Menu ─────────────────────────────────────────────────────────────
@@ -629,7 +773,7 @@ function _makeLaunchpadTile(app) {
   tile.setAttribute('aria-label', app.name);
   tile.title = app.name;
   tile.innerHTML = `
-    <span class="lp-tile-icon" aria-hidden="true">${app.icon}</span>
+    <span class="lp-tile-icon" aria-hidden="true">${renderAppIcon(app.id, app.icon, 42)}</span>
     <span class="lp-tile-label">${app.name}</span>
     ${running ? '<span class="lp-tile-dot" aria-label="Em execucao"></span>' : ''}
   `;
@@ -734,6 +878,7 @@ function renderStartMenu() {
   `;
   container.appendChild(footer);
 
+  _activateIcons(container);
   setTimeout(() => { const sb = document.getElementById('startMenuSearch'); if (sb) sb.focus(); }, 50);
 }
 

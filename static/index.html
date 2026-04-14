@@ -646,6 +646,20 @@
       </div>
 
       <!-- ─── Acessibilidade ─── -->
+      <!-- ─── Ícones ─── -->
+      <div class="config-section">
+        <div class="config-section-title">Ícones</div>
+        <div class="config-field">
+          <label>Tema de Ícones</label>
+          <div class="icon-theme-group" role="radiogroup" aria-label="Tema de ícones">
+            <button class="icon-theme-btn" data-theme="emoji"    onclick="setIconTheme('emoji')"    title="Emojis" aria-label="Emojis">😀 Emoji</button>
+            <button class="icon-theme-btn active" data-theme="lucide"   onclick="setIconTheme('lucide')"   title="Lucide (padrão)" aria-label="Lucide">✦ Lucide</button>
+            <button class="icon-theme-btn" data-theme="tabler"   onclick="setIconTheme('tabler')"   title="Tabler Icons" aria-label="Tabler">◈ Tabler</button>
+            <button class="icon-theme-btn" data-theme="phosphor" onclick="setIconTheme('phosphor')" title="Phosphor Icons" aria-label="Phosphor">❋ Phosphor</button>
+          </div>
+        </div>
+      </div>
+
       <div class="config-section">
         <div class="config-section-title">Acessibilidade</div>
         <div class="config-field">
@@ -3404,6 +3418,8 @@
   <script src="./lib/jszip.min.js"></script>
   <script src="./lib/epub.min.js"></script>
   <script src="./lib/minisearch.min.js"></script>
+  <!-- Lucide icons (loaded on demand by icon theme system) -->
+  <script src="./lib/lucide.min.js"></script>
   <!-- Import map: lets three-vrm and GLTFLoader resolve bare "three" specifier -->
   <script type="importmap">
   { "imports": { "three": "./lib/three.module.min.js" } }

@@ -1,0 +1,966 @@
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+<!--
+tags: [technology, ai, machine, bot, android, robot, entertainment, playing, recreation, fun]
+category: Games
+version: "1.53"
+unicode: "f00b"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M6 6a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v4a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2l0 -4" />
+  <path d="M12 2v2" />
+  <path d="M9 12v9" />
+  <path d="M15 12v9" />
+  <path d="M5 16l4 -2" />
+  <path d="M15 14l4 2" />
+  <path d="M9 18h6" />
+  <path d="M10 8v.01" />
+  <path d="M14 8v.01" />
+</symbol>
+
+<!--
+tags: [read, dictionary, magazine, library, booklet, novel, book, file, paper, text]
+category: Document
+version: "1.50"
+unicode: "efc5"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M19 4v16h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h12" />
+  <path d="M19 16h-12a2 2 0 0 0 -2 2" />
+  <path d="M9 8h6" />
+</symbol>
+
+<!--
+tags: [warning, danger, caution, risk, alert, triangle, control, operation, function, interface]
+category: System
+version: "1.0"
+unicode: "ea06"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M12 9v4" />
+  <path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0" />
+  <path d="M12 16h.01" />
+</symbol>
+
+<!--
+tags: [npm, box, container, package, store, purchase, shopping, retail, business]
+category: E-commerce
+version: "1.0"
+unicode: "eaff"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M12 3l8 4.5l0 9l-8 4.5l-8 -4.5l0 -9l8 -4.5" />
+  <path d="M12 12l8 -4.5" />
+  <path d="M12 12l0 9" />
+  <path d="M12 12l-8 -4.5" />
+  <path d="M16 5.25l-8 4.5" />
+</symbol>
+
+<!--
+tags: [study, learn, diary, write, journal, page, paper, jot down, notebook, file]
+category: Document
+version: "1.3"
+unicode: "eb96"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M6 4h11a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-11a1 1 0 0 1 -1 -1v-14a1 1 0 0 1 1 -1m3 0v18" />
+  <path d="M13 8l2 0" />
+  <path d="M13 12l2 0" />
+</symbol>
+
+<!--
+tags: [medical, pulse, health, hospital, healthcare, heart, rate, monitor, wellness, love]
+category: Health
+version: "1.44"
+unicode: "ef61"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M3 5a1 1 0 0 1 1 -1h16a1 1 0 0 1 1 1v10a1 1 0 0 1 -1 1h-16a1 1 0 0 1 -1 -1l0 -10" />
+  <path d="M7 20h10" />
+  <path d="M9 16v4" />
+  <path d="M15 16v4" />
+  <path d="M7 10h2l2 3l2 -6l1 3h3" />
+</symbol>
+
+<!--
+tags: [navigation, location, travel, pin, position, marker, map, geography, place, 2]
+category: Map
+version: "1.0"
+unicode: "eae7"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M12 18.5l-3 -1.5l-6 3v-13l6 -3l6 3l6 -3v7.5" />
+  <path d="M9 4v13" />
+  <path d="M15 7v5.5" />
+  <path d="M21.121 20.121a3 3 0 1 0 -4.242 0c.418 .419 1.125 1.045 2.121 1.879c1.051 -.89 1.759 -1.516 2.121 -1.879" />
+  <path d="M19 18v.01" />
+</symbol>
+
+<!--
+tags: [data, pdf, txt, file, text, document, content, record, paper, information]
+category: Document
+version: "1.0"
+unicode: "eaa2"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M14 3v4a1 1 0 0 0 1 1h4" />
+  <path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2" />
+  <path d="M9 9l1 0" />
+  <path d="M9 13l6 0" />
+  <path d="M9 17l6 0" />
+</symbol>
+
+<!--
+tags: [education, learning, reading, school, library, books, file, paper, text, record]
+category: Document
+version: "1.52"
+unicode: "eff2"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M5 5a1 1 0 0 1 1 -1h2a1 1 0 0 1 1 1v14a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1l0 -14" />
+  <path d="M9 5a1 1 0 0 1 1 -1h2a1 1 0 0 1 1 1v14a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1l0 -14" />
+  <path d="M5 8h4" />
+  <path d="M9 16h4" />
+  <path d="M13.803 4.56l2.184 -.53c.562 -.135 1.133 .19 1.282 .732l3.695 13.418a1.02 1.02 0 0 1 -.634 1.219l-.133 .041l-2.184 .53c-.562 .135 -1.133 -.19 -1.282 -.732l-3.695 -13.418a1.02 1.02 0 0 1 .634 -1.219l.133 -.041" />
+  <path d="M14 9l4 -1" />
+  <path d="M16 16l3.923 -.98" />
+</symbol>
+
+<!--
+tags: [game, play, entertainment, console, joystick, joypad, controller, device, gamepad, hardware]
+category: Devices
+version: "1.68"
+unicode: "f1d2"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M12 5h3.5a5 5 0 0 1 0 10h-5.5l-4.015 4.227a2.3 2.3 0 0 1 -3.923 -2.035l1.634 -8.173a5 5 0 0 1 4.904 -4.019h3.4" />
+  <path d="M14 15l4.07 4.284a2.3 2.3 0 0 0 3.925 -2.023l-1.6 -8.232" />
+  <path d="M8 9v2" />
+  <path d="M7 10h2" />
+  <path d="M14 10h2" />
+</symbol>
+
+<!--
+tags: [earth, globe, global, language, union, world, location, navigation, geography, place]
+category: Map
+version: "1.0"
+unicode: "eb54"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0" />
+  <path d="M3.6 9h16.8" />
+  <path d="M3.6 15h16.8" />
+  <path d="M11.5 3a17 17 0 0 0 0 18" />
+  <path d="M12.5 3a17 17 0 0 1 0 18" />
+</symbol>
+
+<!--
+tags: [preferences, edit, settings, tool, control, operation, function, interface, management]
+category: System
+version: "1.0"
+unicode: "eb40"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M7 10h3v-3l-3.5 -3.5a6 6 0 0 1 8 8l6 6a2 2 0 0 1 -3 3l-6 -6a6 6 0 0 1 -8 -8l3.5 3.5" />
+</symbol>
+
+<!--
+tags: [cinema, comedy, acting, face, art, masks, theater, location, navigation, geography]
+category: Map
+version: "1.76"
+unicode: "f263"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M13.192 9h6.616a2 2 0 0 1 1.992 2.183l-.567 6.182a4 4 0 0 1 -3.983 3.635h-1.5a4 4 0 0 1 -3.983 -3.635l-.567 -6.182a2 2 0 0 1 1.992 -2.183" />
+  <path d="M15 13h.01" />
+  <path d="M18 13h.01" />
+  <path d="M15 16.5c1 .667 2 .667 3 0" />
+  <path d="M8.632 15.982a4.037 4.037 0 0 1 -.382 .018h-1.5a4 4 0 0 1 -3.983 -3.635l-.567 -6.182a2 2 0 0 1 1.992 -2.183h6.616a2 2 0 0 1 2 2" />
+  <path d="M6 8h.01" />
+  <path d="M9 8h.01" />
+  <path d="M6 12c.764 -.51 1.528 -.63 2.291 -.36" />
+</symbol>
+
+<!--
+tags: [music, sound, speaker, volume, content, entertainment, multimedia, broadcast, audio, accessibility, a11y, hearing]
+category: Media
+version: "1.0"
+unicode: "eb51"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M15 8a5 5 0 0 1 0 8" />
+  <path d="M17.7 5a9 9 0 0 1 0 14" />
+  <path d="M6 15h-2a1 1 0 0 1 -1 -1v-4a1 1 0 0 1 1 -1h2l3.5 -4.5a.8 .8 0 0 1 1.5 .5v14a.8 .8 0 0 1 -1.5 .5l-3.5 -4.5" />
+</symbol>
+
+<!--
+tags: [text, paper, report, details, job, file, description, document, data, content]
+category: Document
+version: "1.55"
+unicode: "f028"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M14 3v4a1 1 0 0 0 1 1h4" />
+  <path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2" />
+  <path d="M9 17h6" />
+  <path d="M9 13h6" />
+</symbol>
+
+<!--
+tags: [spreadsheet, layout, grid, arrange, row, column, table, storage, repository, records]
+category: Database
+version: "1.3"
+unicode: "eba1"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M3 5a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-14" />
+  <path d="M3 10h18" />
+  <path d="M10 3v18" />
+</symbol>
+
+<!--
+tags: [processor, computer, chip, hardware, technology, electronic, cpu, gadget, equipment]
+category: Devices
+version: "1.47"
+unicode: "ef8e"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M5 6a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1l0 -12" />
+  <path d="M9 9h6v6h-6l0 -6" />
+  <path d="M3 10h2" />
+  <path d="M3 14h2" />
+  <path d="M10 3v2" />
+  <path d="M14 3v2" />
+  <path d="M21 10h-2" />
+  <path d="M21 14h-2" />
+  <path d="M14 21v-2" />
+  <path d="M10 21v-2" />
+</symbol>
+
+<!--
+tags: [math, count, add, subtract, multiply, divide, amount, calculator, hardware, technology]
+category: Devices
+version: "1.3"
+unicode: "eb80"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M4 5a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2l0 -14" />
+  <path d="M8 8a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1v1a1 1 0 0 1 -1 1h-6a1 1 0 0 1 -1 -1l0 -1" />
+  <path d="M8 14l0 .01" />
+  <path d="M12 14l0 .01" />
+  <path d="M16 14l0 .01" />
+  <path d="M8 17l0 .01" />
+  <path d="M12 17l0 .01" />
+  <path d="M16 17l0 .01" />
+</symbol>
+
+<!-- timer: HTTP Error 404: Not Found -->
+<!--
+tags: [toggle, left, right, arrows, switch, horizontal, navigation, flow, movement, route]
+category: Arrows
+version: "1.0"
+unicode: "eb31"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M16 3l4 4l-4 4" />
+  <path d="M10 7l10 0" />
+  <path d="M8 13l-4 4l4 4" />
+  <path d="M4 17l9 0" />
+</symbol>
+
+<!--
+category: System
+tags: [task, delivery, clipboard, document, plan, checklist, confirm, approve]
+version: "1.59"
+unicode: "f074"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M9.615 20h-2.615a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v8" />
+  <path d="M14 19l2 2l4 -4" />
+  <path d="M9 8h4" />
+  <path d="M9 12h2" />
+</symbol>
+
+<!--
+tags: [music, news, sound, broadcost, communication, station, radio, content, entertainment, multimedia]
+category: Media
+version: "1.41"
+unicode: "ef2d"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M14 3l-9.371 3.749a1 1 0 0 0 -.629 .928v11.323a1 1 0 0 0 1 1h14a1 1 0 0 0 1 -1v-11a1 1 0 0 0 -1 -1h-14.5" />
+  <path d="M4 12h16" />
+  <path d="M7 12v-2" />
+  <path d="M17 16v.01" />
+  <path d="M13 16v.01" />
+</symbol>
+
+<!--
+tags: [reach, tv, network, connetion, signal, communication, antenna, hardware, technology, electronic]
+category: Devices
+version: "1.61"
+unicode: "f094"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M20 4v8" />
+  <path d="M16 4.5v7" />
+  <path d="M12 5v16" />
+  <path d="M8 5.5v5" />
+  <path d="M4 6v4" />
+  <path d="M20 8h-16" />
+</symbol>
+
+<!--
+tags: [record, sound, listen, microphone, content, entertainment, multimedia, broadcast, audio]
+category: Media
+version: "1.0"
+unicode: "eaf0"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M9 5a3 3 0 0 1 3 -3a3 3 0 0 1 3 3v5a3 3 0 0 1 -3 3a3 3 0 0 1 -3 -3l0 -5" />
+  <path d="M5 10a7 7 0 0 0 14 0" />
+  <path d="M8 21l8 0" />
+  <path d="M12 17l0 4" />
+</symbol>
+
+<!--
+tags: [weather, light, mode, brightness, sun, climate, forecast, meteorology, atmospheric, conditions]
+category: Weather
+version: "1.0"
+unicode: "eb30"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M8 12a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" />
+  <path d="M3 12h1m8 -9v1m8 8h1m-9 8v1m-6.4 -15.4l.7 .7m12.1 -.7l-.7 .7m0 11.4l.7 .7m-12.1 -.7l-.7 .7" />
+</symbol>
+
+<!--
+tags: [water, rain, liquid, droplet, creative, artistic, visual, aesthetic, style]
+category: Design
+version: "1.0"
+unicode: "ea97"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M7.502 19.423c2.602 2.105 6.395 2.105 8.996 0c2.602 -2.105 3.262 -5.708 1.566 -8.546l-4.89 -7.26c-.42 -.625 -1.287 -.803 -1.936 -.397a1.376 1.376 0 0 0 -.41 .397l-4.893 7.26c-1.695 2.838 -1.035 6.441 1.567 8.546" />
+</symbol>
+
+<!--
+tags: [sound, mp3, album, speakers, melody, music, content, entertainment, multimedia, broadcast]
+category: Media
+version: "1.0"
+unicode: "eafc"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M3 17a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" />
+  <path d="M13 17a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" />
+  <path d="M9 17v-13h10v13" />
+  <path d="M9 8h10" />
+</symbol>
+
+<!--
+tags: [to-do, checklist, form, template, task, reminder, schedule, agenda, list, check]
+category: Text
+version: "1.2"
+unicode: "eb6a"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M3.5 5.5l1.5 1.5l2.5 -2.5" />
+  <path d="M3.5 11.5l1.5 1.5l2.5 -2.5" />
+  <path d="M3.5 17.5l1.5 1.5l2.5 -2.5" />
+  <path d="M11 6l9 0" />
+  <path d="M11 12l9 0" />
+  <path d="M11 18l9 0" />
+</symbol>
+
+<!--
+category: Document
+tags: [access, unseal, uncover, unlock, expose, reveal, unshield, available, accessible, visible]
+version: "2.24"
+unicode: "faf7"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M5 19l2.757 -7.351a1 1 0 0 1 .936 -.649h12.307a1 1 0 0 1 .986 1.164l-.996 5.211a2 2 0 0 1 -1.964 1.625h-14.026a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2h4l3 3h7a2 2 0 0 1 2 2v2" />
+</symbol>
+
+<!--
+tags: [color, paint, painter, picture, board, artist, palette, creative, artistic, visual]
+category: Design
+version: "1.1"
+unicode: "eb01"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M12 21a9 9 0 0 1 0 -18c4.97 0 9 3.582 9 8c0 1.06 -.474 2.078 -1.318 2.828c-.844 .75 -1.989 1.172 -3.182 1.172h-2.5a2 2 0 0 0 -1 3.75a1.3 1.3 0 0 1 -1 2.25" />
+  <path d="M7.5 10.5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+  <path d="M11.5 7.5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+  <path d="M15.5 10.5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+</symbol>
+
+<!--
+tags: [picture, landscape, camera, photo, content, entertainment, ai, multimedia, broadcast, audio]
+category: Media
+version: "2.14"
+unicode: "fa32"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M15 8h.01" />
+  <path d="M10 21h-4a3 3 0 0 1 -3 -3v-12a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v5" />
+  <path d="M3 16l5 -5c.928 -.893 2.072 -.893 3 0l1 1" />
+  <path d="M14 21v-4a2 2 0 1 1 4 0v4" />
+  <path d="M14 19h4" />
+  <path d="M21 15v6" />
+</symbol>
+
+<!-- book-bookmark: HTTP Error 404: Not Found -->
+<!--
+tags: [mind, human, iq, inteligence, organ, brain, medical, wellness, healthcare, treatment]
+category: Health
+version: "1.110"
+unicode: "f59f"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M15.5 13a3.5 3.5 0 0 0 -3.5 3.5v1a3.5 3.5 0 0 0 7 0v-1.8" />
+  <path d="M8.5 13a3.5 3.5 0 0 1 3.5 3.5v1a3.5 3.5 0 0 1 -7 0v-1.8" />
+  <path d="M17.5 16a3.5 3.5 0 0 0 0 -7h-.5" />
+  <path d="M19 9.3v-2.8a3.5 3.5 0 0 0 -7 0" />
+  <path d="M6.5 16a3.5 3.5 0 0 1 0 -7h.5" />
+  <path d="M5 9.3v-2.8a3.5 3.5 0 0 1 7 0v10" />
+</symbol>
+
+<!--
+tags: [technology, ai, machine, bot, android, robot, entertainment, playing, recreation, fun]
+category: Games
+version: "1.53"
+unicode: "f00b"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M6 6a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v4a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2l0 -4" />
+  <path d="M12 2v2" />
+  <path d="M9 12v9" />
+  <path d="M15 12v9" />
+  <path d="M5 16l4 -2" />
+  <path d="M15 14l4 2" />
+  <path d="M9 18h6" />
+  <path d="M10 8v.01" />
+  <path d="M14 8v.01" />
+</symbol>
+
+<!-- cloud-sun: HTTP Error 404: Not Found -->
+<!--
+category: System
+tags: [drive, cable, plug, device, technology, connect, usb]
+version: "1.53"
+unicode: "f00c"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M10 19a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+  <path d="M12 17v-11.5" />
+  <path d="M7 10v3l5 3" />
+  <path d="M12 14.5l5 -2v-2.5" />
+  <path d="M16 10h2v-2h-2l0 2" />
+  <path d="M6 9a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+  <path d="M10 5.5h4l-2 -2.5l-2 2.5" />
+</symbol>
+
+<!--
+tags: [security, password, secure, lock, private, control, operation, protected, closed, function]
+category: System
+version: "1.0"
+unicode: "eae2"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M5 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-6" />
+  <path d="M11 16a1 1 0 1 0 2 0a1 1 0 0 0 -2 0" />
+  <path d="M8 11v-4a4 4 0 1 1 8 0v4" />
+</symbol>
+
+<!--
+tags: [food, cooking, restaurant, bowl, hot, kitchen, soup, meal, cuisine, eating]
+category: Food
+version: "1.41"
+unicode: "ef2e"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M4 11h16a1 1 0 0 1 1 1v.5c0 1.5 -2.517 5.573 -4 6.5v1a1 1 0 0 1 -1 1h-8a1 1 0 0 1 -1 -1v-1c-1.687 -1.054 -4 -5 -4 -6.5v-.5a1 1 0 0 1 1 -1" />
+  <path d="M12 4a2.4 2.4 0 0 0 -1 2a2.4 2.4 0 0 0 1 2" />
+  <path d="M16 4a2.4 2.4 0 0 0 -1 2a2.4 2.4 0 0 0 1 2" />
+  <path d="M8 4a2.4 2.4 0 0 0 -1 2a2.4 2.4 0 0 0 1 2" />
+</symbol>
+
+<!--
+tags: [nature, plant, tree, autumn, fall, greenery, flower, forest, garden, leaf]
+category: Nature
+version: "1.29"
+unicode: "ed4f"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M5 21c.5 -4.5 2.5 -8 7 -10" />
+  <path d="M9 18c6.218 0 10.5 -3.288 11 -12v-2h-4.014c-9 0 -11.986 4 -12 9c0 1 0 3 2 5h3l.014 0" />
+</symbol>
+
+<!--
+tags: [navigation, safari, travel, direction, discover, compass, location, geography, place, position]
+category: Map
+version: "1.0"
+unicode: "ea79"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M8 16l2 -6l6 -2l-2 6l-6 2" />
+  <path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+  <path d="M12 3l0 2" />
+  <path d="M12 19l0 2" />
+  <path d="M3 12l2 0" />
+  <path d="M19 12l2 0" />
+</symbol>
+
+<!--
+tags: [drug, medication, illness, sickness, doctor, prescription, pill, medical, wellness, healthcare]
+category: Health
+version: "1.1"
+unicode: "ec44"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M4.5 12.5l8 -8a4.94 4.94 0 0 1 7 7l-8 8a4.94 4.94 0 0 1 -7 -7" />
+  <path d="M8.5 8.5l7 7" />
+</symbol>
+
+<!--
+tags: [camping, holiday, vacation, outdoor, survival, travel, adventure, tent, location, navigation]
+category: Map
+version: "1.39"
+unicode: "eefb"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M11 14l4 6h6l-9 -16l-9 16h6l4 -6" />
+</symbol>
+
+<!--
+category: Design
+tags: [energy, power, electricity, storm, lightning, flash, bolt, quick, fast, speed]
+version: "1.0"
+unicode: "ea38"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" />
+</symbol>
+
+<!--
+tags: [cog, edit, gear, preferences, tools, settings, config, options, control, operation]
+category: System
+version: "1.0"
+unicode: "eb20"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065" />
+  <path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" />
+</symbol>
+
+<!--
+tags: [save, arrow, download, navigation, flow, movement, route, path]
+category: Arrows
+version: "1.0"
+unicode: "ea96"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2" />
+  <path d="M7 11l5 5l5 -5" />
+  <path d="M12 4l0 12" />
+</symbol>
+
+<!--
+tags: [record, sound, listen, sing, microphone, content, entertainment, multimedia, broadcast, audio]
+category: Media
+version: "1.41"
+unicode: "ef2c"
+-->
+<svg
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M15 12.9a5 5 0 1 0 -3.902 -3.9" />
+  <path d="M15 12.9l-3.902 -3.899l-7.513 8.584a2 2 0 1 0 2.827 2.83l8.588 -7.515" />
+</symbol>
+
+</svg>

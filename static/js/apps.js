@@ -413,6 +413,11 @@ window.settingsInit = function() {
   updateConfigStatus();
   if (typeof checkKokoroStatus === 'function') checkKokoroStatus();
   if (typeof initOfflineToggle === 'function') initOfflineToggle();
+  // Sync icon theme buttons
+  const currentTheme = window.getIconTheme?.() || localStorage.getItem('bunker_icon_theme') || 'lucide';
+  document.querySelectorAll('.icon-theme-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.theme === currentTheme);
+  });
 };
 
 function switchConfigTab(btn) {
