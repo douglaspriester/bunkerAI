@@ -7,6 +7,15 @@
   <a href="README.pt-BR.md">Portugues</a> · <a href="docs/ARCHITECTURE.md">Architecture</a> · <a href="docs/API.md">API Reference</a> · <a href="ROADMAP.md">Roadmap</a>
 </p>
 
+<p align="center">
+  <img src="https://img.shields.io/badge/python-3.10%2B-blue?logo=python&logoColor=white" alt="Python 3.10+">
+  <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
+  <img src="https://img.shields.io/badge/offline-100%25-brightgreen" alt="100% Offline">
+  <img src="https://img.shields.io/badge/LLM-Ollama%20%2F%20llama.cpp-orange" alt="Ollama / llama.cpp">
+  <img src="https://img.shields.io/github/last-commit/douglaspriester/bunkerAI" alt="Last Commit">
+  <img src="https://img.shields.io/github/stars/douglaspriester/bunkerAI?style=social" alt="GitHub Stars">
+</p>
+
 ---
 
 > *"The answer to life, the universe and everything is 42.

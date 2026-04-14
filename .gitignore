@@ -6,6 +6,8 @@ __pycache__/
 .env
 tts_cache/
 generated_apps/
+generated_images/
+phase14-guide/
 static/maps/*.pmtiles
 !static/maps/world_basic.pmtiles
 .claude/

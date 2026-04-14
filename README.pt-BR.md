@@ -1,4 +1,16 @@
-# Bunker AI — DON'T PANIC
+<p align="center">
+  <strong>BUNKER AI — DON'T PANIC</strong><br>
+  <em>Sistema operacional de sobrevivencia com IA 100% local</em>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/python-3.10%2B-blue?logo=python&logoColor=white" alt="Python 3.10+">
+  <img src="https://img.shields.io/badge/license-MIT-green" alt="Licença MIT">
+  <img src="https://img.shields.io/badge/offline-100%25-brightgreen" alt="100% Offline">
+  <img src="https://img.shields.io/badge/LLM-Ollama%20%2F%20llama.cpp-orange" alt="Ollama / llama.cpp">
+  <img src="https://img.shields.io/github/last-commit/douglaspriester/bunkerAI" alt="Último Commit">
+  <img src="https://img.shields.io/github/stars/douglaspriester/bunkerAI?style=social" alt="GitHub Stars">
+</p>
 
 > "A resposta para a vida, o universo e tudo mais e 42.
 > Mas primeiro, certifique-se de que voce sabe onde esta sua toalha."
