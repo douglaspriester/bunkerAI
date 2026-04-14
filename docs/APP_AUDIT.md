@@ -1,6 +1,7 @@
 # Bunker AI — Auditoria de Apps
 
-> Atualizado em Abril 2026. 47 apps registrados, 44 no desktop, 3 hidden/sub-telas.
+> Atualizado em Abril 2026 (v4.1 — polish pre-launch). 47 apps registrados.
+> Desktop redesenhado estilo Apple/iPad: apenas 8 apps essenciais visíveis + Launchpad fullscreen para os demais.
 
 Legenda: ✅ Funcionando | ⚠️ Parcial | ❌ Quebrado / Inacessível
 
@@ -12,8 +13,8 @@ Legenda: ✅ Funcionando | ⚠️ Parcial | ❌ Quebrado / Inacessível
 |-----|--------|--------|
 | **AI Chat** | Chat com LLM local. 6 modos: Geral, Médico, Sobrevivência, Engenharia, Defesa, Psicológico. RAG automático, streaming SSE, anexar arquivos, webcam | ✅ |
 | **Companheiro** | Avatar 3D (Three.js + VRM). Lip-sync, expressões, gestos, idle/think/happy. Fallback geométrico sem WebGL | ✅ |
-| **Personagens** | Gerenciar personalidades do Guide Companion: Deep Thought, TARS, MOTHER, HAL 9000, Ford Prefect, Survivor | ✅ |
-| **Texto p/ Voz** | TTS com 4 engines em cascata: Kokoro (near-human) → Piper → pyttsx3 → edge-tts. Seleção de voz e velocidade | ✅ |
+| **Personagens** | Role-play interno: mini-chat por personagem (TARS, HAL 9000, MOTHER, Deep Thought, Ford Prefect, Survivor) com histórico próprio em localStorage — isolado do chat principal | ✅ |
+| **Texto p/ Voz** | TTS com 4 engines em cascata: Kokoro (near-human, 100% offline, instalação 1-click) → Piper → pyttsx3 → edge-tts. Seleção de voz e velocidade | ✅ |
 | **Gerador IA** | Geração de imagens com modelo local. Histórico, enhancer, download | ⚠️ Requer modelo de imagem |
 | **Modelos IA** | Gerenciador Ollama: listar, baixar, remover, trocar modelo ativo. Registry com 5 modelos recomendados | ✅ |
 | **App Builder** | Gera mini-apps HTML completos via prompt de texto. Apps salvos e reaberráveis como janelas | ✅ |
@@ -54,7 +55,7 @@ Legenda: ✅ Funcionando | ⚠️ Parcial | ❌ Quebrado / Inacessível
 | **Navegação** | Orientação sem GPS: estrelas, bússola solar (sombras), distância a pé, leitura de mapas, relógio, cardeais pelo sol | ✅ |
 | **Rações** | Calculadora de racionamento: calorias por pessoa, dias de suprimento, déficit, ajuste por atividade e clima | ✅ |
 | **Suprimentos** | Inventário com validade, categoria, alerta de estoque baixo, exportar | ✅ |
-| **Clima** | Estação meteorológica: barômetro, nuvens, vento, sinais naturais, previsão local | ⚠️ Requer sensor/API |
+| **Clima** | Previsão observacional sem hardware: identificação de nuvens, vento (Beaufort), sinais naturais, sensação térmica. Aba Barômetro removida na v4.1 (inútil sem sensor) | ✅ |
 
 ---
 
@@ -110,7 +111,7 @@ Legenda: ✅ Funcionando | ⚠️ Parcial | ❌ Quebrado / Inacessível
 | App | Função | Status |
 |-----|--------|--------|
 | **Preparar Pendrive** | Assistente para criar pendrive de sobrevivência bootável. Estima espaço, prepara arquivos, valida | ✅ |
-| **Configurações** | Tema, wallpaper, modelo IA, voz, personalidade, tamanho de fonte, modo offline | ✅ |
+| **Configurações** | Tema, wallpaper, modelo IA, voz, personalidade, tamanho de fonte, modo offline. A partir da v4.1 abre como janela normal (arrastar/minimizar/maximizar) em vez de drawer lateral | ✅ |
 
 ---
 

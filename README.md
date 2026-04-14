@@ -53,7 +53,8 @@ Inspired by *The Hitchhiker's Guide to the Galaxy*, *Interstellar* (TARS), *Alie
 | **Offline Library** | Download ZIM archives: Wikipedia, iFixit, Wikibooks, Stack Overflow, Project Gutenberg, and more |
 | **Survival Tools** | Water purification calculator, first aid, pharmacy, food rationing, shelter builder, plant database |
 | **Maps** | Offline vector maps (PMTiles), GPS tracking, survival markers, celestial navigation |
-| **Desktop** | Draggable windows, taskbar, start menu, wallpapers, keyboard shortcuts, boot screen |
+| **Desktop** | Apple/iPad-style clean desktop with 8 essential apps + fullscreen **Launchpad** (glassmorphism, search, categories) for the rest. Draggable windows, taskbar, start menu, wallpapers, keyboard shortcuts, boot screen |
+| **Role-play** | Chat one-on-one with TARS, HAL 9000, MOTHER, Deep Thought, Ford Prefect or Survivor inside the **Personagens** app — isolated from the main chat, per-character history |
 | **Office** | Notepad, word processor, spreadsheet, paint, file manager, terminal |
 | **Media** | 8 HTML5 games, ROM emulator (GB/GBA/NES), EPUB reader, media player |
 

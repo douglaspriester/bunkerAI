@@ -57,6 +57,10 @@ Inspirado no Guia do Mochileiro das Galaxias, TARS (Interstellar), Mother (Alien
 
 ### Desktop
 - **Interface tipo OS** — Janelas arrastaveis, barra de tarefas, menu iniciar
+- **Desktop estilo Apple/iPad** (v4.1) — 8 apps essenciais na tela + **Launchpad fullscreen** com busca e categorias para os demais
+- **Configuracoes como janela** — arrastar, minimizar, maximizar (antes era drawer lateral)
+- **Role-play com Personagens** — mini-chat isolado por personagem (TARS, HAL, MOTHER, Deep Thought, Ford Prefect, Survivor) com historico proprio
+- **Kokoro TTS 100% offline** — instalacao 1-click (pip + modelo ONNX automaticos)
 - **5 wallpapers** — Incluindo Starfield, Matrix e Aurora
 - **Atalhos de teclado** — Ctrl+K (busca), Alt+Tab, F1 (atalhos), F2 (menu)
 - **Boot screen** — Animacao de inicializacao estilo BIOS

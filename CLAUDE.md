@@ -178,6 +178,17 @@ Desktop icons are defined in `index.html` `#desktop` section.
 Start menu items are in the `#startMenu` section.
 Taskbar pinned items are in `#taskbar`.
 
+### Desktop & Launchpad (v4.1+)
+
+Desktop shows only **8 essential apps** (Chat, Guias, Protocolos, Socorros, Suprimentos, Mapa, Diário, Notas). All other apps live in the **Launchpad** — a fullscreen overlay (macOS/iPadOS style) with glassmorphism, search, and category tabs. Config lives in `windowManager.js`:
+- `DESKTOP_APPS` — array of the 8 essential app IDs (change order here)
+- `APP_CATEGORIES` — grouping for Launchpad tabs (IA, Sobrevivência, Ofício, Ferramentas, Mídia, Sistema)
+- Launchpad render uses `.lp-*` CSS classes in `style.css`
+
+### Settings as a window (v4.1+)
+
+Settings used to be a right-side drawer. It is now a regular `panel-view` window (`#settingsView`) managed by `windowManager.js` (`OS_APPS.settings` has `viewId: 'settingsView'`). `toggleConfig()` is kept as a back-compat alias that calls `openApp('settings')`. `window.settingsInit` runs on open to refresh status + Kokoro/offline toggles.
+
 ### All App IDs (40+)
 
 **AI/Chat**: `chat`, `companion`, `characters`, `tts`
@@ -216,6 +227,8 @@ The floating "Guide" widget (`guide-companion.js`) has 6 AI personalities:
 | `hal` | HAL 9000 | Polite-sinister | Calls everyone Dave |
 | `ford` | Ford Prefect | Casual-alien | Obsessed with towels |
 | `survivor` | Survivor | Direct-military | Tactical, concise |
+
+The **Personagens app** (v4.1+) reuses these 6 personalities as role-play chats. Each card has a "💬 Conversar" button that opens an internal mini-chat (`#rpPane` inside `charactersView`) with per-character history persisted in `localStorage`. This keeps role-play isolated from the main chat. Relevant code in `apps.js`: `openRoleplay`, `sendRoleplayMessage`, `_renderRpMessages`, `_loadRoleplayStore`.
 
 ### 3D Companion Avatar
 
