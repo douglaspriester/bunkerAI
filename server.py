@@ -2986,61 +2986,47 @@ async def kiwix_proxy(path: str, request: Request):
 # ─── ZIM Download Manager ────────────────────────────────────────────────────
 
 ZIM_CATALOG = {
-    "wikipedia_mini": {
-        "name": "Wikipedia Mini",
-        "desc": "Wikipedia resumida (~110K artigos em ingles)",
-        "url": "https://download.kiwix.org/zim/wikipedia/wikipedia_en_all_mini_2024-10.zim",
-        "est_mb": 1100,
-        "category": "encyclopedia",
-    },
     "wikipedia_medicine": {
         "name": "Wikipedia Medicina",
         "desc": "Artigos medicos da Wikipedia (diagnosticos, farmacos, procedimentos)",
-        "url": "https://download.kiwix.org/zim/wikipedia/wikipedia_en_medicine_2024-10.zim",
-        "est_mb": 700,
+        "url": "https://download.kiwix.org/zim/wikipedia/wikipedia_en_medicine_maxi_2026-04.zim",
+        "est_mb": 2100,
         "category": "medical",
     },
     "wikibooks": {
         "name": "Wikibooks",
-        "desc": "Livros abertos: engenharia, agricultura, construcao, ciencias",
-        "url": "https://download.kiwix.org/zim/wikibooks/wikibooks_en_all_2024-10.zim",
-        "est_mb": 600,
+        "desc": "Livros abertos: engenharia, agricultura, construcao, ciencias (sem imagens)",
+        "url": "https://download.kiwix.org/zim/wikibooks/wikibooks_en_all_nopic_2026-01.zim",
+        "est_mb": 2900,
         "category": "education",
-    },
-    "wikihow": {
-        "name": "WikiHow",
-        "desc": "Tutoriais praticos para quase tudo",
-        "url": "https://download.kiwix.org/zim/other/wikihow_en_all_2024-09.zim",
-        "est_mb": 7200,
-        "category": "howto",
-    },
-    "gutenberg": {
-        "name": "Project Gutenberg",
-        "desc": "70.000+ livros de dominio publico",
-        "url": "https://download.kiwix.org/zim/gutenberg/gutenberg_en_all_2023-08.zim",
-        "est_mb": 65000,
-        "category": "books",
     },
     "wikivoyage": {
         "name": "Wikivoyage",
         "desc": "Guia de viagem: informacoes geograficas, culturais, praticas",
-        "url": "https://download.kiwix.org/zim/wikivoyage/wikivoyage_en_all_2024-10.zim",
-        "est_mb": 800,
+        "url": "https://download.kiwix.org/zim/wikivoyage/wikivoyage_en_all_maxi_2026-03.zim",
+        "est_mb": 1000,
         "category": "geography",
+    },
+    "wikipedia_mini": {
+        "name": "Wikipedia Mini",
+        "desc": "Wikipedia completa resumida em ingles (~12 GB)",
+        "url": "https://download.kiwix.org/zim/wikipedia/wikipedia_en_all_mini_2026-03.zim",
+        "est_mb": 12000,
+        "category": "encyclopedia",
     },
     "ifixit": {
         "name": "iFixit",
         "desc": "Manuais de reparo para eletronica, veiculos, equipamentos",
-        "url": "https://download.kiwix.org/zim/ifixit/ifixit_en_all_2023-10.zim",
-        "est_mb": 3000,
+        "url": "https://download.kiwix.org/zim/ifixit/ifixit_en_all_2025-12.zim",
+        "est_mb": 3300,
         "category": "repair",
     },
-    "ted": {
-        "name": "TED Talks",
-        "desc": "Palestras TED com legendas (sem video, texto completo)",
-        "url": "https://download.kiwix.org/zim/ted/ted_en_playlist-how-things-work_2024-06.zim",
-        "est_mb": 150,
-        "category": "education",
+    "gutenberg": {
+        "name": "Project Gutenberg",
+        "desc": "70.000+ livros de dominio publico (~206 GB — requer muito espaco)",
+        "url": "https://download.kiwix.org/zim/gutenberg/gutenberg_en_all_2025-11.zim",
+        "est_mb": 206000,
+        "category": "books",
     },
 }
 

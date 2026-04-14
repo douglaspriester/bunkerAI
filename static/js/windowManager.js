@@ -430,7 +430,7 @@ function saveIconOrder() {
 const DESKTOP_APPS = [
   'chat', 'map', 'wiki', 'guides', 'firstaid', 'supplies',
   'weather', 'rations', 'plants', 'crypto', 'pendrive',
-  'notepad', 'calc', 'settings'
+  'notepad', 'calc', 'books', 'library', 'settings'
 ];
 
 // Short names for desktop icons to avoid truncation
@@ -444,6 +444,8 @@ const DESKTOP_SHORT_NAMES = {
   'settings': 'Config',
   'notepad': 'Notas',
   'crypto': 'Cripto',
+  'books': 'Livros',
+  'library': 'Downloads',
 };
 
 export function renderDesktopIcons() {
