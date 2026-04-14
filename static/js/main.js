@@ -176,7 +176,7 @@ function wireAppCallbacks() {
     journal:    () => window._journalInit?.(),
     tts:        () => window._ttsInit?.(),
     builder:    () => window._builderInit?.(),
-    characters: () => window.renderCharactersList?.(),
+    characters: () => (window.charactersInit?.() ?? window.renderCharactersList?.()),
     map:        () => window._mapInit?.(),
     chat:       () => restoreChat(),
     notepad:    () => window.notepadInit?.(),
@@ -210,6 +210,7 @@ function wireAppCallbacks() {
     shelter: () => window.shelterInit?.(),
     energy: () => window.energyInit?.(),
     radio: () => window.radioInit?.(),
+    settings: () => window.settingsInit?.(),
   };
   Object.entries(openMap).forEach(([appId, fn]) => registerAppOpen(appId, fn));
 

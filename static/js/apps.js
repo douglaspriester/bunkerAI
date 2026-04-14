@@ -373,17 +373,20 @@ function initOfflineToggle() {
   }
 }
 
-// ─── Config Drawer ──────────────────────────────────────────────────────────
+// ─── Config App (janela) ───────────────────────────────────────────────────
+// Backward-compat: mantido o nome toggleConfig() — agora abre a janela de
+// Configurações gerenciada pelo windowManager. A inicialização dos campos
+// (status, Kokoro, offline) acontece via registerAppOpen('settings').
 function toggleConfig() {
-  document.getElementById("configOverlay").classList.toggle("hidden");
-  document.getElementById("configDrawer").classList.toggle("hidden");
-  // Update status when opening
-  if (!document.getElementById("configDrawer").classList.contains("hidden")) {
-    updateConfigStatus();
-    checkKokoroStatus();
-    initOfflineToggle();
+  if (typeof window.openApp === 'function') {
+    window.openApp('settings');
   }
 }
+window.settingsInit = function() {
+  updateConfigStatus();
+  if (typeof checkKokoroStatus === 'function') checkKokoroStatus();
+  if (typeof initOfflineToggle === 'function') initOfflineToggle();
+};
 
 function switchConfigTab(btn) {
   // Legacy no-op — tabs removed, config is now single-scroll
@@ -424,16 +427,16 @@ async function checkKokoroStatus() {
     const d = await r.json();
     if (d.available) {
       if (dot) { dot.className = "kokoro-status-dot ready"; }
-      if (text) text.textContent = "Pronto (offline)";
+      if (text) text.textContent = "Pronto — 100% offline";
       if (btn) { btn.classList.add("downloaded"); btn.innerHTML = "\u2713 Kokoro instalado"; btn.disabled = true; }
     } else if (d.installed && !d.models_downloaded) {
       if (dot) { dot.className = "kokoro-status-dot missing"; }
-      if (text) text.textContent = "Pacote instalado — modelo nao baixado";
-      if (btn) { btn.disabled = false; btn.classList.remove("downloaded"); }
+      if (text) text.textContent = "Pacote instalado — baixar modelo (~300MB)";
+      if (btn) { btn.disabled = false; btn.classList.remove("downloaded"); btn.innerHTML = "\u2193 Baixar modelo Kokoro (~300MB)"; }
     } else {
       if (dot) { dot.className = "kokoro-status-dot missing"; }
-      if (text) text.textContent = "Nao instalado (pip install kokoro-onnx)";
-      if (btn) { btn.disabled = false; btn.classList.remove("downloaded"); }
+      if (text) text.textContent = "Nao instalado";
+      if (btn) { btn.disabled = false; btn.classList.remove("downloaded"); btn.innerHTML = "\u26A1 Instalar Kokoro Offline (1-click)"; }
     }
   } catch {
     if (dot) { dot.className = "kokoro-status-dot error"; }
@@ -441,27 +444,84 @@ async function checkKokoroStatus() {
   }
 }
 
+// 1-click: instala via pip se necessario, depois baixa os modelos e ativa.
 async function downloadKokoroModel() {
   const btn = document.getElementById("kokoroDownloadBtn");
   const prog = document.getElementById("kokoroProgress");
   const fill = document.getElementById("kokoroFill");
   const statusEl = document.getElementById("kokoroProgressStatus");
 
-  if (btn) { btn.disabled = true; btn.textContent = "Baixando..."; }
+  if (btn) { btn.disabled = true; btn.textContent = "Preparando..."; }
   if (prog) prog.classList.remove("hidden");
+  if (fill) fill.style.width = "0%";
 
+  // 1) Verifica status atual
+  let st;
+  try {
+    st = await (await fetch("/api/tts/kokoro/status")).json();
+  } catch (e) {
+    if (statusEl) statusEl.textContent = "Erro: servidor indisponivel";
+    if (btn) { btn.disabled = false; btn.textContent = "Tentar novamente"; }
+    return;
+  }
+
+  // 2) Se pacote nao instalado, roda pip install via endpoint
+  if (!st.installed) {
+    if (statusEl) statusEl.textContent = "Instalando kokoro-onnx via pip...";
+    if (fill) fill.style.width = "15%";
+    try {
+      const r = await fetch("/api/tts/kokoro/install", { method: "POST" });
+      const reader = r.body.getReader();
+      const dec = new TextDecoder();
+      let buf = "";
+      let ok = false;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const lines = buf.split("\n"); buf = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const ev = JSON.parse(line.slice(6));
+            if (ev.status === "installing" || ev.status === "downloading") {
+              if (statusEl) statusEl.textContent = ev.message || "Instalando...";
+            } else if (ev.status === "done") {
+              ok = true;
+              if (statusEl) statusEl.textContent = "Pacote instalado, iniciando download dos modelos...";
+              if (fill) fill.style.width = "30%";
+            } else if (ev.status === "error") {
+              if (statusEl) statusEl.textContent = "Erro: " + (ev.error || "falha na instalacao");
+              if (btn) { btn.disabled = false; btn.textContent = "Tentar novamente"; }
+              return;
+            }
+          } catch {}
+        }
+      }
+      if (!ok) {
+        if (statusEl) statusEl.textContent = "Instalacao nao concluiu.";
+        if (btn) { btn.disabled = false; btn.textContent = "Tentar novamente"; }
+        return;
+      }
+    } catch (e) {
+      if (statusEl) statusEl.textContent = "Erro: " + e.message;
+      if (btn) { btn.disabled = false; btn.textContent = "Tentar novamente"; }
+      return;
+    }
+  }
+
+  // 3) Download dos modelos ONNX + voices.bin
+  if (btn) { btn.textContent = "Baixando modelos..."; }
   try {
     const r = await fetch("/api/tts/kokoro/download", { method: "POST" });
     const reader = r.body.getReader();
     const decoder = new TextDecoder();
     let buf = "";
-
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       buf += decoder.decode(value, { stream: true });
-      const lines = buf.split("\n");
-      buf = lines.pop();
+      const lines = buf.split("\n"); buf = lines.pop();
       for (const line of lines) {
         if (!line.startsWith("data: ")) continue;
         try {
@@ -474,7 +534,7 @@ async function downloadKokoroModel() {
             }
           } else if (ev.status === "done") {
             if (fill) fill.style.width = "100%";
-            if (statusEl) statusEl.textContent = "Kokoro TTS pronto!";
+            if (statusEl) statusEl.textContent = "Kokoro TTS pronto — 100% offline!";
             if (btn) { btn.classList.add("downloaded"); btn.innerHTML = "\u2713 Kokoro instalado"; }
             checkKokoroStatus();
           } else if (ev.status === "error") {
@@ -1523,6 +1583,13 @@ function openCharactersPanel() {
   openApp('characters');
 }
 
+// Sempre inicia na listagem de personagens (role-play recolhido).
+window.charactersInit = function() {
+  document.getElementById('rpPane')?.classList.add('hidden');
+  document.getElementById('charsListPane')?.classList.remove('hidden');
+  renderCharactersList();
+};
+
 function renderCharactersList() {
   const list = document.getElementById("charactersList");
   const chars = Object.values(state.characters);
@@ -1532,21 +1599,181 @@ function renderCharactersList() {
     return;
   }
   list.innerHTML = chars.map(c => `
-    <div class="char-card ${state.activeCharacterId === c.id ? "char-active" : ""}">
+    <div class="char-card">
       <div class="char-emoji" style="background:${c.color || "#42f5a0"}22;border-color:${c.color || "#42f5a0"}44">${c.emoji || "🤖"}</div>
       <div class="char-info">
         <div class="char-name">${escapeHtml(c.name)}${c.builtin ? ' <span class="char-builtin-badge">padrão</span>' : ''}</div>
         <div class="char-desc">${escapeHtml(c.desc || "")}</div>
       </div>
       <div class="char-card-actions">
-        <button class="btn-sm ${state.activeCharacterId === c.id ? "btn-accent" : ""}" onclick="activateCharacter('${c.id}')">
-          ${state.activeCharacterId === c.id ? "✓ Ativo" : "Usar"}
-        </button>
+        <button class="btn-sm btn-accent" onclick="openRoleplay('${c.id}')" title="Iniciar role-play com ${escapeHtml(c.name)}">💬 Conversar</button>
         ${!c.builtin ? `<button class="btn-sm" onclick="showCharacterEditor('${c.id}')">Editar</button>` : ''}
         ${!c.builtin ? `<button class="btn-sm btn-danger-xs" onclick="deleteCharacter('${c.id}')">✕</button>` : ''}
       </div>
     </div>`).join("");
 }
+
+// ─── Role-play chat (dentro do app Personagens) ──────────────────────────
+// state.roleplay = { [charId]: [{role,content}, ...] }
+function _loadRoleplayStore() {
+  if (!state.roleplay) {
+    try { state.roleplay = JSON.parse(storage.get('bunker_roleplay') || '{}'); }
+    catch { state.roleplay = {}; }
+  }
+  return state.roleplay;
+}
+function _saveRoleplayStore() {
+  try { storage.set('bunker_roleplay', JSON.stringify(state.roleplay || {})); } catch {}
+}
+
+window.openRoleplay = function(charId) {
+  const c = state.characters[charId];
+  if (!c) return;
+  state._rpActiveChar = charId;
+  _loadRoleplayStore();
+  // UI swap: hide list pane, show rp pane
+  document.getElementById('charsListPane')?.classList.add('hidden');
+  document.getElementById('rpPane')?.classList.remove('hidden');
+  // Header
+  document.getElementById('rpCharEmoji').textContent = c.emoji || '🤖';
+  document.getElementById('rpCharEmoji').style.background = (c.color || '#42f5a0') + '22';
+  document.getElementById('rpCharEmoji').style.borderColor = (c.color || '#42f5a0') + '66';
+  document.getElementById('rpCharName').textContent = c.name;
+  document.getElementById('rpCharDesc').textContent = c.desc || '';
+  _renderRpMessages();
+  setTimeout(() => document.getElementById('rpInput')?.focus(), 50);
+};
+
+window.exitRoleplay = function() {
+  state._rpActiveChar = null;
+  document.getElementById('rpPane')?.classList.add('hidden');
+  document.getElementById('charsListPane')?.classList.remove('hidden');
+};
+
+window.clearRoleplay = function() {
+  const id = state._rpActiveChar;
+  if (!id) return;
+  if (!confirm('Limpar conversa com este personagem?')) return;
+  if (state.roleplay) delete state.roleplay[id];
+  _saveRoleplayStore();
+  _renderRpMessages();
+};
+
+function _renderRpMessages() {
+  const id = state._rpActiveChar;
+  const box = document.getElementById('rpMessages');
+  if (!box || !id) return;
+  _loadRoleplayStore();
+  const c = state.characters[id];
+  const msgs = (state.roleplay[id] || []);
+  if (msgs.length === 0) {
+    box.innerHTML = `<div class="rp-empty">
+      <div class="rp-empty-emoji">${c?.emoji || '🤖'}</div>
+      <div class="rp-empty-title">${escapeHtml(c?.name || 'Personagem')}</div>
+      <div class="rp-empty-hint">${escapeHtml(c?.desc || 'Inicie a conversa abaixo.')}</div>
+    </div>`;
+    return;
+  }
+  box.innerHTML = msgs.map(m => {
+    const isUser = m.role === 'user';
+    const avatar = isUser ? '🧑' : (c?.emoji || '🤖');
+    const bg = isUser ? '' : `style="background:${(c?.color || '#42f5a0')}14;border-color:${(c?.color || '#42f5a0')}44"`;
+    const html = isUser ? escapeHtml(m.content) : (window.markdownToHtml ? window.markdownToHtml(m.content) : escapeHtml(m.content));
+    return `<div class="rp-msg ${isUser ? 'rp-msg-user' : 'rp-msg-char'}">
+      <div class="rp-avatar" ${bg}>${avatar}</div>
+      <div class="rp-bubble">${html}</div>
+    </div>`;
+  }).join('');
+  box.scrollTop = box.scrollHeight;
+}
+
+window.rpInputKey = function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendRoleplayMessage();
+  }
+};
+
+window.sendRoleplayMessage = async function() {
+  const id = state._rpActiveChar;
+  if (!id) return;
+  const c = state.characters[id];
+  if (!c) return;
+  const input = document.getElementById('rpInput');
+  const text = (input?.value || '').trim();
+  if (!text) return;
+  input.value = '';
+  input.style.height = 'auto';
+
+  _loadRoleplayStore();
+  if (!state.roleplay[id]) state.roleplay[id] = [];
+  state.roleplay[id].push({ role: 'user', content: text });
+  _saveRoleplayStore();
+  _renderRpMessages();
+
+  // Streaming placeholder bubble
+  const box = document.getElementById('rpMessages');
+  const bubbleId = 'rp_tmp_' + Date.now().toString(36);
+  const bg = `style="background:${(c.color || '#42f5a0')}14;border-color:${(c.color || '#42f5a0')}44"`;
+  const placeholder = document.createElement('div');
+  placeholder.className = 'rp-msg rp-msg-char';
+  placeholder.innerHTML = `
+    <div class="rp-avatar" ${bg}>${c.emoji || '🤖'}</div>
+    <div class="rp-bubble" id="${bubbleId}"><span class="typing-indicator"><span></span><span></span><span></span></span></div>`;
+  box.appendChild(placeholder);
+  box.scrollTop = box.scrollHeight;
+  const bubble = document.getElementById(bubbleId);
+
+  // Build messages history (recent 12)
+  const hist = (state.roleplay[id] || []).slice(-12).map(m => ({ role: m.role, content: m.content }));
+  const systemPrompt = (c.systemPrompt || '').trim()
+    || `Voce e ${c.name}. ${c.desc || 'Responda em PT-BR, mantendo a personalidade descrita.'}`;
+  const system = `[MODO ROLE-PLAY] Voce e o personagem "${c.name}". Mantenha a personalidade em TODAS as respostas. Nao quebre o personagem. Responda em primeira pessoa.\n\n${systemPrompt}`;
+
+  const model = (document.getElementById('chatModel')?.value) || null;
+  const body = { model, messages: hist, system, rag: false };
+
+  let full = '';
+  try {
+    const r = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const reader = r.body.getReader();
+    const dec = new TextDecoder();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = dec.decode(value, { stream: true });
+      for (const line of chunk.split('\n')) {
+        if (line.startsWith('data: ')) {
+          try {
+            const d = JSON.parse(line.slice(6));
+            if (d.token) {
+              full += d.token;
+              bubble.textContent = full;
+              box.scrollTop = box.scrollHeight;
+            }
+          } catch {}
+        }
+      }
+    }
+  } catch (e) {
+    bubble.innerHTML = `<em style="color:#f66">Erro: ${escapeHtml(e.message)}. Verifique o modelo em Configurações.</em>`;
+    return;
+  }
+
+  if (full) {
+    bubble.innerHTML = window.markdownToHtml ? window.markdownToHtml(full) : escapeHtml(full);
+    state.roleplay[id].push({ role: 'assistant', content: full });
+    _saveRoleplayStore();
+  } else {
+    bubble.innerHTML = '<em style="color:#888">(sem resposta)</em>';
+  }
+  box.scrollTop = box.scrollHeight;
+};
 
 function renderSidebarCharacters() {
   const list = document.getElementById("charsSidebarList");
@@ -4684,9 +4911,12 @@ function calcNegate() {
 
 // Keyboard support for calculator
 document.addEventListener('keydown', (e) => {
-  // Only if calculator window is active
-  const win = _activeWindowId ? _windows[_activeWindowId] : null;
-  if (!win || win.appId !== 'calc') return;
+  // Only if calculator window is visible and focused
+  const calcView = document.getElementById('calcView');
+  if (!calcView || calcView.classList.contains('hidden')) return;
+  // Don't hijack input elements
+  const tag = document.activeElement?.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return;
   if (e.key >= '0' && e.key <= '9') { calcInput(e.key); e.preventDefault(); }
   else if (e.key === '.') { calcInput('.'); e.preventDefault(); }
   else if (e.key === '+') { calcOp('+'); e.preventDefault(); }
@@ -8545,20 +8775,20 @@ function weatherInit() {
   weatherBuildClouds();
   weatherBuildWind();
   weatherBuildSigns();
-  weatherLoadHistory();
   weatherCalcWindChill();
   weatherCalcHeatIndex();
   weatherBuildChillTable();
 }
 
 function weatherSwitchTab(tab) {
+  // Aba Barometro removida (sem sensor). Redirecionar para Nuvens.
+  if (tab === 'barometer') tab = 'clouds';
   document.querySelectorAll('.weather-tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.weather-panel').forEach(p => p.classList.add('hidden'));
   const tabBtn = document.getElementById('wtab' + tab.charAt(0).toUpperCase() + tab.slice(1));
   const panel = document.getElementById('wpanel' + tab.charAt(0).toUpperCase() + tab.slice(1));
   if (tabBtn) tabBtn.classList.add('active');
   if (panel) panel.classList.remove('hidden');
-  if (tab === 'barometer') weatherDrawChart();
 }
 
 function weatherGetReadings() {

@@ -50,7 +50,7 @@ export const OS_APPS = [
   { id: 'pharmacy', name: 'Farmacia', icon: '\u{1F48A}', width: 760, height: 640, viewId: 'pharmacyView' },
   { id: 'shelter', name: 'Abrigos', icon: '\u26FA', width: 740, height: 620, viewId: 'shelterView' },
   { id: 'energy',  name: 'Energia', icon: '\u26A1', width: 760, height: 640, viewId: 'energyView' },
-  { id: 'settings',   name: 'Configura\u00E7\u00F5es', icon: '\u2699\uFE0F', width: 560, height: 520, viewId: null },
+  { id: 'settings',   name: 'Configura\u00E7\u00F5es', icon: '\u2699\uFE0F', width: 560, height: 640, viewId: 'settingsView' },
 ];
 
 // ─── Window state ───────────────────────────────────────────────────────────
@@ -87,12 +87,6 @@ export function registerAppClose(appId, fn) { _appCloseCallbacks[appId] = fn; }
 
 // ─── Open App ───────────────────────────────────────────────────────────────
 export function openApp(appId) {
-  if (appId === 'settings') {
-    window.toggleConfig?.();
-    closeStartMenu();
-    return;
-  }
-
   const app = OS_APPS.find(a => a.id === appId);
   if (!app) return;
 
@@ -427,24 +421,17 @@ function saveIconOrder() {
   try { localStorage.setItem('bunker_icon_order', JSON.stringify(order)); } catch {}
 }
 
-// Desktop-pinned apps (essentials only — rest accessible via Start Menu)
+// Desktop-pinned apps (ESSENTIALS only — full list accessible via Launchpad).
+// Keep this list short and curated (iPad-style). User can drag-reorder.
 const DESKTOP_APPS = [
-  // IA & Chat
-  'chat', 'companion', 'characters', 'tts', 'imagine', 'modelMgr', 'builder',
-  // Conhecimento
-  'guides', 'protocols', 'wiki', 'books', 'survRef', 'library',
-  // Sobrevivência
-  'firstaid', 'pharmacy', 'shelter', 'supplies', 'map',
-  'radio', 'morse', 'phonetic', 'sun', 'waterCalc',
-  'weather', 'crypto', 'rations', 'plants', 'navigation', 'energy',
-  // Produtividade
-  'notepad', 'word', 'excel', 'tasks', 'checklist', 'journal', 'paint',
-  // Ferramentas
-  'calc', 'timer', 'converter', 'fileManager', 'media', 'sysmon',
-  // Entretenimento
-  'games',
-  // Sistema
-  'pendrive', 'settings'
+  'chat',       // AI Chat (main entry)
+  'guides',     // Guias
+  'protocols',  // Protocolos de emergência
+  'firstaid',   // Primeiros Socorros
+  'supplies',   // Suprimentos
+  'map',        // Mapas
+  'journal',    // Diário
+  'notepad',    // Notas
 ];
 
 // Short names for desktop icons to avoid truncation
@@ -584,14 +571,15 @@ export function renderDesktopIcons() {
 
 // ─── Start Menu ─────────────────────────────────────────────────────────────
 
-// App categories for organized start menu
+// App categories for Launchpad
 const APP_CATEGORIES = [
   { id: 'ai',       label: 'IA & Chat',        icon: '\u{1F9E0}', apps: ['chat', 'companion', 'characters', 'tts', 'imagine', 'modelMgr', 'builder'] },
-  { id: 'prod',     label: 'Produtividade',     icon: '\u{1F4BC}', apps: ['notepad', 'word', 'excel', 'tasks', 'checklist', 'journal', 'paint'] },
-  { id: 'info',     label: 'Conhecimento',      icon: '\u{1F4DA}', apps: ['guides', 'protocols', 'books', 'wiki', 'survRef'] },
+  { id: 'info',     label: 'Conhecimento',      icon: '\u{1F4DA}', apps: ['guides', 'protocols', 'books', 'library', 'wiki', 'survRef'] },
   { id: 'survival', label: 'Sobrevivencia',     icon: '\u26A1',    apps: ['firstaid', 'pharmacy', 'shelter', 'supplies', 'map', 'radio', 'morse', 'phonetic', 'sun', 'waterCalc', 'weather', 'crypto', 'rations', 'plants', 'navigation', 'energy'] },
+  { id: 'prod',     label: 'Produtividade',     icon: '\u{1F4BC}', apps: ['notepad', 'word', 'excel', 'tasks', 'checklist', 'journal', 'paint'] },
   { id: 'tools',    label: 'Ferramentas',       icon: '\u{1F527}', apps: ['calc', 'timer', 'converter', 'fileManager', 'media', 'sysmon'] },
   { id: 'fun',      label: 'Entretenimento',    icon: '\u{1F3AE}', apps: ['games'] },
+  { id: 'sys',      label: 'Sistema',           icon: '\u2699\uFE0F', apps: ['settings', 'pendrive'] },
 ];
 
 let _startMenuIdx = -1;  // keyboard nav index
@@ -615,9 +603,11 @@ function _trackRecentApp(appId) {
 export function toggleStartMenu() {
   const menu = document.getElementById('startMenu');
   if (!menu) return;
+  const willOpen = menu.classList.contains('hidden');
   menu.classList.toggle('hidden');
-  if (!menu.classList.contains('hidden')) {
+  if (willOpen) {
     _startMenuIdx = -1;
+    _activeLaunchpadCat = 'all';
     renderStartMenu();
   }
 }
@@ -627,34 +617,28 @@ export function closeStartMenu() {
   if (menu) menu.classList.add('hidden');
 }
 
-function _makeStartMenuItem(app) {
+let _activeLaunchpadCat = 'all';
+
+function _makeLaunchpadTile(app) {
   const running = Object.values(_windows).some(w => w.appId === app.id);
-  const item = document.createElement('div');
-  item.className = 'start-menu-item';
-  item.dataset.name = app.name.toLowerCase();
-  item.dataset.appId = app.id;
-  item.tabIndex = 0;
-  item.setAttribute('role', 'menuitem');
-  item.setAttribute('aria-label', app.name);
-  item.innerHTML = `
-    <span class="start-menu-item-icon" aria-hidden="true">${app.icon}</span>
-    <span class="start-menu-item-label">${app.name}</span>
-    ${running ? '<span class="start-menu-running-dot" aria-label="Em execucao"></span>' : ''}
+  const tile = document.createElement('button');
+  tile.type = 'button';
+  tile.className = 'lp-tile';
+  tile.dataset.name = app.name.toLowerCase();
+  tile.dataset.appId = app.id;
+  tile.setAttribute('aria-label', app.name);
+  tile.title = app.name;
+  tile.innerHTML = `
+    <span class="lp-tile-icon" aria-hidden="true">${app.icon}</span>
+    <span class="lp-tile-label">${app.name}</span>
+    ${running ? '<span class="lp-tile-dot" aria-label="Em execucao"></span>' : ''}
   `;
-  item.onclick = () => {
+  tile.onclick = () => {
     _trackRecentApp(app.id);
     openApp(app.id);
     closeStartMenu();
   };
-  item.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      _trackRecentApp(app.id);
-      openApp(app.id);
-      closeStartMenu();
-    }
-  });
-  return item;
+  return tile;
 }
 
 function renderStartMenu() {
@@ -662,102 +646,118 @@ function renderStartMenu() {
   if (!container) return;
   container.innerHTML = '';
 
-  // Search box
+  // ── Search box ──
   const searchBox = document.createElement('div');
-  searchBox.className = 'start-menu-search';
-  searchBox.innerHTML = `<input type="text" placeholder="Buscar app..." id="startMenuSearch"
-    oninput="filterStartMenu(this.value)"
-    onkeydown="window._startMenuKeyNav(event)" />`;
+  searchBox.className = 'lp-search';
+  searchBox.innerHTML = `
+    <span class="lp-search-icon" aria-hidden="true">\u{1F50D}</span>
+    <input type="text" placeholder="Buscar apps..." id="startMenuSearch"
+      oninput="filterStartMenu(this.value)"
+      onkeydown="window._startMenuKeyNav(event)" />
+  `;
   container.appendChild(searchBox);
 
-  // Running apps section
-  const runningApps = OS_APPS.filter(a => !a.hidden && Object.values(_windows).some(w => w.appId === a.id));
-  if (runningApps.length > 0) {
-    const section = document.createElement('div');
-    section.className = 'start-menu-section start-menu-section-running';
-    section.dataset.category = '_running';
-    section.innerHTML = '<div class="start-menu-section-header"><span class="start-menu-section-icon">\u{1F7E2}</span><span>Em execucao</span></div>';
-    for (const app of runningApps) {
-      section.appendChild(_makeStartMenuItem(app));
-    }
-    container.appendChild(section);
-  }
-
-  // Recent apps section
-  const recentIds = _getRecentApps();
-  const recentApps = recentIds
-    .map(id => OS_APPS.find(a => a.id === id && !a.hidden))
-    .filter(Boolean)
-    .filter(a => !runningApps.some(r => r.id === a.id))  // don't duplicate running
-    .slice(0, 4);
-  if (recentApps.length > 0) {
-    const section = document.createElement('div');
-    section.className = 'start-menu-section start-menu-section-recent';
-    section.dataset.category = '_recent';
-    section.innerHTML = '<div class="start-menu-section-header"><span class="start-menu-section-icon">\u{1F552}</span><span>Recentes</span></div>';
-    for (const app of recentApps) {
-      section.appendChild(_makeStartMenuItem(app));
-    }
-    container.appendChild(section);
-  }
-
-  // Categorized apps
-  const categorizedIds = new Set(APP_CATEGORIES.flatMap(c => c.apps));
+  // ── Category tabs ──
+  const tabs = document.createElement('div');
+  tabs.className = 'lp-tabs';
+  const allTab = document.createElement('button');
+  allTab.type = 'button';
+  allTab.className = 'lp-tab' + (_activeLaunchpadCat === 'all' ? ' lp-tab-active' : '');
+  allTab.textContent = 'Todos';
+  allTab.onclick = () => { _activeLaunchpadCat = 'all'; renderStartMenu(); };
+  tabs.appendChild(allTab);
   for (const cat of APP_CATEGORIES) {
-    const apps = cat.apps.map(id => OS_APPS.find(a => a.id === id && !a.hidden)).filter(Boolean);
-    if (apps.length === 0) continue;
-    const section = document.createElement('div');
-    section.className = 'start-menu-section';
-    section.dataset.category = cat.id;
-    section.innerHTML = `<div class="start-menu-section-header" onclick="window._toggleStartCategory('${cat.id}')">
-      <span class="start-menu-section-icon">${cat.icon}</span>
-      <span>${cat.label}</span>
-      <span class="start-menu-section-count">${apps.length}</span>
-      <span class="start-menu-section-arrow">\u25BE</span>
-    </div>`;
-    const body = document.createElement('div');
-    body.className = 'start-menu-section-body';
-    body.id = `startCat_${cat.id}`;
-    for (const app of apps) {
-      body.appendChild(_makeStartMenuItem(app));
+    const tab = document.createElement('button');
+    tab.type = 'button';
+    tab.className = 'lp-tab' + (_activeLaunchpadCat === cat.id ? ' lp-tab-active' : '');
+    tab.innerHTML = `<span class="lp-tab-icon">${cat.icon}</span><span>${cat.label}</span>`;
+    tab.onclick = () => { _activeLaunchpadCat = cat.id; renderStartMenu(); };
+    tabs.appendChild(tab);
+  }
+  container.appendChild(tabs);
+
+  // ── Grid body ──
+  const body = document.createElement('div');
+  body.className = 'lp-body';
+  body.id = 'lpBody';
+
+  if (_activeLaunchpadCat === 'all') {
+    // Show: Running (if any) + Recent (if any) + Every category as a section
+    const runningApps = OS_APPS.filter(a => !a.hidden && Object.values(_windows).some(w => w.appId === a.id));
+    if (runningApps.length > 0) {
+      body.appendChild(_makeLaunchpadSection('Em execucao', '\u{1F7E2}', runningApps, 'lp-sec-running'));
     }
-    section.appendChild(body);
-    container.appendChild(section);
+    const recentIds = _getRecentApps();
+    const recentApps = recentIds
+      .map(id => OS_APPS.find(a => a.id === id && !a.hidden))
+      .filter(Boolean)
+      .filter(a => !runningApps.some(r => r.id === a.id))
+      .slice(0, 8);
+    if (recentApps.length > 0) {
+      body.appendChild(_makeLaunchpadSection('Recentes', '\u{1F552}', recentApps, 'lp-sec-recent'));
+    }
+    const categorizedIds = new Set(APP_CATEGORIES.flatMap(c => c.apps));
+    for (const cat of APP_CATEGORIES) {
+      const apps = cat.apps.map(id => OS_APPS.find(a => a.id === id && !a.hidden)).filter(Boolean);
+      if (apps.length === 0) continue;
+      body.appendChild(_makeLaunchpadSection(cat.label, cat.icon, apps));
+    }
+    const uncategorized = OS_APPS.filter(a => !a.hidden && !categorizedIds.has(a.id));
+    if (uncategorized.length > 0) {
+      body.appendChild(_makeLaunchpadSection('Outros', '\u{1F4C2}', uncategorized));
+    }
+  } else {
+    // Show single category as flat grid (no section header)
+    const cat = APP_CATEGORIES.find(c => c.id === _activeLaunchpadCat);
+    if (cat) {
+      const apps = cat.apps.map(id => OS_APPS.find(a => a.id === id && !a.hidden)).filter(Boolean);
+      const grid = document.createElement('div');
+      grid.className = 'lp-grid';
+      for (const app of apps) grid.appendChild(_makeLaunchpadTile(app));
+      body.appendChild(grid);
+    }
   }
 
-  // Uncategorized apps (safety net)
-  const uncategorized = OS_APPS.filter(a => !a.hidden && !categorizedIds.has(a.id));
-  if (uncategorized.length > 0) {
-    const section = document.createElement('div');
-    section.className = 'start-menu-section';
-    section.dataset.category = '_other';
-    section.innerHTML = '<div class="start-menu-section-header"><span class="start-menu-section-icon">\u{1F4C2}</span><span>Outros</span></div>';
-    const body = document.createElement('div');
-    body.className = 'start-menu-section-body';
-    for (const app of uncategorized) {
-      body.appendChild(_makeStartMenuItem(app));
-    }
-    section.appendChild(body);
-    container.appendChild(section);
-  }
+  container.appendChild(body);
 
-  // Power section
-  const powerSep = document.createElement('div');
-  powerSep.className = 'start-menu-sep';
-  container.appendChild(powerSep);
-  const restart = document.createElement('div');
-  restart.className = 'start-menu-item start-menu-power';
-  restart.innerHTML = '<span class="start-menu-item-icon">\u{1F504}</span><span>Reiniciar</span>';
-  restart.onclick = () => location.reload();
-  container.appendChild(restart);
-  const shutdown = document.createElement('div');
-  shutdown.className = 'start-menu-item start-menu-power';
-  shutdown.innerHTML = '<span class="start-menu-item-icon">\u23FB</span><span>Desligar</span>';
-  shutdown.onclick = () => { closeStartMenu(); runShutdownSequence(); };
-  container.appendChild(shutdown);
+  // ── Footer ──
+  const footer = document.createElement('div');
+  footer.className = 'lp-footer';
+  footer.innerHTML = `
+    <button type="button" class="lp-footer-btn" onclick="location.reload()" title="Reiniciar">
+      <span>\u{1F504}</span><span>Reiniciar</span>
+    </button>
+    <button type="button" class="lp-footer-btn" onclick="window._launchpadShutdown()" title="Desligar">
+      <span>\u23FB</span><span>Desligar</span>
+    </button>
+    <span class="lp-footer-hint">ESC para fechar</span>
+  `;
+  container.appendChild(footer);
 
   setTimeout(() => { const sb = document.getElementById('startMenuSearch'); if (sb) sb.focus(); }, 50);
 }
+
+function _makeLaunchpadSection(label, icon, apps, extraClass = '') {
+  const section = document.createElement('div');
+  section.className = 'lp-section ' + extraClass;
+  section.innerHTML = `
+    <div class="lp-section-header">
+      <span class="lp-section-icon">${icon}</span>
+      <span class="lp-section-label">${label}</span>
+      <span class="lp-section-count">${apps.length}</span>
+    </div>
+  `;
+  const grid = document.createElement('div');
+  grid.className = 'lp-grid';
+  for (const app of apps) grid.appendChild(_makeLaunchpadTile(app));
+  section.appendChild(grid);
+  return section;
+}
+
+window._launchpadShutdown = function() {
+  closeStartMenu();
+  runShutdownSequence();
+};
 
 // Toggle category collapse
 window._toggleStartCategory = function(catId) {
@@ -768,25 +768,25 @@ window._toggleStartCategory = function(catId) {
   if (arrow) arrow.textContent = body.classList.contains('collapsed') ? '\u25B8' : '\u25BE';
 };
 
-// Keyboard navigation within start menu
+// Keyboard navigation within Launchpad
 window._startMenuKeyNav = function(e) {
   if (e.key === 'Enter') {
     e.preventDefault();
     openFirstVisibleApp();
     return;
   }
-  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
     e.preventDefault();
-    const items = [...document.querySelectorAll('#startMenuApps .start-menu-item:not([style*="display: none"])')];
-    if (!items.length) return;
-    items.forEach(el => el.classList.remove('start-menu-item-active'));
-    if (e.key === 'ArrowDown') {
-      _startMenuIdx = (_startMenuIdx + 1) % items.length;
+    const tiles = [...document.querySelectorAll('#startMenuApps .lp-tile:not([style*="display: none"])')];
+    if (!tiles.length) return;
+    tiles.forEach(el => el.classList.remove('lp-tile-active'));
+    if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+      _startMenuIdx = (_startMenuIdx + 1) % tiles.length;
     } else {
-      _startMenuIdx = (_startMenuIdx - 1 + items.length) % items.length;
+      _startMenuIdx = (_startMenuIdx - 1 + tiles.length) % tiles.length;
     }
-    items[_startMenuIdx].classList.add('start-menu-item-active');
-    items[_startMenuIdx].scrollIntoView({ block: 'nearest' });
+    tiles[_startMenuIdx].classList.add('lp-tile-active');
+    tiles[_startMenuIdx].scrollIntoView({ block: 'nearest' });
   }
   if (e.key === 'Escape') {
     e.preventDefault();
@@ -796,40 +796,25 @@ window._startMenuKeyNav = function(e) {
 
 export function filterStartMenu(query) {
   const q = query.toLowerCase().trim();
-  // Filter individual items
-  const items = document.querySelectorAll('#startMenuApps .start-menu-item:not(.start-menu-power)');
-  items.forEach(item => {
-    const name = item.dataset.name || '';
-    item.style.display = (!q || name.includes(q)) ? '' : 'none';
+  const tiles = document.querySelectorAll('#startMenuApps .lp-tile');
+  tiles.forEach(tile => {
+    const name = tile.dataset.name || '';
+    tile.style.display = (!q || name.includes(q)) ? '' : 'none';
   });
-  // Hide section headers if all items hidden, show all if searching
-  const sections = document.querySelectorAll('#startMenuApps .start-menu-section');
-  sections.forEach(section => {
-    const visibleItems = section.querySelectorAll('.start-menu-item:not([style*="display: none"])');
-    section.style.display = visibleItems.length > 0 ? '' : 'none';
-    // Expand all when searching
-    const body = section.querySelector('.start-menu-section-body');
-    if (body && q) body.classList.remove('collapsed');
+  // Hide section headers whose grid is fully hidden
+  document.querySelectorAll('#startMenuApps .lp-section').forEach(sec => {
+    const visibleTiles = sec.querySelectorAll('.lp-tile:not([style*="display: none"])');
+    sec.style.display = visibleTiles.length > 0 ? '' : 'none';
   });
-  // Hide running/recent sections when searching (show only categorized results)
-  if (q) {
-    document.querySelectorAll('.start-menu-section-running, .start-menu-section-recent').forEach(s => {
-      s.style.display = 'none';
-    });
-  } else {
-    document.querySelectorAll('.start-menu-section-running, .start-menu-section-recent').forEach(s => {
-      s.style.display = '';
-    });
-  }
   _startMenuIdx = -1;
 }
 
 export function openFirstVisibleApp() {
-  const active = document.querySelector('#startMenuApps .start-menu-item.start-menu-item-active');
+  const active = document.querySelector('#startMenuApps .lp-tile.lp-tile-active');
   if (active) { active.click(); return; }
-  const items = document.querySelectorAll('#startMenuApps .start-menu-item:not(.start-menu-power)');
-  for (const item of items) {
-    if (item.style.display !== 'none' && item.dataset.name) { item.click(); return; }
+  const tiles = document.querySelectorAll('#startMenuApps .lp-tile');
+  for (const tile of tiles) {
+    if (tile.style.display !== 'none') { tile.click(); return; }
   }
 }
 

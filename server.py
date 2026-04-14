@@ -5,6 +5,7 @@ DON'T PANIC.
 """
 
 import asyncio
+import importlib
 import json
 import os
 import re
@@ -1431,6 +1432,52 @@ async def download_kokoro_model():
 async def list_kokoro_voices():
     """List all Kokoro voices grouped by language"""
     return {"voices": KOKORO_VOICES, "available": check_kokoro()}
+
+
+@app.post("/api/tts/kokoro/install")
+async def install_kokoro_package():
+    """Install kokoro-onnx + soundfile via pip (streaming SSE progress).
+
+    Permite instalacao 1-click pelo app Configuracoes — usuario nao precisa
+    abrir terminal. Apos instalar, o endpoint /download baixa os ~300MB dos
+    modelos ONNX e tudo passa a rodar offline.
+    """
+    async def generate():
+        global _kokoro_available
+        import subprocess, sys as _sys
+        # Check if already installed
+        try:
+            import kokoro_onnx  # noqa: F401
+            yield f"data: {json.dumps({'status': 'done', 'message': 'kokoro-onnx ja instalado'})}\n\n"
+            return
+        except ImportError:
+            pass
+
+        yield f"data: {json.dumps({'status': 'installing', 'message': 'Instalando kokoro-onnx + soundfile via pip...'})}\n\n"
+        try:
+            cmd = [_sys.executable, "-m", "pip", "install", "--quiet",
+                   "kokoro-onnx", "soundfile"]
+            proc = await asyncio.create_subprocess_exec(
+                *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await proc.communicate()
+            if proc.returncode != 0:
+                err = (stderr.decode(errors="ignore") or stdout.decode(errors="ignore"))[-500:]
+                yield f"data: {json.dumps({'status': 'error', 'error': 'pip install falhou: ' + err})}\n\n"
+                return
+
+            # Verify import
+            try:
+                importlib.invalidate_caches()
+                import kokoro_onnx  # noqa: F401
+                _kokoro_available = None  # force re-check
+                yield f"data: {json.dumps({'status': 'done', 'message': 'kokoro-onnx instalado! Agora baixe os modelos (~300MB).'})}\n\n"
+            except ImportError as e:
+                yield f"data: {json.dumps({'status': 'error', 'error': 'instalado mas import falhou: ' + str(e)})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'status': 'error', 'error': str(e)})}\n\n"
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
 
 
 # ─── Chat (streaming) — texto puro ──────────────────────────────────────────
