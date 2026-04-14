@@ -1140,9 +1140,13 @@ Responda no idioma do usuario. Use markdown.</textarea>
       <div class="wiki-frame-wrap">
         <iframe id="wikiFrame" class="wiki-frame" src="about:blank"></iframe>
         <div class="wiki-offline-msg hidden" id="wikiOfflineMsg">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
-          <p>Wikipedia offline nao disponivel.</p>
-          <p class="wiki-hint">Coloque arquivos <code>.zim</code> em <code>data/zim/</code> e reinicie.</p>
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+          <p>Nenhum arquivo Wikipedia encontrado.</p>
+          <p class="wiki-hint">Baixe um arquivo <strong>.zim</strong> para ter acesso offline completo.</p>
+          <button class="wiki-dl-btn" onclick="openApp('library')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Abrir Download Manager
+          </button>
         </div>
       </div>
     </div>

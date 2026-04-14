@@ -2474,6 +2474,22 @@ body::after {
   font-family: var(--font-mono);
   font-size: 11px;
 }
+.wiki-dl-btn {
+  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 20px;
+  background: var(--accent);
+  color: #000;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: opacity .15s;
+}
+.wiki-dl-btn:hover { opacity: .85; }
 .wiki-search {
   display: flex;
   align-items: center;
