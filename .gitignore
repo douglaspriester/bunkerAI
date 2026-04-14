@@ -18,3 +18,8 @@ voice_models/
 *.wav
 *.mp3
 tools/pmtiles.exe
+
+# OS/editor junk
+.DS_Store
+*.bak
+*.tmp
