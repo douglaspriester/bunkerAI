@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BunkerAI — Offline Survival OS</title>
+<meta name="description" content="BunkerAI is an offline-first operating system that runs in your browser. Local LLM, RAG, offline Wikipedia, survival tools, and 40+ apps.">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%23000'/><text x='50%25' y='55%25' font-family='monospace' font-size='20' font-weight='900' fill='%2300ff9c' text-anchor='middle' dominant-baseline='middle'>B</text></svg>">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="tag">// BUNKERAI v0.1.0 · offline survival OS</div>
+    <h1>WHEN THE INTERNET DIES...</h1>
+    <p class="sub">...you'll wish you had this on a USB stick.</p>
+    <p class="lede">A fully offline operating system that runs in your browser. Local LLM, RAG over everything, offline Wikipedia, offline maps, survival toolkit, mini desktop environment, and 40+ apps. Zero telemetry.</p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/douglaspriester/bunkerAI">Get it on GitHub →</a>
+      <a class="btn ghost" href="#stack">How it works</a>
+    </div>
+    <div class="mini">
+      <span>●&nbsp;100% offline</span>
+      <span>●&nbsp;zero telemetry</span>
+      <span>●&nbsp;portable monolith</span>
+      <span>●&nbsp;no build step</span>
+      <span>●&nbsp;MIT</span>
+    </div>
+  </div>
+</header>
+
+<section class="features">
+  <div class="wrap">
+    <h2>// the toolkit</h2>
+    <div class="grid">
+
+      <article class="card">
+        <div class="icon">⌬</div>
+        <h3>Local AI</h3>
+        <p>Chat, voice, vision, and image generation — all running on your machine via Ollama + llama.cpp. Uncensored models included.</p>
+      </article>
+
+      <article class="card">
+        <div class="icon">☰</div>
+        <h3>Offline Library</h3>
+        <p>Wikipedia, iFixit, Project Gutenberg, Stack Overflow — bundled as Kiwix ZIMs. Searchable without a connection.</p>
+      </article>
+
+      <article class="card">
+        <div class="icon">◎</div>
+        <h3>Offline Maps</h3>
+        <p>Leaflet + Protomaps PMTiles. GPS support. Markers for water, shelter, hazards, food, medical, supplies.</p>
+      </article>
+
+      <article class="card">
+        <div class="icon">✚</div>
+        <h3>Survival Toolkit</h3>
+        <p>16 guides, 10 emergency protocols as decision trees, water purification, first aid, ration planner, plant database, celestial navigation.</p>
+      </article>
+
+      <article class="card">
+        <div class="icon">▣</div>
+        <h3>Mini Desktop</h3>
+        <p>Draggable windows, taskbar, start menu. Notepad, word processor, spreadsheet, paint, terminal, file manager. Cyberpunk dark.</p>
+      </article>
+
+      <article class="card">
+        <div class="icon">◈</div>
+        <h3>Portable Monolith</h3>
+        <p>Copy <code>server.py</code> + <code>static/</code> to a USB stick. Run it anywhere with Python and Ollama. No build, no framework.</p>
+      </article>
+
+      <article class="card">
+        <div class="icon">▷</div>
+        <h3>Media & Games</h3>
+        <p>8 HTML5 games, ROM emulator for GB / GBA / NES, EPUB reader, media player. Because morale matters too.</p>
+      </article>
+
+      <article class="card">
+        <div class="icon">⌧</div>
+        <h3>Zero Telemetry</h3>
+        <p>Nothing leaves the box. Not a single external call after setup. Single SQLite file holds all state — one file to back up.</p>
+      </article>
+
+    </div>
+  </div>
+</section>
+
+<section id="stack" class="stack">
+  <div class="wrap">
+    <h2>// the stack</h2>
+    <div class="stack-grid">
+      <div class="pill">Python 3.10+ · FastAPI</div>
+      <div class="pill">Vanilla HTML / CSS / JS</div>
+      <div class="pill">SQLite (FTS5 + vectors)</div>
+      <div class="pill">Ollama + llama.cpp</div>
+      <div class="pill">Leaflet + Protomaps</div>
+      <div class="pill">Kiwix ZIMs</div>
+      <div class="pill">faster-whisper · Piper · Kokoro</div>
+      <div class="pill">Stable Diffusion (local)</div>
+    </div>
+    <p class="note">One 4500-line <code>server.py</code>. No node_modules. No Docker required. Built to still run in 10 years.</p>
+  </div>
+</section>
+
+<section class="start">
+  <div class="wrap">
+    <h2>// get started</h2>
+    <pre><code>git clone https://github.com/douglaspriester/bunkerAI.git
+cd bunkerAI
+./start.sh      # or start.bat on Windows</code></pre>
+    <p class="note">Requires Python 3.10+ and <a href="https://ollama.com">Ollama</a>. NVIDIA GPU 8GB+ recommended, CPU works but slower.</p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/douglaspriester/bunkerAI">Source on GitHub →</a>
+      <a class="btn ghost" href="https://github.com/douglaspriester/bunkerAI/blob/main/README.md">README</a>
+      <a class="btn ghost" href="https://github.com/douglaspriester/bunkerAI/blob/main/ARCHITECTURE.md">Architecture</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p><strong>BunkerAI</strong> · <span class="dim">offline survival OS</span></p>
+    <p class="dim">MIT License · built solo · <a href="https://github.com/douglaspriester/bunkerAI">github.com/douglaspriester/bunkerAI</a></p>
+    <p class="quote">"DON'T PANIC."</p>
+  </div>
+</footer>
+
+</body>
+</html>
