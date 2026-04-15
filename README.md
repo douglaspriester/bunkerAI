@@ -4,7 +4,7 @@
 </p>
 
 <p align="center">
-  <a href="README.pt-BR.md">Portugues</a> · <a href="docs/ARCHITECTURE.md">Architecture</a> · <a href="docs/API.md">API Reference</a> · <a href="ROADMAP.md">Roadmap</a>
+  <a href="https://douglaspriester.github.io/bunkerAI">Website</a> · <a href="README.pt-BR.md">Portugues</a> · <a href="docs/ARCHITECTURE.md">Architecture</a> · <a href="docs/API.md">API Reference</a> · <a href="ROADMAP.md">Roadmap</a> · <a href="CHANGELOG.md">Changelog</a>
 </p>
 
 <p align="center">
@@ -214,3 +214,9 @@ bunkerAI/
 ---
 
 *DON'T PANIC — Bunker AI*
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).

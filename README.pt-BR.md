@@ -125,3 +125,9 @@ O script faz tudo automaticamente:
 ---
 
 *DON'T PANIC — Bunker AI*
+
+---
+
+## Licenca
+
+MIT — veja [LICENSE](LICENSE).
